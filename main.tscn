@@ -1,0 +1,52 @@
+[gd_scene load_steps=11 format=3 uid="uid://bxwagnsq7krdc"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_7dm0k"]
+sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
+ground_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
+
+[sub_resource type="Sky" id="Sky_ig7tw"]
+sky_material = SubResource("ProceduralSkyMaterial_7dm0k")
+
+[sub_resource type="Environment" id="Environment_0xm2m"]
+background_mode = 2
+sky = SubResource("Sky_ig7tw")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7dm0k"]
+vertex_color_use_as_albedo = true
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_ig7tw"]
+
+[sub_resource type="VoxelGeneratorNoise2D" id="VoxelGeneratorNoise2D_0xm2m"]
+noise = SubResource("FastNoiseLite_ig7tw")
+channel = 0
+
+[sub_resource type="VoxelBlockyModelEmpty" id="VoxelBlockyModelEmpty_7dm0k"]
+
+[sub_resource type="VoxelBlockyModelCube" id="VoxelBlockyModelCube_ig7tw"]
+
+[sub_resource type="VoxelBlockyLibrary" id="VoxelBlockyLibrary_0xm2m"]
+models = Array[VoxelBlockyModel]([SubResource("VoxelBlockyModelEmpty_7dm0k"), SubResource("VoxelBlockyModelCube_ig7tw")])
+
+[sub_resource type="VoxelMesherBlocky" id="VoxelMesherBlocky_h2yge"]
+library = SubResource("VoxelBlockyLibrary_0xm2m")
+
+[node name="Node3D" type="Node3D"]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 147.836, 0)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_0xm2m")
+
+[node name="VoxelTerrain" type="VoxelTerrain" parent="."]
+material_override = SubResource("StandardMaterial3D_7dm0k")
+generator = SubResource("VoxelGeneratorNoise2D_0xm2m")
+mesher = SubResource("VoxelMesherBlocky_h2yge")
+visible = false
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 100, 64.695)
+
+[node name="VoxelViewer" type="VoxelViewer" parent="Camera3D"]
