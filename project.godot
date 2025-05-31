@@ -15,7 +15,6 @@ run/main_scene="uid://bxwagnsq7krdc"
 config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
 
-
 [input]
 
 move_forward={
@@ -52,3 +51,18 @@ crouch={
 [player]
 
 look_sensitivity=0.01
+
+[shader_globals]
+
+heightmap={
+"type": "sampler2D",
+"value": "res://heightmap/heightmap.png"
+}
+normalmap={
+"type": "sampler2D",
+"value": "res://heightmap/normalmap.png"
+}
+amplitude={
+"type": "float",
+"value": 8.0
+}
