@@ -15,6 +15,10 @@ run/main_scene="uid://bxwagnsq7krdc"
 config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
 
+[autoload]
+
+Heightmap="*res://heightmap/Heightmap.gd"
+
 [input]
 
 move_forward={

@@ -1,7 +1,8 @@
-[gd_scene load_steps=6 format=3 uid="uid://bxwagnsq7krdc"]
+[gd_scene load_steps=7 format=3 uid="uid://bxwagnsq7krdc"]
 
 [ext_resource type="PackedScene" uid="uid://bu3vtmwnoul1u" path="res://player/player_character.tscn" id="1_ig7tw"]
 [ext_resource type="PackedScene" uid="uid://f2fu28fs3ju7" path="res://clipmap/clipmap.tscn" id="2_h2yge"]
+[ext_resource type="PackedScene" uid="uid://cci3nbyq2ysy4" path="res://collisionmap/collisionmap.tscn" id="3_h2yge"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_7dm0k"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -22,10 +23,15 @@ glow_enabled = true
 environment = SubResource("Environment_0xm2m")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.891007, 0, 0.453991, 0, 1, 0, -0.453991, 0, 0.891007, 0, 147.836, 22)
+transform = Transform3D(1, 0, 0, 0, 0.982935, 0.183952, 0, -0.183951, 0.982936, 0, 147.836, 22)
 shadow_enabled = true
 
 [node name="PlayerCharacter" parent="." instance=ExtResource("1_ig7tw")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.14335, 0)
 
-[node name="Clipmap" parent="." node_paths=PackedStringArray("player_character") instance=ExtResource("2_h2yge")]
-player_character = NodePath("../PlayerCharacter")
+[node name="Terrain" type="StaticBody3D" parent="."]
+
+[node name="Collisionmap" parent="Terrain" instance=ExtResource("3_h2yge")]
+
+[node name="Clipmap" parent="Terrain" node_paths=PackedStringArray("player_character") instance=ExtResource("2_h2yge")]
+player_character = NodePath("../../PlayerCharacter")

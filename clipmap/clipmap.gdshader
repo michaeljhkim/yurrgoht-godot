@@ -9,13 +9,14 @@ varying vec2 texture_position;
 // Called for every vertex the material is visible on.
 void vertex() {
 	vec3 world_position = VERTEX + MODEL_MATRIX[3].xyz;
-	texture_position = world_position.xz / float(textureSize(heightmap,0).x);
+	texture_position = (world_position.xz + 0.5) / float(textureSize(heightmap,0).x);
 	VERTEX.y = texture(heightmap, texture_position).r * amplitude;
 }
 
 // Called for every pixel the material is visible on.
 void fragment() {
 	NORMAL_MAP = texture(normalmap, texture_position).rgb;
+	ALBEDO = vec3(0);
 }
 
 //void light() {
