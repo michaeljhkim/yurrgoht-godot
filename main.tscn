@@ -27,11 +27,12 @@ transform = Transform3D(1, 0, 0, 0, 0.982935, 0.183952, 0, -0.183951, 0.982936, 
 shadow_enabled = true
 
 [node name="PlayerCharacter" parent="." instance=ExtResource("1_ig7tw")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.14335, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 16.0958, 0)
 
 [node name="Terrain" type="StaticBody3D" parent="."]
 
-[node name="Collisionmap" parent="Terrain" instance=ExtResource("3_h2yge")]
+[node name="Collisionmap" parent="Terrain" node_paths=PackedStringArray("physics_body") instance=ExtResource("3_h2yge")]
+physics_body = NodePath("../../PlayerCharacter")
 
 [node name="Clipmap" parent="Terrain" node_paths=PackedStringArray("player_character") instance=ExtResource("2_h2yge")]
 player_character = NodePath("../../PlayerCharacter")

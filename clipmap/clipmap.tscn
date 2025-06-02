@@ -1,9 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://f2fu28fs3ju7"]
+[gd_scene load_steps=2 format=3 uid="uid://f2fu28fs3ju7"]
 
 [ext_resource type="Script" uid="uid://claxcm5hnvlpo" path="res://clipmap/clipmap.gd" id="1_3ufxf"]
-[ext_resource type="PackedScene" uid="uid://cuk47odbhjfub" path="res://clipmap/clipmap_partition.tscn" id="2_3ufxf"]
 
 [node name="Clipmap" type="Node3D"]
 script = ExtResource("1_3ufxf")
-
-[node name="Partition" parent="." instance=ExtResource("2_3ufxf")]

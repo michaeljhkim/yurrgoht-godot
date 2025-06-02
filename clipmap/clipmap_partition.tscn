@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://cuk47odbhjfub"]
+[gd_scene load_steps=4 format=3 uid="uid://cuk47odbhjfub"]
 
 [ext_resource type="Shader" uid="uid://be0bvyomg26tk" path="res://clipmap/clipmap.gdshader" id="1_vwd55"]
 [ext_resource type="Script" uid="uid://ccx8ti1v2e2dh" path="res://clipmap/clipmap_partition.gd" id="2_hgtnr"]
@@ -7,13 +7,8 @@
 render_priority = 0
 shader = ExtResource("1_vwd55")
 
-[sub_resource type="PlaneMesh" id="PlaneMesh_ig7tw"]
-size = Vector2(128, 128)
-subdivide_width = 127
-subdivide_depth = 511
-
 [node name="Partition" type="MeshInstance3D"]
 material_override = SubResource("ShaderMaterial_tuw53")
-mesh = SubResource("PlaneMesh_ig7tw")
+extra_cull_margin = 512.0
 skeleton = NodePath("../..")
 script = ExtResource("2_hgtnr")

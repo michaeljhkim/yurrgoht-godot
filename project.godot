@@ -70,3 +70,15 @@ amplitude={
 "type": "float",
 "value": 8.0
 }
+clipmap_partition_length={
+"type": "float",
+"value": 16.0
+}
+clipmap_position={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+lod_step={
+"type": "float",
+"value": 2.0
+}

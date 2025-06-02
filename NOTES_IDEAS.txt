@@ -17,3 +17,7 @@ CURRENT PLAN:
 - I need to create a biome layer (2d noise map)
 - I need to create a erosion layer
 - I need 1 layer for each random element: rivers, trees, lakes, towns, cliffs, e.t.c
+
+- Create the base terrain with standard heightmap meshes, and then generate voxels only for overhanging terrain and caves
+- Because the terrain is static, and caves/overhang should be mildly sparse, it should still be faster than pure voxels
+- Hard part would be to figure out how to stitch the 2 meshes
