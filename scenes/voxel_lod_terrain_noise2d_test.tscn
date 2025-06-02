@@ -1,0 +1,21 @@
+[gd_scene load_steps=4 format=3 uid="uid://dv6d7cnr8ctee"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_o5qli"]
+frequency = 0.0035
+
+[sub_resource type="VoxelGeneratorNoise2D" id="VoxelGeneratorNoise2D_0wfyh"]
+noise = SubResource("FastNoiseLite_o5qli")
+height_range = 50.0
+
+[sub_resource type="VoxelMesherTransvoxel" id="VoxelMesherTransvoxel_sgp6g"]
+texturing_mode = 1
+transitions_enabled = false
+
+[node name="VoxelLodTerrain" type="VoxelLodTerrain"]
+view_distance = 128
+voxel_bounds = AABB(-12800, -12800, -12800, 25600, 25600, 25600)
+normalmap_enabled = true
+streaming_system = 1
+generator = SubResource("VoxelGeneratorNoise2D_0wfyh")
+mesher = SubResource("VoxelMesherTransvoxel_sgp6g")
+cast_shadow = 0
