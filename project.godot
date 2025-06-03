@@ -64,17 +64,13 @@ look_sensitivity=0.01
 
 [shader_globals]
 
-heightmap={
-"type": "sampler2D",
-"value": "res://heightmap/heightmap.png"
-}
 normalmap={
 "type": "sampler2D",
 "value": "res://heightmap/normalmap.png"
 }
 amplitude={
 "type": "float",
-"value": 16.0
+"value": 32.0
 }
 clipmap_position={
 "type": "vec3",
@@ -86,5 +82,9 @@ lod_step={
 }
 clipmap_partition_length={
 "type": "float",
-"value": 256.0
+"value": 512.0
+}
+heightmap={
+"type": "sampler2D",
+"value": "res://heightmap/heightmap.png"
 }

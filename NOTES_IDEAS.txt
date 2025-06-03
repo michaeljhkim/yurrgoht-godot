@@ -22,8 +22,8 @@ CURRENT PLAN:
 - Because the terrain is static, and caves/overhang should be mildly sparse, it should still be faster than pure voxels
 - Hard part would be to figure out how to stitch the 2 meshes
 
+NOISE RELATED:
 - The noise map can be generated in script, but would be extremely slow. Instead, generate using compute shaders
-
 - Compute shaders can be configured so that each vertex's heightmap are computed in parallel. Loops are discouraged.
 
 - Downloading GPU processed data to CPU is slow, but it is fast to send CPU data to GPU. 
@@ -31,6 +31,22 @@ CURRENT PLAN:
 
 - First step is to create the compute shader code and attempt base code before double buffers and such.
 - initialize the shader stuff at clipmap _ready() - will only run once on clipmap init
+
+- Okay, so the biggest reason as to why the terrain feels low res is because the image is low resolution as well. 
+- Even if we crammed the heightmap into a smaller mesh, it would also smoosh the general design, so that would be pointless
+- The gap between the vertices will be larger than I want, unless we use some sort of smoothening algorithm
+- speaking of which, remember to implement basic erosion
+
+- In theory, if vertices were shared between triangles, smooth shading would be easy. But it also removes the option for low-poly design
+
+TOMMORROW:
+- Write the compute shader stuff, make the heightmap calculate for much higher than 512 (1024 is next) 
+
+https://www.youtube.com/watch?v=jDM0m4WuBAg&t=247s&ab_channel=DitzyNinja%27sGodojo
+https://github.com/TheGodojo/Massive-Terrain-LOD-And-Stitching-COMPLETE
+https://docs.godotengine.org/en/stable/tutorials/shaders/compute_shaders.html
+https://github.com/godotengine/godot-demo-projects/blob/master/misc/compute_shader_heightmap/compute_shader.glsl
+https://github.com/KdotJPG/OpenSimplex2/blob/master/glsl/OpenSimplex2.glsl
 
 
  

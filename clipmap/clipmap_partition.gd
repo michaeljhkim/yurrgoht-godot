@@ -11,14 +11,13 @@ func _ready():
 	
 	mesh = PlaneMesh.new()
 	mesh.size = Vector2.ONE * length
-	
 	position = Vector3(x,0,z) * length
 	
 	var lod = max(abs(x),abs(z)) * lod_step
 	var subdivision_length = pow(2,lod)
 	
-	# commented out the actual application of LOD for testing
-	var subdivides = max(length / subdivision_length - 1, 0) 
+	# The 2.0 scale multiply has to be where it is, because the subdivision value must be 1 less than the scaled length
+	var subdivides = max(length / subdivision_length - 1, 0)
 	
 	mesh.subdivide_width = subdivides
 	mesh.subdivide_depth = subdivides
