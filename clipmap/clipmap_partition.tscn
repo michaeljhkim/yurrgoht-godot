@@ -9,6 +9,8 @@ shader = ExtResource("1_vwd55")
 
 [node name="Partition" type="MeshInstance3D"]
 material_override = SubResource("ShaderMaterial_tuw53")
+cast_shadow = 0
 extra_cull_margin = 512.0
+gi_mode = 2
 skeleton = NodePath("../..")
 script = ExtResource("2_hgtnr")

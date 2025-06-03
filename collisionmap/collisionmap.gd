@@ -8,16 +8,16 @@ extends CollisionShape3D
 
 func _ready():
 	update_shape()
-
+	
+	
 func _physics_process(delta):
-	var physics_body_rounded_position = physics_body.global_position.snapped(snap) * Vector3(1, 0, 1)
-	if not global_position == physics_body_rounded_position:
-		global_position = physics_body_rounded_position
+	var player_rounded_position = physics_body.global_position.snapped(snap) * Vector3(1,0,1)
+	if not global_position == player_rounded_position:
+		global_position = player_rounded_position
 		update_shape()
 	
 func update_shape():
 	for i in faces.size():
-		var vert = faces[i]
-		var global_vert = vert + global_position
-		faces[i].y = Heightmap.get_height(global_vert.x, global_vert.z)
+		var global_vert = faces[i] + global_position
+		faces[i].y = Heightmap.get_height(global_vert.x,global_vert.z)
 	shape.set_faces(faces)

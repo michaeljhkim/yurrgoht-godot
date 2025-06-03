@@ -19,7 +19,6 @@ shape = SubResource("CapsuleShape3D_og0ly")
 [node name="MeshInstance3d" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 material_override = SubResource("StandardMaterial3D_0jbkr")
-cast_shadow = 0
 mesh = SubResource("CapsuleMesh_asxit")
 
 [node name="Camera3d" type="Camera3D" parent="."]

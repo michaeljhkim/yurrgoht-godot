@@ -17,9 +17,9 @@ float true_round(float value) {
 	return floor(value + 0.5);
 }
 
-float get_height(vec3 world_vertex) {
-	vec2 heightmap_position = (world_vertex.xz + 0.5) / float(textureSize(heightmap,0).x);
-	return (texture(heightmap, heightmap_position).r-0.5) * amplitude;
+float get_height(vec3 world_vertex){
+	vec2 heightmap_position  = (world_vertex.xz + 0.5)/float(textureSize(heightmap,0).x);
+	return texture(heightmap, heightmap_position ).r * amplitude;
 }
 
 vec3 get_normal(vec3 vertex, float adjacent_distance) {
@@ -31,8 +31,8 @@ vec3 get_normal(vec3 vertex, float adjacent_distance) {
 	
 	return normalize(
 		cross(
-			north_vert-vertex,
-			west_vert-vertex
+			north_vert - vertex,
+			west_vert - vertex
 		)
 	);
 }
@@ -46,32 +46,33 @@ vec3 to_normalmap(vec3 n) {
 
 // Called for every vertex the material is visible on.
 void vertex() {
-	dev_albedo = vec3(1);
+	dev_albedo = vec3(0.1);
 	
 	vec3 world_vertex = VERTEX + MODEL_MATRIX[3].xyz;
-	normalmap_position = (world_vertex.xz + 0.5) / float(textureSize(heightmap,0).x);
+	normalmap_position = (world_vertex.xz + 0.5)/float(textureSize(heightmap,0).x);
 	VERTEX.y = get_height(world_vertex);
 	
 	vec3 clipmap_vertex = world_vertex - clipmap_position;
-	float lod = true_round( max(abs(clipmap_vertex.x), abs(clipmap_vertex.z)) / clipmap_partition_length) * lod_step;
+	float lod = true_round(max(abs(clipmap_vertex.x), abs(clipmap_vertex.z))/clipmap_partition_length) * lod_step;
 	
-	float subdivision_length = min((pow(2, lod)), clipmap_partition_length);
+	float subdivision_length = min(pow(2,lod), clipmap_partition_length);
 	
 	vec3 fraction = fract((VERTEX + clipmap_partition_length / 2.0) / subdivision_length);
 	
 	VERTEX.y = mix(
 		mix(
-			get_height(world_vertex - vec3(fraction.x * subdivision_length, 0, 0)),
-			get_height(world_vertex + vec3((1.0 - fraction.x) * subdivision_length, 0, 0)),
+			get_height(world_vertex - vec3(fraction.x * subdivision_length, 0, 0)), 
+			get_height(world_vertex + vec3((1.0-fraction.x) * subdivision_length, 0, 0)), 
 			fraction.x
-		),
+		), 
 		mix(
-			get_height(world_vertex - vec3(0, 0, fraction.z * subdivision_length)),
-			get_height(world_vertex + vec3(0, 0, (1.0 - fraction.z) * subdivision_length)),
+			get_height(world_vertex - vec3(0, 0, fraction.z * subdivision_length)), 
+			get_height(world_vertex + vec3(0, 0, (1.0-fraction.z) * subdivision_length)), 
 			fraction.z
-		),
+		), 
 		ceil(fraction.z)
 	);
+	
 	vert = world_vertex;
 }
 
@@ -82,6 +83,7 @@ void fragment() {
 	vec3 normal = get_normal(interpolated_vert, 1.0);
 	
 	NORMAL_MAP = to_normalmap(normal);
+	//NORMAL_MAP = texture(normalmap,normalmap_position).rgb;
 	ALBEDO = dev_albedo;
 }
 

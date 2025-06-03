@@ -19,6 +19,12 @@ config/icon="res://icon.svg"
 
 Heightmap="*res://heightmap/Heightmap.gd"
 
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/mode=2
+
 [input]
 
 move_forward={
@@ -68,10 +74,6 @@ normalmap={
 }
 amplitude={
 "type": "float",
-"value": 8.0
-}
-clipmap_partition_length={
-"type": "float",
 "value": 16.0
 }
 clipmap_position={
@@ -81,4 +83,8 @@ clipmap_position={
 lod_step={
 "type": "float",
 "value": 2.0
+}
+clipmap_partition_length={
+"type": "float",
+"value": 256.0
 }

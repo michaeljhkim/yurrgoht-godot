@@ -21,3 +21,16 @@ CURRENT PLAN:
 - Create the base terrain with standard heightmap meshes, and then generate voxels only for overhanging terrain and caves
 - Because the terrain is static, and caves/overhang should be mildly sparse, it should still be faster than pure voxels
 - Hard part would be to figure out how to stitch the 2 meshes
+
+- The noise map can be generated in script, but would be extremely slow. Instead, generate using compute shaders
+
+- Compute shaders can be configured so that each vertex's heightmap are computed in parallel. Loops are discouraged.
+
+- Downloading GPU processed data to CPU is slow, but it is fast to send CPU data to GPU. 
+- Create a double or triple buffer where CPU sends data to GPU in succession, and processes it right after.
+
+- First step is to create the compute shader code and attempt base code before double buffers and such.
+- initialize the shader stuff at clipmap _ready() - will only run once on clipmap init
+
+
+ 

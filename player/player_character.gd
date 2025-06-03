@@ -1,5 +1,5 @@
 extends CharacterBody3D
-@export var speed = 10
+@export var speed = 20
 @export var jump_velocity = 4.5
 @export var gravity_enabled = false
 var look_sensitivity = ProjectSettings.get_setting("player/look_sensitivity")
@@ -28,4 +28,3 @@ func _input(event):
 		rotate_y(-event.relative.x * look_sensitivity)
 		camera.rotate_x(-event.relative.y * look_sensitivity)
 		camera.rotation.x = clamp(camera.rotation.x, -PI/2, PI/2)
-
