@@ -3,7 +3,6 @@ extends MeshInstance3D
 var x = 0
 var z = 0
 
-
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	var length = ProjectSettings.get_setting("shader_globals/clipmap_partition_length").value
@@ -13,17 +12,16 @@ func _ready():
 	mesh.size = Vector2.ONE * length
 	position = Vector3(x,0,z) * length
 	
+	# make it so that the LOD changes every 2 chunks out.
+	# so transitions to less detailed chunks should be happening further from player now, regardless of square size
 	var lod = max(abs(x),abs(z)) * lod_step
 	var subdivision_length = pow(2,lod)
-	
-	# The 2.0 scale multiply has to be where it is, because the subdivision value must be 1 less than the scaled length
 	var subdivides = max(length / subdivision_length - 1, 0)
 	
 	mesh.subdivide_width = subdivides
 	mesh.subdivide_depth = subdivides
-
-
-
+	
+	
 # Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta):
+func _process(_delta):
 	pass

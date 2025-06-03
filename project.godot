@@ -82,7 +82,7 @@ lod_step={
 }
 clipmap_partition_length={
 "type": "float",
-"value": 512.0
+"value": 64.0
 }
 heightmap={
 "type": "sampler2D",

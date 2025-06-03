@@ -37,3 +37,4 @@ physics_body = NodePath("../../PlayerCharacter")
 
 [node name="Clipmap" parent="Terrain" node_paths=PackedStringArray("player_character") instance=ExtResource("2_h2yge")]
 player_character = NodePath("../../PlayerCharacter")
+shader_file = "uid://bj5665y854xw3"

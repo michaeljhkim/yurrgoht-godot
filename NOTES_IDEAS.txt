@@ -39,8 +39,15 @@ NOISE RELATED:
 
 - In theory, if vertices were shared between triangles, smooth shading would be easy. But it also removes the option for low-poly design
 
-TOMMORROW:
+
 - Write the compute shader stuff, make the heightmap calculate for much higher than 512 (1024 is next) 
+- The godot compute shader example generates the noise on cpu, and just applies it to the vertices on the gpu
+- Fast, accurate, and would allow combining noise algorithms fairly easily
+
+- When the layout says 8 specifically, it does not mean that it will only take 8x8 input nessecarily 
+- It just means thats the amount of the input that will be worked on at a time
+
+- The heightmap should only be generated once, or in large chunks
 
 https://www.youtube.com/watch?v=jDM0m4WuBAg&t=247s&ab_channel=DitzyNinja%27sGodojo
 https://github.com/TheGodojo/Massive-Terrain-LOD-And-Stitching-COMPLETE
@@ -49,4 +56,14 @@ https://github.com/godotengine/godot-demo-projects/blob/master/misc/compute_shad
 https://github.com/KdotJPG/OpenSimplex2/blob/master/glsl/OpenSimplex2.glsl
 
 
+TRACE OUTLINE:
+- The game starts
+- clipmap spawns, does its thing and spawns a clipmap_partition for every defined square in the grid
+- in the ready function of the clipmap, it intializes the compute shader
+- it creates a base image for the heightmap, where the seed, noise function, gradient, e.t.c is applied
+- this base image is passed off to the compute shader
+- the compute shader has specific values that define how many values it will be work with at a time
+- the compute shader should only be used for simple calculations that need to be done repeatedly, but the next results do not rely on the previous one
+
+- results are downloaded to the cpu (we need to do that for collision, otherwise I would've just passed it directly to the vertex shader)
  
