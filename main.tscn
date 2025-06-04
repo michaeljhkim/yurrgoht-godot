@@ -28,6 +28,7 @@ shadow_enabled = true
 
 [node name="PlayerCharacter" parent="." instance=ExtResource("1_ig7tw")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 43.1896, 0)
+speed = 50
 jump_velocity = 8.0
 
 [node name="Terrain" type="StaticBody3D" parent="."]
@@ -37,4 +38,3 @@ physics_body = NodePath("../../PlayerCharacter")
 
 [node name="Clipmap" parent="Terrain" node_paths=PackedStringArray("player_character") instance=ExtResource("2_h2yge")]
 player_character = NodePath("../../PlayerCharacter")
-shader_file = "uid://bj5665y854xw3"

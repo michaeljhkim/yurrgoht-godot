@@ -22,6 +22,35 @@ CURRENT PLAN:
 - Because the terrain is static, and caves/overhang should be mildly sparse, it should still be faster than pure voxels
 - Hard part would be to figure out how to stitch the 2 meshes
 
+
+
+
+https://www.youtube.com/watch?v=jDM0m4WuBAg&t=247s&ab_channel=DitzyNinja%27sGodojo
+https://github.com/TheGodojo/Massive-Terrain-LOD-And-Stitching-COMPLETE
+https://docs.godotengine.org/en/stable/tutorials/shaders/compute_shaders.html
+https://github.com/godotengine/godot-demo-projects/blob/master/misc/compute_shader_heightmap/compute_shader.glsl
+https://github.com/KdotJPG/OpenSimplex2/blob/master/glsl/OpenSimplex2.glsl
+
+terrain generator theory in general:
+https://youtu.be/QF2Nj1zME40
+
+TRACE OUTLINE:
+- The game starts
+- clipmap spawns, does its thing and spawns a clipmap_partition for every defined square in the grid
+- in the ready function of the clipmap, it intializes the compute shader
+- it creates an empty buffer for the heightmap image
+- noise is used just to get a random seed
+- gradient buffer is also created
+- this empty iamge buffer, along with the gradient buffer is passed off to the compute shader
+- the compute shader has specific values that define how many values it will be work with at a time
+- the compute shader should only be used for simple calculations that need to be done repeatedly, but the next results do not rely on the previous one
+
+- results are downloaded to the cpu (we need to do that for collision, otherwise I would've just passed it directly to the vertex shader)
+- result is convert to a texture, which is then assigned to the global shader variable "heightmap"
+
+
+
+
 NOISE RELATED:
 - The noise map can be generated in script, but would be extremely slow. Instead, generate using compute shaders
 - Compute shaders can be configured so that each vertex's heightmap are computed in parallel. Loops are discouraged.
@@ -37,33 +66,42 @@ NOISE RELATED:
 - The gap between the vertices will be larger than I want, unless we use some sort of smoothening algorithm
 - speaking of which, remember to implement basic erosion
 
-- In theory, if vertices were shared between triangles, smooth shading would be easy. But it also removes the option for low-poly design
 
-
-- Write the compute shader stuff, make the heightmap calculate for much higher than 512 (1024 is next) 
-- The godot compute shader example generates the noise on cpu, and just applies it to the vertices on the gpu
+- The godot compute shader example uses noise classes on CPU, but only to get a random seed, and the GPU really does do every part of generating noise
+- gradient is also done on GPU, keep that in mind
 - Fast, accurate, and would allow combining noise algorithms fairly easily
 
 - When the layout says 8 specifically, it does not mean that it will only take 8x8 input nessecarily 
 - It just means thats the amount of the input that will be worked on at a time
 
-- The heightmap should only be generated once, or in large chunks
+- small loops (< 100) are fine in compute shaders
+- 'if' statements are absolutely not fine, unless for exiting the thread early (because the other branch made is essentially no branch at all)
+- Use smooth math instead: smoothstep(), step(), mix()
+- With the right parameters, smoothstep just does a very quick calculation that technically applies modifications to all vertices
+- But outside of a certain range, smooth step becomes 0, so the modifications become 0.
+- Still safer than if statements
 
-https://www.youtube.com/watch?v=jDM0m4WuBAg&t=247s&ab_channel=DitzyNinja%27sGodojo
-https://github.com/TheGodojo/Massive-Terrain-LOD-And-Stitching-COMPLETE
-https://docs.godotengine.org/en/stable/tutorials/shaders/compute_shaders.html
-https://github.com/godotengine/godot-demo-projects/blob/master/misc/compute_shader_heightmap/compute_shader.glsl
-https://github.com/KdotJPG/OpenSimplex2/blob/master/glsl/OpenSimplex2.glsl
+- Zylanns Voxel Plugin for godot has glsl compute shaders that has every noise function I need (uses FastNoiseLite).
+
+CURRENT PROBLEMS:
+- The clipmap shader also accounts for LOD, so LOD changes to the partition script would not affect how the vertices are generated
+- I need to figure out more control over LOD in the clipmap shader
+
+- libnoise created a complex heightmap that relistically generated an earth-like terrain. 
+- I need to port that into godot:
+	https://libnoise.sourceforge.net/examples/complexplanet/index.html
+- At least, I need to port enough as a starting point.
+
+- libnoise is old however, so it would benefit to look at terrain algorithms mentioned in this video:
+	https://youtu.be/QF2Nj1zME40
+	
+- honestly speaking, if I just generate a heightmap once, then doing it in a compute shader may not be worth it, unless its really slow in godot script
+- regardless of if im going to be using full script or shaders, I need to create the basic design in script, and compute shaders come later
+
+- Daggerfall is roughly 12,688,000 godot units
 
 
-TRACE OUTLINE:
-- The game starts
-- clipmap spawns, does its thing and spawns a clipmap_partition for every defined square in the grid
-- in the ready function of the clipmap, it intializes the compute shader
-- it creates a base image for the heightmap, where the seed, noise function, gradient, e.t.c is applied
-- this base image is passed off to the compute shader
-- the compute shader has specific values that define how many values it will be work with at a time
-- the compute shader should only be used for simple calculations that need to be done repeatedly, but the next results do not rely on the previous one
-
-- results are downloaded to the cpu (we need to do that for collision, otherwise I would've just passed it directly to the vertex shader)
- 
+- I really do want runtime procedurally generated worlds. 
+- You can implement the entire noise generation on GPU just fine.
+- Objects like trees, rocks, rivers, e.t.c need to be calculated on CPU (gdscript)
+- But, you could provide ONLY the vertices that will need to be accomodated
