@@ -34,10 +34,11 @@ func get_height(x,z):
 	
 # for computer shader
 func _init() -> void:
-	init_compute_shader()
+	#init_compute_shader()
+	pass
 	
 func _ready():
-	ready_compute_shader()
+	#ready_compute_shader()
 	pass
 
 

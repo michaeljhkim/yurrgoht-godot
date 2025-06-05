@@ -82,9 +82,13 @@ lod_step={
 }
 clipmap_partition_length={
 "type": "float",
-"value": 64.0
+"value": 256.0
 }
 heightmap={
 "type": "sampler2D",
 "value": "res://heightmap/heightmap.png"
+}
+mesh_quality={
+"type": "float",
+"value": 2.0
 }
