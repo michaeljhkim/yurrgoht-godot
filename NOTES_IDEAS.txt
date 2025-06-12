@@ -11,6 +11,12 @@ https://www.youtube.com/watch?v=2mpklUE7BfA&ab_channel=DanielPHFox
 - The extension allows for insertion for custom noise maps.
 - The extension allows for starting seeds, allowing for deterministic generation.
 
+- Custom C++ Godot modules are more stable and more powerful than extensions, but less portable
+- In order to use godot as a git submodule, but also have custom godot modules, godot has an option to declare custom modules
+- Added a linux alias in order for quick builds:
+alias gcomp="scons platform=linuxbsd use_llvm=yes use_static_cpp=no linker=mold custom_modules=../modules"
+
+
 CURRENT PLAN:
 - YOU DO NOT NEED FANCY EROSION ALGORITHMS!!! 
 - MORROWIND'S BASE WAS DONE WITH A PROC GEN TERRAIN, BUT NO EROSION
