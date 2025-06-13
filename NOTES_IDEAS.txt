@@ -111,3 +111,14 @@ CURRENT PROBLEMS:
 - You can implement the entire noise generation on GPU just fine.
 - Objects like trees, rocks, rivers, e.t.c need to be calculated on CPU (gdscript)
 - But, you could provide ONLY the vertices that will need to be accomodated
+
+
+
+- I should just calculate the heightmap per chunk and not the entire thing
+- regardless of where or when it is calculated, the heights will be computed the smaller
+- need to figure out how to pass through the values, and need to figure out built in noise
+- rather than the function returning a vector, it might be better to return a full texture
+- then passing it off to the shader somehow.
+
+- Pass uniforms to shader (the heightmap texture):
+https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/shading_language.html#doc-shading-language-setting-uniforms-from-code

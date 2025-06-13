@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "Makefile": "cpp",
+        "*.vpy": "python",
+        "*.inc": "cpp",
+        "algorithm": "cpp"
+    }
+}

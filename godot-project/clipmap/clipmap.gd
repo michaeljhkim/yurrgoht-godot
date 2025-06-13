@@ -17,7 +17,7 @@ func _ready():
 
 # I plan to do a complete overhaul of how the world will follow the player, but this will suffice temporarily
 func _physics_process(delta):
-	global_position = player_character.global_position.snapped(Vector3.ONE * length / 4.0) * Vector3(1,0,1)
+	global_position = player_character.global_position.snapped(Vector3.ONE * length / 2.0) * Vector3(1,0,1)
 	RenderingServer.global_shader_parameter_set("clipmap_position",global_position)
 	pass
 	
