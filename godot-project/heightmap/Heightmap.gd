@@ -1,13 +1,12 @@
 extends Node
 
-var image:Image = load(ProjectSettings.get_setting("shader_globals/heightmap").value).get_image()
+var image:Image = load(ProjectSettings.get_setting("shader_globals/default_heightmap").value).get_image()
 var amplitude:float = ProjectSettings.get_setting("shader_globals/amplitude").value
 var size = image.get_width()
 
 # Compute shader values
 #@export_file("*.glsl") var shader_file: String = "res://clipmap/partition_heightmap_generator.glsl"
 #@export_range(128, 4096, 1, "exp") var dimension: int = 512
-var shader_file: String = "res://clipmap/partition_heightmap_generator.glsl"
 var dimension: int = 512
 
 var seed_input: int
@@ -22,11 +21,6 @@ var po2_dimensions: int
 var start_time: int
 
 var rd: RenderingDevice
-var shader_rid: RID
-var heightmap_rid: RID
-var gradient_rid: RID
-var uniform_set: RID
-var pipeline: RID
 
 
 func get_height(x,z):
@@ -34,11 +28,11 @@ func get_height(x,z):
 	
 # for computer shader
 func _init() -> void:
-	init_heightmap()
+	#init_heightmap()
 	pass
 	
 func _ready():
-	ready_heightmap()
+	#ready_heightmap()
 	pass
 
 
@@ -49,8 +43,8 @@ func init_heightmap() -> void:
 	# Create a noise function as the basis for our heightmap.
 	noise = FastNoiseLite.new()
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	noise.fractal_octaves = 5
-	noise.fractal_lacunarity = 1.9
+	noise.fractal_octaves = 3
+	noise.fractal_lacunarity = 0.6
 
 	# Create a gradient to function as overlay.
 	gradient = Gradient.new()

@@ -122,3 +122,7 @@ CURRENT PROBLEMS:
 
 - Pass uniforms to shader (the heightmap texture):
 https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/shading_language.html#doc-shading-language-setting-uniforms-from-code
+
+
+- I have the code that will generate the terrain mesh on the fly 
+- I just need to figure out how I will be creating the partition system

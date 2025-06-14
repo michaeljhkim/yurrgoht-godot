@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://f2fu28fs3ju7"]
+[gd_scene load_steps=2 format=3 uid="uid://lujsqdltbwnp"]
 
-[ext_resource type="Script" uid="uid://claxcm5hnvlpo" path="res://clipmap/clipmap.gd" id="1_3ufxf"]
+[ext_resource type="Script" uid="uid://bn3lokwugt561" path="res://clipmap/clipmap.gd" id="1_3ufxf"]
 
 [node name="Clipmap" type="Node3D"]
 script = ExtResource("1_3ufxf")

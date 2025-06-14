@@ -1,4 +1,5 @@
 #include "terrain_generator.h"
+#include <Math.h>
 
 void TerrainGenerator::add(int p_value) {
 	count += p_value;
@@ -15,6 +16,7 @@ int TerrainGenerator::get_total() const {
 
 
 // Define values for the noise texture
+/*
 Ref<Image> TerrainGenerator::prepare_image() {
 	po2_dimensions = VariantUtilityFunctions::nearest_po2(dimension);
 	noise.set_frequency(0.01 / (float(po2_dimensions) / float(dimension)));
@@ -51,16 +53,149 @@ void TerrainGenerator::generate_noise(Ref<Image> heightmap) {
 			heightmap->set_pixelv(coord, pixel);
 		}
 	}
-	ImageTexture::create_from_image(heightmap);
+
+	// This is not returned yet
+	//ImageTexture::create_from_image(heightmap);
+}
+	*/
+
+// If player moves far enough away from the generation starting location, then regeneration will occur
+// Only regenerate chunks that have a changed LOD
+Vector2i TerrainGenerator::player_grid_location(Vector3 player_position) {
+	Vector2i grid_position;
+	grid_position.x = floor_div(player_position.x, _chunk_size_x);
+	grid_position.y = floor_div(player_position.y, _chunk_size_y);
+
+	return grid_position;
+}
+
+void TerrainGenerator::process(Vector3 player_position) {
+	static Vector2i last_player_location = Vector2i(INT_MAX, INT_MAX);
+	Vector2i player_location = player_grid_location(player_position);
+
+	if (player_location != last_player_location) {
+		last_player_location = player_location;
+		// unload chunks that are far away
+		remove_detached_chunks(player_location);
+
+		// Generate Ungenerated Chunks
+		add_new_chunks(player_location);
+	}
+}
+
+void TerrainGenerator::remove_detached_chunks(Vector2i player_location) {
+	PackedVector2Array chunks_remove;
+
+	for (const KeyValue<Vector2i, ChunkInfo>& chunk : terrain_grid) {
+		if (chunk.value.grid_location.distance_to(player_location) > chunk_view_distance) {
+			chunks_remove.push_back(chunk.value.grid_location);
+		}
+	}
+
+	for (const Vector2i& chunk_key : chunks_remove) {
+		terrain_grid.erase(chunk_key);
+	}
+}
+
+void TerrainGenerator::add_new_chunks(Vector2i player_location) {
+	for (int32_t iy = player_location.y - chunk_view_distance; iy < player_location.y + chunk_view_distance; iy++) {
+		for (int32_t ix = player_location.x - chunk_view_distance; ix < player_location.x + chunk_view_distance; ix++) {
+
+			Vector2i grid_location(ix, iy);
+			int8_t lod_level = get_lod_level(grid_location, player_location);
+
+			if (!terrain_grid.has(grid_location)) {
+				add_chunk(grid_location, lod_level);
+			}
+
+			else if(terrain_grid[grid_location].lod_level != lod_level) {
+				update_chunk(grid_location, lod_level);
+			}
+		}
+	}
+}
+
+// I can probably remove add_chunk, and combine it with generate_mesh
+void TerrainGenerator::add_chunk(Vector2i grid_location, int8_t lod_level) {
+	// Generate our mesh
+	generate_mesh(grid_location, lod_level);
+
+	// add mesh to terrain grid
+	terrain_grid[grid_location] = ChunkInfo(grid_location, lod_level);
+}
+
+void TerrainGenerator::update_chunk(Vector2i grid_location, int8_t lod_level) {
+	generate_mesh(grid_location, lod_level);
+
+	terrain_grid[grid_location].lod_level = lod_level;
+}
+
+void TerrainGenerator::generate_mesh(Vector2i grid_location, int8_t lod_level) {
+	// This adjusts the generated mesh to be centered around the grid location
+	Vector3 grid_offset = Vector3(grid_location.x * quads_per_chunk, grid_location.y * quads_per_chunk, 0.0f) * vertex_spacing;
+
+	float lod_factor = 1.0f;
+	if (lod_level > 0) {
+		// LODLevel is the level of detail, 0 is the highest detail, 1 is the next level down, etc.
+		// This is used to scale the size of the mesh
+		lod_factor = pow(2.0f, lod_level);
+	}
+
+	const float lod_vertex_spacing = vertex_spacing * lod_factor;
+	const int lod_quads_per_chunk = quads_per_chunk / lod_factor;
+	const int lod_vertices_per_chunk = lod_quads_per_chunk + 1;
+
+	// UV Scale is used to scale the UVs based on the vertex spacing. We're using 300 (3 meters) as the base value.
+	float uv_scale = lod_vertex_spacing / vertex_spacing;
+
+	// Temporary arrays to hold our mesh data
+	Vector<Vector3> vertices, tangents, normals;
+	Vector<uint32_t> tri_indices;
+	Vector<Vector2> uvs;
+
+	// We need to generate our vertices and triangles first, then feed them into the Tangent Generator before loading everything into the mesh
+
+	// Generate Vertices
+	for (int32_t index_y = 0; index_y < lod_vertices_per_chunk; index_y++) {
+		for (int32_t index_x = 0; index_x < lod_vertices_per_chunk; index_x++) {
+
+			Vector3 vertex;
+			vertex.x = index_x * lod_vertex_spacing + grid_offset.x;
+			vertex.y = index_y * lod_vertex_spacing + grid_offset.y;
+			vertex.z = noise.get_noise_2d(vertex.x, vertex.y);
+			vertices.push_back(vertex);
+
+			FVector2DHalf Uv;
+			Uv.X = (GridLocation.X * (LODQuadsPerChunk) + IndexX) * UVScale;
+			Uv.Y = (GridLocation.Y * (LODQuadsPerChunk) + IndexY) * UVScale;
+			UVs.Add(Uv);
+		}
+	}
+}
+
+
+int8_t TerrainGenerator::get_lod_level(Vector2i grid_location, Vector2i player_location) {
+	return VariantUtilityFunctions::clampi(
+		int8_t(floor(grid_location.distance_to(player_location)) - 1),	// lod_level
+		0, 
+		max_lod
+	);
+}
+
+int TerrainGenerator::floor_div(int a, int b) {
+	if (b == 0)
+		return 0;
+
+	int result = a / b;
+	if (a % b != 0 && ((a < 0) ^ (b < 0)))
+		result--;
+
+	return result;
 }
 
 
 // Functions that will be used in GDSCRIPT
 void TerrainGenerator::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("add", "value"), &TerrainGenerator::add);
-	ClassDB::bind_method(D_METHOD("reset"), &TerrainGenerator::reset);
-	ClassDB::bind_method(D_METHOD("get_total"), &TerrainGenerator::get_total);
-
 	ClassDB::bind_method(D_METHOD("add", "value"), &TerrainGenerator::add);
 	ClassDB::bind_method(D_METHOD("reset"), &TerrainGenerator::reset);
 	ClassDB::bind_method(D_METHOD("get_total"), &TerrainGenerator::get_total);
@@ -70,18 +205,4 @@ void TerrainGenerator::_bind_methods() {
 // constructor - sets up default values
 TerrainGenerator::TerrainGenerator() {
 	count = 0;
-
-	noise.set_noise_type(FastNoiseLite::NoiseType::TYPE_SIMPLEX_SMOOTH);
-	noise.set_fractal_octaves(3);
-	noise.set_fractal_lacunarity(0.6);
-
-	// Create a gradient to function as overlay.
-	gradient.add_point(0.6, Color(0.9, 0.9, 0.9, 1.0));
-	gradient.add_point(0.8, Color(1.0, 1.0, 1.0, 1.0));
-	
-	// The gradient will start black, transition to grey in the first 70%, then to white in the last 30%.
-	gradient.reverse();
-
-	// Create a 1D texture (single row of pixels) from gradient.
-	gradient_tex.set_gradient(&gradient);
 }

@@ -17,7 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
-Heightmap="*res://heightmap/Heightmap.gd"
+Heightmap="res://heightmap/Heightmap.gd"
 
 [display]
 
@@ -84,11 +84,11 @@ clipmap_partition_length={
 "type": "float",
 "value": 256.0
 }
-heightmap={
-"type": "sampler2D",
-"value": "res://heightmap/heightmap.png"
-}
 mesh_quality={
 "type": "float",
 "value": 2.0
+}
+default_heightmap={
+"type": "sampler2D",
+"value": "res://heightmap/heightmap.png"
 }
