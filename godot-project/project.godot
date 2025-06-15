@@ -82,7 +82,7 @@ lod_step={
 }
 clipmap_partition_length={
 "type": "float",
-"value": 256.0
+"value": 64.0
 }
 mesh_quality={
 "type": "float",

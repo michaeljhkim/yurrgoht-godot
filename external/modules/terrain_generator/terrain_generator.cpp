@@ -1,208 +1,68 @@
 #include "terrain_generator.h"
-#include <Math.h>
 
-void TerrainGenerator::add(int p_value) {
-	count += p_value;
+void TerrainGenerator::_notification(int p_what) {
+	switch (p_what) {
+		case NOTIFICATION_PROCESS:
+			process(get_process_delta_time());
+			break;
+
+		case NOTIFICATION_READY:
+			ready();
+			break;
+	}
 }
 
-void TerrainGenerator::reset() {
-	count = 0;
-}
+// processes that only need to be done on intialization - generates the basic values needed going forward
+void TerrainGenerator::ready() {
+	partition_distance = 4;
 
-int TerrainGenerator::get_total() const {
-	return count;
-}
-
-
-
-// Define values for the noise texture
-/*
-Ref<Image> TerrainGenerator::prepare_image() {
-	po2_dimensions = VariantUtilityFunctions::nearest_po2(dimension);
-	noise.set_frequency(0.01 / (float(po2_dimensions) / float(dimension)));
-	noise.set_seed(int(seed_input));
-
-	Ref<Image> heightmap = noise.get_image(po2_dimensions, po2_dimensions, false, false);
-
-	Image clone;
-	clone.copy_from(heightmap);
-	clone.resize(dimension, dimension, Image::INTERPOLATE_NEAREST);
-
-	Ref<ImageTexture> clone_tex = ImageTexture::create_from_image(&clone);
-	heightmap_rect.set_texture(clone_tex);
-
-	return heightmap;
-}
-
-// Generate noise - apply the noise from the gradient to the heightmap image
-void TerrainGenerator::generate_noise(Ref<Image> heightmap) {
-	Vector2i center = Vector2i(po2_dimensions, po2_dimensions) / 2;
-
-	for (int y = 0; y < po2_dimensions; y++) {
-		for (int x = 0; x < po2_dimensions; x++) {
-			Vector2i coord = Vector2i(x, y);
-			Color pixel = heightmap->get_pixelv(coord);
-			real_t distance = Vector2(center).distance_to(Vector2(coord));
-
-			Color gradient_color = gradient.get_color_at_offset(distance / float(center.x));
-			pixel.set_v(pixel.get_v() * gradient_color.get_v());
-
-			if (pixel.get_v() < 0.2)
-				pixel.set_v(0.0);
+	for(int8_t z = -partition_distance; z <= partition_distance; z++) {
+		for(int8_t x = -partition_distance; x <= partition_distance; x++) {
+			Partition *partition = memnew(Partition(Vector2i(x, z), x, z));
+			//Partition partition(Vector2i(x, z), 1);
+			//terrain_grid.insert(Vector2i(x, z), partition);
+			//partition->set_name("Partition");
 			
-			heightmap->set_pixelv(coord, pixel);
-		}
-	}
-
-	// This is not returned yet
-	//ImageTexture::create_from_image(heightmap);
-}
-	*/
-
-// If player moves far enough away from the generation starting location, then regeneration will occur
-// Only regenerate chunks that have a changed LOD
-Vector2i TerrainGenerator::player_grid_location(Vector3 player_position) {
-	Vector2i grid_position;
-	grid_position.x = floor_div(player_position.x, _chunk_size_x);
-	grid_position.y = floor_div(player_position.y, _chunk_size_y);
-
-	return grid_position;
-}
-
-void TerrainGenerator::process(Vector3 player_position) {
-	static Vector2i last_player_location = Vector2i(INT_MAX, INT_MAX);
-	Vector2i player_location = player_grid_location(player_position);
-
-	if (player_location != last_player_location) {
-		last_player_location = player_location;
-		// unload chunks that are far away
-		remove_detached_chunks(player_location);
-
-		// Generate Ungenerated Chunks
-		add_new_chunks(player_location);
-	}
-}
-
-void TerrainGenerator::remove_detached_chunks(Vector2i player_location) {
-	PackedVector2Array chunks_remove;
-
-	for (const KeyValue<Vector2i, ChunkInfo>& chunk : terrain_grid) {
-		if (chunk.value.grid_location.distance_to(player_location) > chunk_view_distance) {
-			chunks_remove.push_back(chunk.value.grid_location);
-		}
-	}
-
-	for (const Vector2i& chunk_key : chunks_remove) {
-		terrain_grid.erase(chunk_key);
-	}
-}
-
-void TerrainGenerator::add_new_chunks(Vector2i player_location) {
-	for (int32_t iy = player_location.y - chunk_view_distance; iy < player_location.y + chunk_view_distance; iy++) {
-		for (int32_t ix = player_location.x - chunk_view_distance; ix < player_location.x + chunk_view_distance; ix++) {
-
-			Vector2i grid_location(ix, iy);
-			int8_t lod_level = get_lod_level(grid_location, player_location);
-
-			if (!terrain_grid.has(grid_location)) {
-				add_chunk(grid_location, lod_level);
-			}
-
-			else if(terrain_grid[grid_location].lod_level != lod_level) {
-				update_chunk(grid_location, lod_level);
-			}
+			add_child(partition);
 		}
 	}
 }
 
-// I can probably remove add_chunk, and combine it with generate_mesh
-void TerrainGenerator::add_chunk(Vector2i grid_location, int8_t lod_level) {
-	// Generate our mesh
-	generate_mesh(grid_location, lod_level);
-
-	// add mesh to terrain grid
-	terrain_grid[grid_location] = ChunkInfo(grid_location, lod_level);
+void TerrainGenerator::process(float delta) {
+	if (player_character == nullptr) return;
+	set_global_position(player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f) * 32.f) * Vector3(1.f, 0.f, 1.f));
 }
 
-void TerrainGenerator::update_chunk(Vector2i grid_location, int8_t lod_level) {
-	generate_mesh(grid_location, lod_level);
+void TerrainGenerator::set_player_character(Node3D* p_node) {
+	if (p_node == nullptr) return;
 
-	terrain_grid[grid_location].lod_level = lod_level;
+	player_character = p_node;
 }
 
-void TerrainGenerator::generate_mesh(Vector2i grid_location, int8_t lod_level) {
-	// This adjusts the generated mesh to be centered around the grid location
-	Vector3 grid_offset = Vector3(grid_location.x * quads_per_chunk, grid_location.y * quads_per_chunk, 0.0f) * vertex_spacing;
-
-	float lod_factor = 1.0f;
-	if (lod_level > 0) {
-		// LODLevel is the level of detail, 0 is the highest detail, 1 is the next level down, etc.
-		// This is used to scale the size of the mesh
-		lod_factor = pow(2.0f, lod_level);
-	}
-
-	const float lod_vertex_spacing = vertex_spacing * lod_factor;
-	const int lod_quads_per_chunk = quads_per_chunk / lod_factor;
-	const int lod_vertices_per_chunk = lod_quads_per_chunk + 1;
-
-	// UV Scale is used to scale the UVs based on the vertex spacing. We're using 300 (3 meters) as the base value.
-	float uv_scale = lod_vertex_spacing / vertex_spacing;
-
-	// Temporary arrays to hold our mesh data
-	Vector<Vector3> vertices, tangents, normals;
-	Vector<uint32_t> tri_indices;
-	Vector<Vector2> uvs;
-
-	// We need to generate our vertices and triangles first, then feed them into the Tangent Generator before loading everything into the mesh
-
-	// Generate Vertices
-	for (int32_t index_y = 0; index_y < lod_vertices_per_chunk; index_y++) {
-		for (int32_t index_x = 0; index_x < lod_vertices_per_chunk; index_x++) {
-
-			Vector3 vertex;
-			vertex.x = index_x * lod_vertex_spacing + grid_offset.x;
-			vertex.y = index_y * lod_vertex_spacing + grid_offset.y;
-			vertex.z = noise.get_noise_2d(vertex.x, vertex.y);
-			vertices.push_back(vertex);
-
-			FVector2DHalf Uv;
-			Uv.X = (GridLocation.X * (LODQuadsPerChunk) + IndexX) * UVScale;
-			Uv.Y = (GridLocation.Y * (LODQuadsPerChunk) + IndexY) * UVScale;
-			UVs.Add(Uv);
-		}
-	}
+Node3D* TerrainGenerator::get_player_character() const {
+	return player_character;
 }
-
-
-int8_t TerrainGenerator::get_lod_level(Vector2i grid_location, Vector2i player_location) {
-	return VariantUtilityFunctions::clampi(
-		int8_t(floor(grid_location.distance_to(player_location)) - 1),	// lod_level
-		0, 
-		max_lod
-	);
-}
-
-int TerrainGenerator::floor_div(int a, int b) {
-	if (b == 0)
-		return 0;
-
-	int result = a / b;
-	if (a % b != 0 && ((a < 0) ^ (b < 0)))
-		result--;
-
-	return result;
-}
-
 
 // Functions that will be used in GDSCRIPT
 void TerrainGenerator::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("add", "value"), &TerrainGenerator::add);
-	ClassDB::bind_method(D_METHOD("reset"), &TerrainGenerator::reset);
-	ClassDB::bind_method(D_METHOD("get_total"), &TerrainGenerator::get_total);
+	//ClassDB::bind_method(D_METHOD("add", "value"), &TerrainGenerator::add);
+	//ClassDB::bind_method(D_METHOD("reset"), &TerrainGenerator::reset);
+	//ClassDB::bind_method(D_METHOD("get_total"), &TerrainGenerator::get_total);
+
+	ClassDB::bind_method(D_METHOD("set_player_character", "p_node"), &TerrainGenerator::set_player_character);
+	ClassDB::bind_method(D_METHOD("get_player_character"), &TerrainGenerator::get_player_character);
+	
+	ClassDB::add_property("TerrainGenerator", PropertyInfo(Variant::OBJECT, "player_character", PROPERTY_HINT_NODE_TYPE, "Node3D"), "set_player_character", "get_player_character");
 }
 
 
 // constructor - sets up default values
 TerrainGenerator::TerrainGenerator() {
-	count = 0;
+	//count = 0;
+	partition_distance = 4;
+
+	// enable process
+	printf("We are here !!!");
+
+	set_process(true);
 }

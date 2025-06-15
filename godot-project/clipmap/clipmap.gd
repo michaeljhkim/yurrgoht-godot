@@ -1,7 +1,7 @@
 extends Node3D
 
 var PARTITION = preload("res://clipmap/clipmap_partition.tscn")
-@export var distance:int = 8
+@export var distance:int = 4
 @export var player_character:Node3D
 var length = ProjectSettings.get_setting("shader_globals/clipmap_partition_length").value
 
@@ -13,11 +13,10 @@ func _ready():
 			
 			partition.x = x
 			partition.z = z
+			partition.clipmap_position = global_position
 			add_child(partition)
 
-# I plan to do a complete overhaul of how the world will follow the player, but this will suffice temporarily
 func _physics_process(delta):
 	global_position = player_character.global_position.snapped(Vector3.ONE * length) * Vector3(1,0,1)
-	RenderingServer.global_shader_parameter_set("clipmap_position",global_position)
 	pass
 	

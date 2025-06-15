@@ -2,6 +2,6 @@
 
 [ext_resource type="Script" uid="uid://rpn14b4pmble" path="res://clipmap/clipmap_partition.gd" id="1_vwd55"]
 
-[node name="clipmap_partition" type="MeshInstance3D"]
+[node name="Partition" type="MeshInstance3D"]
 skeleton = NodePath("../..")
 script = ExtResource("1_vwd55")
