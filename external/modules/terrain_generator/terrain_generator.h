@@ -30,15 +30,15 @@ class Partition : public MeshInstance3D {
 	SurfaceTool surface_tool;
 
 	float length;
-	float mesh_quality;
+	float mesh_quality = 2.0f;
 
 	int x;
 	int z;
 
 	// need less jank solution later
 	// I feel like I would not need to store these values for each parition
-	Vector2 partition_size = Vector2(32.f, 32.f);
-	float amplitude = 16;
+	Vector2 partition_size = Vector2(64.f, 64.f);
+	float amplitude = 16.f;
 
 	FastNoiseLite noise;
 	
@@ -49,33 +49,46 @@ public:
 		: parititon_location(in_location), lod_level(in_lod_level) { 
 	}
 	*/
-
+	// Need to optimize mesh generation in the future. For now, this will suffice
 	Partition(Vector2i in_location, int x, int z) : x(x), z(z) {
 		set_position(Vector3(float(x), 0.f, float(z)) * partition_size.x);
-
+		
 		// calculate the lod of this square according to how far it is from player
 		// then set subdivides
 		int lod = std::max(abs(x), abs(z));
 		int subdivision_length = pow(2, lod);
-		float subdivides = std::max(length * mesh_quality / subdivision_length - 1.f, 0.f);
+		float subdivides = std::max(partition_size.x * mesh_quality / subdivision_length - 1.f, 0.f);
 
 		// create a PlaneMesh as a base
-		//set_mesh(plane_mesh);
 		plane_mesh.instantiate();
 		plane_mesh->set_size(partition_size);
 		plane_mesh->set_subdivide_width(subdivides);
 		plane_mesh->set_subdivide_depth(subdivides);
 
+		generate_mesh();
+	}
+
+	void update_xz(Vector3 player_location) {
+		//x += player_location.x;
+		//z += player_location.z;
+	}
+
+	void generate_mesh() {
+		//set_position(Vector3(float(x), 0.f, float(z)) * partition_size.x);
+
 		// create surface tool
 		surface_tool.create_from(plane_mesh, 0);
 		Array data = surface_tool.commit_to_arrays();
-		Vector<Vector3> vertices = data[ArrayMesh::ARRAY_VERTEX];
+		PackedVector3Array vertices = data[ArrayMesh::ARRAY_VERTEX];
 
 		// define heights for each vertice using noise 
-		for (Vector3 vertex : vertices) {
-			vertex.y = noise.get_noise_2d(get_position().x + vertex.x, get_position().z + vertex.z) * amplitude;
-		}
+		// Due to godots custom Vector type, single vertex values must be set in this manner
+		for (int i = 0; i < vertices.size(); i++) {
+			Vector3 vertex = vertices.get(i);
+			vertex.y = noise.get_noise_2d(get_global_position().x + vertices[i].x, get_global_position().z + vertices[i].z) * amplitude;
 
+			vertices.set(i, vertex);
+		}
 		data[ArrayMesh::ARRAY_VERTEX] = vertices;
 
 		Ref<ArrayMesh> array_mesh;
@@ -87,6 +100,9 @@ public:
 
 		set_mesh(surface_tool.commit());
 		// $CollisionShape.shape = array_mesh.create_trimesh_shape()
+
+		array_mesh.unref();
+		surface_tool.clear();
 	}
 };
 
@@ -139,7 +155,7 @@ protected:
 	float persistence = 0.5f;
 	*/
 
-	HashMap<Vector2i, Partition> terrain_grid;
+	HashMap<Vector2i, Partition*> terrain_grid;
 
 public:
 	//Ref<Image> prepare_image();		// Can most likely just be done in gdscript, but created just in case it becomes cleaner to move the process here

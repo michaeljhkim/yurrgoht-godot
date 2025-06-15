@@ -18,10 +18,8 @@ void TerrainGenerator::ready() {
 
 	for(int8_t z = -partition_distance; z <= partition_distance; z++) {
 		for(int8_t x = -partition_distance; x <= partition_distance; x++) {
-			Partition *partition = memnew(Partition(Vector2i(x, z), x, z));
-			//Partition partition(Vector2i(x, z), 1);
-			//terrain_grid.insert(Vector2i(x, z), partition);
-			//partition->set_name("Partition");
+			Partition* partition = memnew(Partition(Vector2i(x, z), x, z));
+			terrain_grid.insert(Vector2i(x, z), partition);
 			
 			add_child(partition);
 		}
@@ -30,7 +28,23 @@ void TerrainGenerator::ready() {
 
 void TerrainGenerator::process(float delta) {
 	if (player_character == nullptr) return;
-	set_global_position(player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f) * 32.f) * Vector3(1.f, 0.f, 1.f));
+
+	Vector3 player_location = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f) * 64.f) * Vector3(1.f, 0.f, 1.f);
+
+	if (player_location != get_global_position()) {
+		set_global_position(player_location);
+
+		for(int8_t z = -partition_distance; z <= partition_distance; z++) {
+			for(int8_t x = -partition_distance; x <= partition_distance; x++) {
+				terrain_grid.get(Vector2i(x, z))->update_xz(player_location);
+				terrain_grid.get(Vector2i(x, z))->generate_mesh();
+			}
+		}
+	}
+	else {
+		set_global_position(player_location);
+	}
+
 }
 
 void TerrainGenerator::set_player_character(Node3D* p_node) {
@@ -62,7 +76,5 @@ TerrainGenerator::TerrainGenerator() {
 	partition_distance = 4;
 
 	// enable process
-	printf("We are here !!!");
-
 	set_process(true);
 }
