@@ -3,7 +3,7 @@ Import('env')
 # Compile all .cpp files - Allows custom compile flags to be appended
 module_env = env.Clone()
 module_env.add_source_files(env.modules_sources, "*.cpp")
-#module_env.Append(CCFLAGS=['-O2'])
+module_env.Append(CPPDEFINES=["TASKING_INTERNAL"])
 
 
 # These are for using specific '.cpp' files instead of all 'c.pp'
