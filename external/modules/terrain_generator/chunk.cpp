@@ -20,7 +20,7 @@ void Chunk::ready() {
 	voxel_world = get_parent();
 
     set_position(Vector3(chunk_position * CHUNK_SIZE));
-    set_name(stringify_variants(chunk_position));
+    set_name(VariantUtilityFunctions::var_to_str(chunk_position));
 
 	for (int x = 0; x <= CHUNK_SIZE; x++) {
 		for (int z = 0; z <= CHUNK_SIZE; z++) {

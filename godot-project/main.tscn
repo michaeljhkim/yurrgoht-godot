@@ -37,3 +37,6 @@ jump_velocity = 8.0
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Terrain"]
 shape = SubResource("ConcavePolygonShape3D_h2yge")
 debug_fill = false
+
+[node name="TerrainGenerator" type="TerrainGenerator" parent="." node_paths=PackedStringArray("player_character")]
+player_character = NodePath("../PlayerCharacter")

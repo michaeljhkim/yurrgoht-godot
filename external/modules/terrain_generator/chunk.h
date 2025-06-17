@@ -3,7 +3,6 @@
 
 #include "core/object/ref_counted.h"
 #include "core/variant/variant_utility.h"
-#include "core/variant/typed_dictionary.h"
 //#include "scene/resources/image_texture.h"
 
 #include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h

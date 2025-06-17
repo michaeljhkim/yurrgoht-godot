@@ -30,7 +30,7 @@ void TerrainGenerator::ready() {
 }
 */
 
-void TerrainGenerator::process(float delta) {
+void TerrainGenerator::process(double delta) {
 	if (player_character == nullptr) return;
 
 	//Vector3 player_location = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f) * 64.f) * Vector3(1.f, 0.f, 1.f);
@@ -47,7 +47,7 @@ void TerrainGenerator::process(float delta) {
 
 	// Check existing chunks within range. If it doesn't exist, create it.
 	for (int x = (player_chunk.x - effective_render_distance); x <= (player_chunk.x + effective_render_distance); x++) {
-		for (int z = (player_chunk.z - effective_render_distance); x <= (player_chunk.z + effective_render_distance); z++) {
+		for (int z = (player_chunk.z - effective_render_distance); z <= (player_chunk.z + effective_render_distance); z++) {
 			Vector3i chunk_position = Vector3i(x, 0, z);
 			Vector2 grid_position(x, z);
 
@@ -57,10 +57,13 @@ void TerrainGenerator::process(float delta) {
 			if (_chunks.has(grid_position))
 				continue;
 
-			Chunk* chunk = memnew(Chunk());
+			Chunk* chunk = memnew(Chunk);
 			chunk->chunk_position = chunk_position;
-			_chunks.insert(grid_position, chunk);
 			add_child(chunk);
+
+			print_line("ADDING TO HASHMAP");
+			_chunks[grid_position] = chunk->get_index();
+			print_line("FINISHED ADDING TO HASHMAP");
 
 			return;
 		}
@@ -77,13 +80,13 @@ void TerrainGenerator::process(float delta) {
 }
 
 void TerrainGenerator::clean_up() {
-	for (KeyValue<Vector2i, Chunk*> chunk_position : _chunks) {
-		Ref<core_bind::Thread> thread = chunk_position.value->get_thread();
+	for (KeyValue<Vector2i, int32_t> chunk : _chunks) {
+		Ref<core_bind::Thread> thread = Object::cast_to<Chunk>(get_child(chunk.value))->get_thread();
 		if (thread != nullptr)
 			thread->wait_to_finish();
 	}
 	
-	_chunks.reset();
+	_chunks.clear();
 	set_process(false);
 
 	/*
@@ -94,7 +97,7 @@ void TerrainGenerator::clean_up() {
 
 	- .free() is a gdscript exclusive function
 	*/
-	for (int c = 0; c < get_child_count(true); c++) {
+	for (int c = 0; c < get_child_count(); c++) {
 		Node* child = get_child(c);
 		remove_child(child);
 		child->queue_free();
@@ -115,15 +118,16 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3i player_chunk) {
 	int max_deletions = CLAMP(2 * (render_distance - effective_render_distance), 2, 8);
 
 	// Also take the opportunity to delete far away chunks.
-	for (int i = 0; i < _chunks.size(); i++) {
-		KeyValue<Vector2i, Chunk*> chunk = _chunks.get_by_index(i);
+	for (KeyValue<Vector2i, int32_t> chunk : _chunks) {
 		if (Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk.key)) > _delete_distance) {
-			Ref<core_bind::Thread> thread = chunk.value->get_thread();
+			Chunk* chunk_value = Object::cast_to<Chunk>(get_child(chunk.value));
+			
+			Ref<core_bind::Thread> thread = chunk_value->get_thread();
 			if (thread != nullptr) {
 				thread->wait_to_finish();
 			}
 			
-			chunk.value->queue_free();
+			chunk_value->queue_free();
 			_chunks.erase(chunk.key);
 			deleted_this_frame += 1;
 
