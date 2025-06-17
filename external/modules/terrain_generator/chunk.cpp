@@ -24,7 +24,7 @@ void Chunk::_notification(int p_what) {
 }
 
 void Chunk::ready() {
-	voxel_world = get_parent();
+	//voxel_world = get_parent();
 
     set_position(Vector3(chunk_position * CHUNK_SIZE));
     set_name(VariantUtilityFunctions::var_to_str(chunk_position)); 
@@ -64,11 +64,10 @@ void Chunk::_generate_chunk_mesh() {
 	Array data = surface_tool->commit_to_arrays();
 	PackedVector3Array vertices = data[ArrayMesh::ARRAY_VERTEX];
 
-
 	// due to how godots arrays work, the modified vertex must be applied in this manner
 	for (int i = 0; i < vertices.size(); i++) {
 		Vector3 vertex = vertices[i];
-		vertex.y = noise.get_noise_2d(chunk_position.x + vertex.x, chunk_position.z + vertex.z) * AMPLITUDE;
+		vertex.y = noise.get_noise_2d(get_global_position().x + vertex.x, get_global_position().z + vertex.z) * AMPLITUDE;
 		vertices.set(i, vertex);
 	}
 	data[ArrayMesh::ARRAY_VERTEX] = vertices;

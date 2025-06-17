@@ -48,7 +48,7 @@ void TerrainGenerator::process(double delta) {
 	if (!_generating) return;
 
 	// Try to generate chunks ahead of time based on where the player is moving.
-	player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance / 4, render_distance / 4));
+	//player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance / 4, render_distance / 4));
 
 	// Check existing chunks within range. If it doesn't exist, create it.
 	for (int x = (player_chunk.x - effective_render_distance); x <= (player_chunk.x + effective_render_distance); x++) {

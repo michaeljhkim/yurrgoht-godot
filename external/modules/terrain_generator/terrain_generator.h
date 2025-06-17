@@ -26,6 +26,12 @@ class TerrainGenerator : public Node3D {
 	bool _generating = true;
 	bool _deleting = false;
 
+	/*
+	- Here is why the _chunks map uses TypedDictionary<Vector2i, NodePath> specifically
+	- Vector2i represents where the chunk is in the grid surrounding the player
+	- NodePath is the most accurate way to access a specific child node publicly
+	- indices were constantly changing within the parent node, so managing with indices was impossible
+	*/
 	TypedDictionary<Vector2i, NodePath> _chunks;
 	CharacterBody3D* player_character = nullptr;		// This is an OBJECT
 

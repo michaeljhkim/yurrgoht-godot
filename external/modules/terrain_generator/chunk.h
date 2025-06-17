@@ -30,10 +30,6 @@ protected:
     void regenerate();
     void _generate_chunk_collider();
     void _generate_chunk_mesh();
-    //void _draw_chunk_mesh(Ref<SurfaceTool> surface_tool, Vector3 vertex);
-
-    //static Vector<Vector2> calculate_chunk_uvs(int chunk_id);
-    //static Vector<Vector3> calculate_chunk_verts(Vector3i chunk_position);
 
 	static void _bind_methods();
 
@@ -46,11 +42,9 @@ public:
 
     static constexpr float AMPLITUDE = 16.0f;
 
-    //HashMap<Vector3i, int> data;
     PackedVector3Array vertices;
     Vector3i chunk_position;
 
-    //@onready var voxel_world = get_parent()
     Node* voxel_world;
 
     Ref<core_bind::Thread> get_thread() { return _thread; }
