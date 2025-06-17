@@ -57,6 +57,8 @@ void Chunk::regenerate() {
 - Copy PlaneMesh mesh creation code instead of attempting to try and figure it out myself
 - copy normal generation code from surface tool as well
 - Surface tool will also no longer be needed since this needs to be done with arraymesh
+
+- WAIT THIS IS SOMETHING I CAN DO MULTITHREADED SINCE IT IS 100% NOW JUST DONE BY ME
 */
 void Chunk::_generate_chunk_mesh() {
 	/*
@@ -98,11 +100,12 @@ void Chunk::_generate_chunk_mesh() {
 	*/
 	Array p_arr;
 	p_arr.resize(Mesh::ARRAY_MAX);
-	
+
 
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
 	int subdivide_w = CHUNK_SIZE-1;
 	int subdivide_d = CHUNK_SIZE-1;
+	bool p_flip = false;
 
 	int i, j, prevrow, thisrow, point;
 	float x, z;
@@ -138,7 +141,17 @@ void Chunk::_generate_chunk_mesh() {
 			v /= (subdivide_d + 1.0);
 
 			// orientation Y
-			points.push_back(Vector3(-x, 0.0, -z) + center_offset);
+			float height = noise.get_noise_2d(get_global_position().x - x, get_global_position().z - z) * AMPLITUDE;
+			points.push_back(Vector3(-x, height, -z) + center_offset);
+
+			/*
+			Vector3 normal;
+			if (!p_flip) {
+				normal = Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal;
+			} else {
+				normal = Plane(v[2].vertex, v[1].vertex, v[0].vertex).normal;
+			}
+			*/
 			normals.push_back(normal);
 			ADD_TANGENT(1.0, 0.0, 0.0, 1.0);
 
