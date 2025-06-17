@@ -20,6 +20,7 @@ class Chunk : public MeshInstance3D {
 private:
 	Ref<core_bind::Thread> _thread;
     FastNoiseLite noise;
+	Vector3 center_offset;
 
 protected:
 	void _notification(int p_notification);

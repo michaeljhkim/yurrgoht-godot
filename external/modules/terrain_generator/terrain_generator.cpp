@@ -34,6 +34,13 @@ void TerrainGenerator::ready() {
 }
 */
 
+/*
+CURRENT ISSUES:
+- New mesh chunks generate significantly further away that expected
+- stitching between chunks is non-existant, but can probably fix with adding 1 row/column of vertices to each side of each chunk
+- then remove them after calculating normals
+
+*/
 void TerrainGenerator::process(double delta) {
 	if (player_character == nullptr) return;
 

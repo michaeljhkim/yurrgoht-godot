@@ -51,7 +51,15 @@ void Chunk::regenerate() {
 
 
 // FORGOT TO ADD A MATERIAL - THATS WHY I CANT SEE ANYTHING
+
+/*
+- Why did I not think of this before?
+- Copy PlaneMesh mesh creation code instead of attempting to try and figure it out myself
+- copy normal generation code from surface tool as well
+- Surface tool will also no longer be needed since this needs to be done with arraymesh
+*/
 void Chunk::_generate_chunk_mesh() {
+	/*
 	Ref<PlaneMesh> plane_mesh;
 	plane_mesh.instantiate();
 	plane_mesh->set_size(Vector2(CHUNK_SIZE, CHUNK_SIZE));
@@ -82,12 +90,90 @@ void Chunk::_generate_chunk_mesh() {
 	// Set the material to the mesh
 	set_mesh(surface_tool->commit());
 	
-	//call_deferred("add_child", mi);
 	//print_line("success");
 
 	plane_mesh.unref();
 	surface_tool.unref();
 	array_mesh.unref();
+	*/
+	Array p_arr;
+	p_arr.resize(Mesh::ARRAY_MAX);
+	
+
+	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
+	int subdivide_w = CHUNK_SIZE-1;
+	int subdivide_d = CHUNK_SIZE-1;
+
+	int i, j, prevrow, thisrow, point;
+	float x, z;
+
+	// Plane mesh can use default UV2 calculation as implemented in Primitive Mesh
+	Size2 start_pos = size * -0.5;
+
+	Vector3 normal = Vector3(0.0, 1.0, 0.0);
+
+	Vector<Vector3> points;
+	Vector<Vector3> normals;
+	Vector<float> tangents;
+	Vector<Vector2> uvs;
+	Vector<int> indices;
+	point = 0;
+
+#define ADD_TANGENT(m_x, m_y, m_z, m_d) \
+	tangents.push_back(m_x);            \
+	tangents.push_back(m_y);            \
+	tangents.push_back(m_z);            \
+	tangents.push_back(m_d);
+
+	/* top + bottom */
+	z = start_pos.y;
+	thisrow = point;
+	prevrow = 0;
+	for (j = 0; j <= (subdivide_d + 1); j++) {
+		x = start_pos.x;
+		for (i = 0; i <= (subdivide_w + 1); i++) {
+			float u = i;
+			float v = j;
+			u /= (subdivide_w + 1.0);
+			v /= (subdivide_d + 1.0);
+
+			// orientation Y
+			points.push_back(Vector3(-x, 0.0, -z) + center_offset);
+			normals.push_back(normal);
+			ADD_TANGENT(1.0, 0.0, 0.0, 1.0);
+
+			uvs.push_back(Vector2(1.0 - u, 1.0 - v)); /* 1.0 - uv to match orientation with Quad */
+			point++;
+
+			if (i > 0 && j > 0) {
+				indices.push_back(prevrow + i - 1);
+				indices.push_back(prevrow + i);
+				indices.push_back(thisrow + i - 1);
+				indices.push_back(prevrow + i);
+				indices.push_back(thisrow + i);
+				indices.push_back(thisrow + i - 1);
+			}
+
+			x += size.x / (subdivide_w + 1.0);
+		}
+
+		z += size.y / (subdivide_d + 1.0);
+		prevrow = thisrow;
+		thisrow = point;
+	}
+
+	p_arr[RS::ARRAY_VERTEX] = points;
+	p_arr[RS::ARRAY_NORMAL] = normals;
+	p_arr[RS::ARRAY_TANGENT] = tangents;
+	p_arr[RS::ARRAY_TEX_UV] = uvs;
+	p_arr[RS::ARRAY_INDEX] = indices;
+
+	// regular mesh does not have add_surface_from_arrays, but ArrayMesh is a child of Mesh, so it can be passed with set_mesh
+	Ref<ArrayMesh> arr_mesh;
+	arr_mesh.instantiate();
+	arr_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, p_arr);
+
+	set_mesh(arr_mesh);
 }
 
 
