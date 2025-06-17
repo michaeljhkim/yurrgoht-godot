@@ -2,7 +2,7 @@
 #define TERRAIN_GENERATOR_H
 
 #include "core/object/ref_counted.h"
-#include "core/templates/a_hash_map.h"
+#include "core/variant/typed_dictionary.h"
 #include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h
 
 #include "scene/3d/physics/character_body_3d.h"
@@ -26,7 +26,7 @@ class TerrainGenerator : public Node3D {
 	bool _generating = true;
 	bool _deleting = false;
 
-	AHashMap<Vector2i, StringName> _chunks;
+	TypedDictionary<Vector2i, NodePath> _chunks;
 	CharacterBody3D* player_character = nullptr;		// This is an OBJECT
 
 protected:

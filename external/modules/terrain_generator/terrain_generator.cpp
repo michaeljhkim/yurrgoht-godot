@@ -54,18 +54,18 @@ void TerrainGenerator::process(double delta) {
 	for (int x = (player_chunk.x - effective_render_distance); x <= (player_chunk.x + effective_render_distance); x++) {
 		for (int z = (player_chunk.z - effective_render_distance); z <= (player_chunk.z + effective_render_distance); z++) {
 			Vector3i chunk_position = Vector3i(x, 0, z);
-			Vector2 grid_position(x, z);
+			Vector2i grid_position(x, z);
 
-			if ((Vector2(player_chunk.x, player_chunk.z).distance_to(grid_position) > render_distance) || 
+			if ((Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(grid_position)) > render_distance) || 
 				_chunks.has(grid_position))
 				continue;
 
 			Chunk* chunk = memnew(Chunk);
 			chunk->chunk_position = chunk_position;
 			add_child(chunk, true);
-			_chunks[grid_position] = chunk->get_name();
+			_chunks[grid_position] = chunk->get_path();
 
-			print_line("chunk name" + chunk->get_name());
+			//print_line("chunk name: " + chunk->get_path());
 
 			return;
 		}
@@ -92,13 +92,12 @@ void TerrainGenerator::clean_up() {
 	}
 	*/
 	
-	_chunks.reset();
+	_chunks.clear();
 	set_process(false);
 
 	for (int c = 0; c < get_child_count(); c++) {
-		Node* child = get_child(c);
-		remove_child(child);
-		child->queue_free();
+		//remove_child(child);
+		get_child(c)->queue_free();
 		//child.unref();
     }
 }
@@ -116,26 +115,23 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3i player_chunk) {
 	int max_deletions = CLAMP(2 * (render_distance - effective_render_distance), 2, 8);
 
 	// Also take the opportunity to delete far away chunks.
-	//for (KeyValue<Vector2i, int32_t> chunk : _chunks) {
-	Vector<Vector2i> erase_indices;
-
 	// remove_child
 
-	for (KeyValue<Vector2i, StringName> chunk : _chunks) {
-		if (Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk.key)) > _delete_distance) {
-			erase_indices.push_back(chunk.key);
+	const Array key_list = _chunks.keys();
+	
+	for (const Vector2i chunk_key : key_list) {
+		if (Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk_key)) > _delete_distance) {
+			Node* child = get_node(_chunks[chunk_key]);
 
-			Node* child = find_child(chunk.value);
-
-			// Need this because in subsequent loops, the child would've been removed
-			// Should probably refactor code so that this would become unnessecary
+			// No longer need this, but this is just in case
 			if (child == nullptr) {
+				NodePath name = _chunks[chunk_key];
+				print_line("NULL CHILD: " + name);
 				continue;
-			}
+			} 
 
-			remove_child(child);
 			child->queue_free();
-
+			_chunks.erase(chunk_key);
 
 			deleted_this_frame += 1;
 
@@ -145,10 +141,6 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3i player_chunk) {
 				return;
 			}
 		}
-	}
-
-	for (Vector2i i : erase_indices) {
-		_chunks.erase(i);
 	}
 
 	// We're done deleting.
