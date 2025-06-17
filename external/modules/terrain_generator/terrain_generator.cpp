@@ -11,6 +11,10 @@ void TerrainGenerator::_notification(int p_what) {
 			ready();
 			break;
 		*/
+
+		case NOTIFICATION_EXIT_TREE: { 		// Thread must be disposed (or "joined"), for portability.
+			//clean_up();
+		} break;
 	}
 }
 
@@ -34,7 +38,8 @@ void TerrainGenerator::process(double delta) {
 	if (player_character == nullptr) return;
 
 	//Vector3 player_location = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f) * 64.f) * Vector3(1.f, 0.f, 1.f);
-	Vector3i player_chunk = Vector3i((player_character->get_global_position() / Chunk::CHUNK_SIZE).round());
+	//Vector3i player_chunk = Vector3i((player_character->get_global_position() / Chunk::CHUNK_SIZE).round());
+	Vector3i player_chunk = player_character->get_global_position().snapped(Vector3i(1, 1, 1) * Chunk::CHUNK_SIZE) * Vector3i(1, 0, 1);
 	
 	if (_deleting || (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z))) {
 		_delete_far_away_chunks(player_chunk);
@@ -51,26 +56,23 @@ void TerrainGenerator::process(double delta) {
 			Vector3i chunk_position = Vector3i(x, 0, z);
 			Vector2 grid_position(x, z);
 
-			if (Vector2(player_chunk.x, player_chunk.z).distance_to(grid_position) > render_distance)
-				continue;
-			
-			if (_chunks.has(grid_position))
+			if ((Vector2(player_chunk.x, player_chunk.z).distance_to(grid_position) > render_distance) || 
+				_chunks.has(grid_position))
 				continue;
 
 			Chunk* chunk = memnew(Chunk);
 			chunk->chunk_position = chunk_position;
-			add_child(chunk);
+			add_child(chunk, true);
+			_chunks[grid_position] = chunk->get_name();
 
-			print_line("ADDING TO HASHMAP");
-			_chunks[grid_position] = chunk->get_index();
-			print_line("FINISHED ADDING TO HASHMAP");
+			print_line("chunk name" + chunk->get_name());
 
 			return;
 		}
 	}
 
+	// We can move on to the next stage by increasing the effective distance.
 	if (effective_render_distance < render_distance) {
-		// We can move on to the next stage by increasing the effective distance.
 		effective_render_distance += 1;
 	}
 	else {
@@ -80,23 +82,19 @@ void TerrainGenerator::process(double delta) {
 }
 
 void TerrainGenerator::clean_up() {
+	/*
 	for (KeyValue<Vector2i, int32_t> chunk : _chunks) {
 		Ref<core_bind::Thread> thread = Object::cast_to<Chunk>(get_child(chunk.value))->get_thread();
 		if (thread != nullptr)
 			thread->wait_to_finish();
+
+		thread.unref();
 	}
+	*/
 	
-	_chunks.clear();
+	_chunks.reset();
 	set_process(false);
 
-	/*
-	- I am hoping this code here is able to be a good enough replacement to the gdscript version:
-	
-	for c in get_children():
-		c.free()
-
-	- .free() is a gdscript exclusive function
-	*/
 	for (int c = 0; c < get_child_count(); c++) {
 		Node* child = get_child(c);
 		remove_child(child);
@@ -118,17 +116,27 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3i player_chunk) {
 	int max_deletions = CLAMP(2 * (render_distance - effective_render_distance), 2, 8);
 
 	// Also take the opportunity to delete far away chunks.
-	for (KeyValue<Vector2i, int32_t> chunk : _chunks) {
+	//for (KeyValue<Vector2i, int32_t> chunk : _chunks) {
+	Vector<Vector2i> erase_indices;
+
+	// remove_child
+
+	for (KeyValue<Vector2i, StringName> chunk : _chunks) {
 		if (Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk.key)) > _delete_distance) {
-			Chunk* chunk_value = Object::cast_to<Chunk>(get_child(chunk.value));
-			
-			Ref<core_bind::Thread> thread = chunk_value->get_thread();
-			if (thread != nullptr) {
-				thread->wait_to_finish();
+			erase_indices.push_back(chunk.key);
+
+			Node* child = find_child(chunk.value);
+
+			// Need this because in subsequent loops, the child would've been removed
+			// Should probably refactor code so that this would become unnessecary
+			if (child == nullptr) {
+				continue;
 			}
-			
-			chunk_value->queue_free();
-			_chunks.erase(chunk.key);
+
+			remove_child(child);
+			child->queue_free();
+
+
 			deleted_this_frame += 1;
 
 			// Limit the amount of deletions per frame to avoid lag spikes.
@@ -137,6 +145,10 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3i player_chunk) {
 				return;
 			}
 		}
+	}
+
+	for (Vector2i i : erase_indices) {
+		_chunks.erase(i);
 	}
 
 	// We're done deleting.

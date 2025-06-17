@@ -2,7 +2,7 @@
 #define TERRAIN_GENERATOR_H
 
 #include "core/object/ref_counted.h"
-#include "core/templates/hash_map.h"
+#include "core/templates/a_hash_map.h"
 #include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h
 
 #include "scene/3d/physics/character_body_3d.h"
@@ -18,7 +18,7 @@ class TerrainGenerator : public Node3D {
 	// export these values - to be defined in editor
 	int seed_input;
 
-	int render_distance = 8;
+	int render_distance = 4;
 	int _delete_distance = render_distance + 2;
 	int effective_render_distance = 0;
 	Vector3i _old_player_chunk;
@@ -26,7 +26,7 @@ class TerrainGenerator : public Node3D {
 	bool _generating = true;
 	bool _deleting = false;
 
-	HashMap<Vector2i, int> _chunks;
+	AHashMap<Vector2i, StringName> _chunks;
 	CharacterBody3D* player_character = nullptr;		// This is an OBJECT
 
 protected:

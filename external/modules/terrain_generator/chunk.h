@@ -14,8 +14,8 @@
 
 #include "core/core_bind.h"
 
-class Chunk : public StaticBody3D {
-	GDCLASS(Chunk, StaticBody3D);
+class Chunk : public MeshInstance3D {
+	GDCLASS(Chunk, MeshInstance3D);
 
 private:
 	Ref<core_bind::Thread> _thread;
