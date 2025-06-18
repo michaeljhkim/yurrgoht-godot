@@ -52,10 +52,12 @@ void Chunk::regenerate() {
 }
 
 
-// FORGOT TO ADD A MATERIAL - THATS WHY I CANT SEE ANYTHING
-
 /*
 - THIS IS SOMETHING I CAN DO MULTITHREADED SINCE IT IS 100% NOW JUST DONE BY ME
+
+- Done with figuring out normals, I just need to figure out tangents now
+
+- also after this, figure out a way to make it so that I do not need to create a new temporary array to extract vertices/normals
 */
 void Chunk::_generate_chunk_mesh() {
 	/*
@@ -117,9 +119,7 @@ void Chunk::_generate_chunk_mesh() {
 	//Vector3 normal = Vector3(0.0, 1.0, 0.0);
 
 	LocalVector<SurfaceTool::Vertex> vertex_array;
-	//Vector<Vector3> normal_array;
 	Vector<float> tangents;
-	Vector<Vector2> uvs;
 	LocalVector<int> index_array;
 	point = 0;
 
@@ -134,9 +134,9 @@ void Chunk::_generate_chunk_mesh() {
 	thisrow = point;
 	prevrow = 0;
 
-	for (j = 0; j <= (subdivide_d + 1); j++) {
+	for (j = 0; j <= (subdivide_d + 1 + 2); j++) {
 		x = start_pos.x;
-		for (i = 0; i <= (subdivide_w + 1); i++) {
+		for (i = 0; i <= (subdivide_w + 1 + 2); i++) {
 			float u = i;
 			float v = j;
 			u /= (subdivide_w + 1.0);
@@ -144,17 +144,16 @@ void Chunk::_generate_chunk_mesh() {
 
 			// Point orientation Y
 			SurfaceTool::Vertex vert;
-			vert.vertex = Vector3(-x, noise.get_noise_2d(get_global_position().x-x, get_global_position().z-z)*AMPLITUDE, -z) + center_offset;
-			vertex_array.push_back(vert);
-
-			// Normal
-			//normal_array.push_back(normal);
+			float height = noise.get_noise_2d(get_global_position().x-x, get_global_position().z-z) * AMPLITUDE;
+			vert.vertex = Vector3(-x, height, -z) + center_offset;
 
 			// Tangent
-			ADD_TANGENT(1.0, 0.0, 0.0, 1.0);
+			//ADD_TANGENT(1.0, 0.0, 0.0, 1.0);
 
 			// UVs
-			uvs.push_back(Vector2(1.0 - u, 1.0 - v)); /* 1.0 - uv to match orientation with Quad */
+			vert.uv = Vector2(1.0 - u, 1.0 - v); /* 1.0 - uv to match orientation with Quad */
+			vertex_array.push_back(vert);
+
 			point++;
 
 			if (i > 0 && j > 0) {
@@ -166,10 +165,10 @@ void Chunk::_generate_chunk_mesh() {
 				index_array.push_back(thisrow + i - 1);
 			}
 
-			x += size.x / (subdivide_w + 1.0);
+			x += size.x / (subdivide_w + 1.0 + 2.0);
 		}
 
-		z += size.y / (subdivide_d + 1.0);
+		z += size.y / (subdivide_d + 1.0 + 2.0);
 		prevrow = thisrow;
 		thisrow = point;
 	}
@@ -178,6 +177,7 @@ void Chunk::_generate_chunk_mesh() {
 	// ----- deindex start -----
 	LocalVector<SurfaceTool::Vertex> old_vertex_array = vertex_array;
 	vertex_array.clear();
+	// There are 6 indices per vertex
 	for (const int &index : index_array) {
 		ERR_FAIL_COND(uint32_t(index) >= old_vertex_array.size());
 		vertex_array.push_back(old_vertex_array[index]);
@@ -191,11 +191,9 @@ void Chunk::_generate_chunk_mesh() {
 		SurfaceTool::Vertex *v = &vertex_array[vi];
 
 		Vector3 normal;
-		if (!p_flip) {
-			normal = Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal;
-		} else {
+		!p_flip ?
+			normal = Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal:
 			normal = Plane(v[2].vertex, v[1].vertex, v[0].vertex).normal;
-		}
 
 		for (int i = 0; i < 3; i++) {
 			// Add face normal to smooth vertex influence if vertex is member of a smoothing group
@@ -215,22 +213,30 @@ void Chunk::_generate_chunk_mesh() {
 	for (SurfaceTool::Vertex &vertex : vertex_array) {
 		if (vertex.smooth_group != UINT32_MAX) {
 			Vector3 *lv = smooth_hash.getptr(vertex);
-			if (!lv) {
-				vertex.normal = Vector3();
-			} else {
-				vertex.normal = lv->normalized();
-			}
+			!lv ?
+				vertex.normal = Vector3():
+				vertex.normal = lv->normalized(); 
 		}
 	}
 
-	print_line("before index");
-	print_line(vertex_array.size());
+	//print_line("before index");
+	//print_line(vertex_array.size());
 
 	// ----- reindex start -----
-	AHashMap<SurfaceTool::Vertex &, int, VertexHasher> indices = vertex_array.size();
+	AHashMap<SurfaceTool::Vertex &, int, VertexHasher> indices = vertex_array.size() - ((subdivide_w + 3 + subdivide_d + 3) * 2);
 
 	uint32_t new_size = 0;
 	for (SurfaceTool::Vertex &vertex : vertex_array) {
+
+		// remove 1 row/column from all 4 sides, since those were extras generated purely for removing seaming between chunks
+		if ((vertex.vertex.x == 0) ||
+			(vertex.vertex.z == 0) ||
+			(vertex.vertex.x == subdivide_w + 3) ||
+			(vertex.vertex.z == subdivide_d + 3)) {
+			
+			continue;
+		}
+
 		int *idxptr = indices.getptr(vertex);
 		int idx;
 		if (!idxptr) {
@@ -238,26 +244,31 @@ void Chunk::_generate_chunk_mesh() {
 			vertex_array[new_size] = vertex;
 			indices.insert_new(vertex_array[new_size], idx);
 			new_size++;
+
+			ADD_TANGENT(1.0, 0.0, 0.0, 1.0);
+
 		} else {
 			idx = *idxptr;
 		}
 
 		index_array.push_back(idx);
+
 	}
 
 	vertex_array.resize(new_size);
 	// ----- reindex end -----
 
-	print_line("after index");
-	print_line(vertex_array.size());
+	//print_line("after index");
+	//print_line(vertex_array.size());
 
 	PackedVector3Array point_array;
 	PackedVector3Array normal_array;
+	PackedVector2Array uv_array;
 	for (SurfaceTool::Vertex p : vertex_array) {
 		point_array.push_back(p.vertex);
 		normal_array.push_back(p.normal);
+		uv_array.push_back(p.uv);
 	}
-
 
 	Vector<int> new_index_array;
 	for (int in : index_array) {
@@ -273,7 +284,7 @@ void Chunk::_generate_chunk_mesh() {
 	p_arr[RS::ARRAY_VERTEX] = point_array;
 	p_arr[RS::ARRAY_NORMAL] = normal_array;
 	p_arr[RS::ARRAY_TANGENT] = tangents;
-	p_arr[RS::ARRAY_TEX_UV] = uvs;
+	p_arr[RS::ARRAY_TEX_UV] = uv_array;
 	p_arr[RS::ARRAY_INDEX] = new_index_array;
 
 	// regular mesh does not have add_surface_from_arrays, but ArrayMesh is a child of Mesh, so it can be passed with set_mesh
@@ -282,6 +293,11 @@ void Chunk::_generate_chunk_mesh() {
 	arr_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, p_arr);
 
 	set_mesh(arr_mesh);
+}
+
+
+void Chunk::_generate_chunk_normals() {
+
 }
 
 

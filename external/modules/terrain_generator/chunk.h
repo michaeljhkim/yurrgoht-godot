@@ -72,6 +72,7 @@ protected:
     void regenerate();
     void _generate_chunk_collider();
     void _generate_chunk_mesh();
+    void _generate_chunk_normals();
 
 	static void _bind_methods();
 
