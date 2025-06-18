@@ -1,6 +1,8 @@
 #include "chunk.h"
 #include "thirdparty/embree/kernels/bvh/bvh_statistics.h"
 
+//typedef SurfaceTool::Vertex Vertex;
+
 void Chunk::_notification(int p_what) {
 	switch (p_what) {
 		/*
@@ -53,12 +55,7 @@ void Chunk::regenerate() {
 // FORGOT TO ADD A MATERIAL - THATS WHY I CANT SEE ANYTHING
 
 /*
-- Why did I not think of this before?
-- Copy PlaneMesh mesh creation code instead of attempting to try and figure it out myself
-- copy normal generation code from surface tool as well
-- Surface tool will also no longer be needed since this needs to be done with arraymesh
-
-- WAIT THIS IS SOMETHING I CAN DO MULTITHREADED SINCE IT IS 100% NOW JUST DONE BY ME
+- THIS IS SOMETHING I CAN DO MULTITHREADED SINCE IT IS 100% NOW JUST DONE BY ME
 */
 void Chunk::_generate_chunk_mesh() {
 	/*
@@ -97,7 +94,11 @@ void Chunk::_generate_chunk_mesh() {
 	plane_mesh.unref();
 	surface_tool.unref();
 	array_mesh.unref();
+	return;
 	*/
+
+
+
 	Array p_arr;
 	p_arr.resize(Mesh::ARRAY_MAX);
 
@@ -113,13 +114,13 @@ void Chunk::_generate_chunk_mesh() {
 	// Plane mesh can use default UV2 calculation as implemented in Primitive Mesh
 	Size2 start_pos = size * -0.5;
 
-	Vector3 normal = Vector3(0.0, 1.0, 0.0);
+	//Vector3 normal = Vector3(0.0, 1.0, 0.0);
 
-	Vector<Vector3> points;
-	Vector<Vector3> normals;
+	LocalVector<SurfaceTool::Vertex> vertex_array;
+	//Vector<Vector3> normal_array;
 	Vector<float> tangents;
 	Vector<Vector2> uvs;
-	Vector<int> indices;
+	LocalVector<int> index_array;
 	point = 0;
 
 #define ADD_TANGENT(m_x, m_y, m_z, m_d) \
@@ -132,6 +133,7 @@ void Chunk::_generate_chunk_mesh() {
 	z = start_pos.y;
 	thisrow = point;
 	prevrow = 0;
+
 	for (j = 0; j <= (subdivide_d + 1); j++) {
 		x = start_pos.x;
 		for (i = 0; i <= (subdivide_w + 1); i++) {
@@ -140,31 +142,28 @@ void Chunk::_generate_chunk_mesh() {
 			u /= (subdivide_w + 1.0);
 			v /= (subdivide_d + 1.0);
 
-			// orientation Y
-			float height = noise.get_noise_2d(get_global_position().x - x, get_global_position().z - z) * AMPLITUDE;
-			points.push_back(Vector3(-x, height, -z) + center_offset);
+			// Point orientation Y
+			SurfaceTool::Vertex vert;
+			vert.vertex = Vector3(-x, noise.get_noise_2d(get_global_position().x-x, get_global_position().z-z)*AMPLITUDE, -z) + center_offset;
+			vertex_array.push_back(vert);
 
-			/*
-			Vector3 normal;
-			if (!p_flip) {
-				normal = Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal;
-			} else {
-				normal = Plane(v[2].vertex, v[1].vertex, v[0].vertex).normal;
-			}
-			*/
-			normals.push_back(normal);
+			// Normal
+			//normal_array.push_back(normal);
+
+			// Tangent
 			ADD_TANGENT(1.0, 0.0, 0.0, 1.0);
 
+			// UVs
 			uvs.push_back(Vector2(1.0 - u, 1.0 - v)); /* 1.0 - uv to match orientation with Quad */
 			point++;
 
 			if (i > 0 && j > 0) {
-				indices.push_back(prevrow + i - 1);
-				indices.push_back(prevrow + i);
-				indices.push_back(thisrow + i - 1);
-				indices.push_back(prevrow + i);
-				indices.push_back(thisrow + i);
-				indices.push_back(thisrow + i - 1);
+				index_array.push_back(prevrow + i - 1);
+				index_array.push_back(prevrow + i);
+				index_array.push_back(thisrow + i - 1);
+				index_array.push_back(prevrow + i);
+				index_array.push_back(thisrow + i);
+				index_array.push_back(thisrow + i - 1);
 			}
 
 			x += size.x / (subdivide_w + 1.0);
@@ -175,11 +174,107 @@ void Chunk::_generate_chunk_mesh() {
 		thisrow = point;
 	}
 
-	p_arr[RS::ARRAY_VERTEX] = points;
-	p_arr[RS::ARRAY_NORMAL] = normals;
+	// adding normal_array
+	// ----- deindex start -----
+	LocalVector<SurfaceTool::Vertex> old_vertex_array = vertex_array;
+	vertex_array.clear();
+	for (const int &index : index_array) {
+		ERR_FAIL_COND(uint32_t(index) >= old_vertex_array.size());
+		vertex_array.push_back(old_vertex_array[index]);
+	}
+	index_array.clear();
+	// ----- deindex end -----
+
+	AHashMap<SmoothGroupVertex, Vector3, SmoothGroupVertexHasher> smooth_hash = vertex_array.size();
+
+	for (uint32_t vi = 0; vi < vertex_array.size(); vi += 3) {
+		SurfaceTool::Vertex *v = &vertex_array[vi];
+
+		Vector3 normal;
+		if (!p_flip) {
+			normal = Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal;
+		} else {
+			normal = Plane(v[2].vertex, v[1].vertex, v[0].vertex).normal;
+		}
+
+		for (int i = 0; i < 3; i++) {
+			// Add face normal to smooth vertex influence if vertex is member of a smoothing group
+			if (v[i].smooth_group != UINT32_MAX) {
+				Vector3 *lv = smooth_hash.getptr(v[i]);
+				if (!lv) {
+					smooth_hash.insert_new(v[i], normal);
+				} else {
+					(*lv) += normal;
+				}
+			} else {
+				v[i].normal = normal;
+			}
+		}
+	}
+
+	for (SurfaceTool::Vertex &vertex : vertex_array) {
+		if (vertex.smooth_group != UINT32_MAX) {
+			Vector3 *lv = smooth_hash.getptr(vertex);
+			if (!lv) {
+				vertex.normal = Vector3();
+			} else {
+				vertex.normal = lv->normalized();
+			}
+		}
+	}
+
+	print_line("before index");
+	print_line(vertex_array.size());
+
+	// ----- reindex start -----
+	AHashMap<SurfaceTool::Vertex &, int, VertexHasher> indices = vertex_array.size();
+
+	uint32_t new_size = 0;
+	for (SurfaceTool::Vertex &vertex : vertex_array) {
+		int *idxptr = indices.getptr(vertex);
+		int idx;
+		if (!idxptr) {
+			idx = indices.size();
+			vertex_array[new_size] = vertex;
+			indices.insert_new(vertex_array[new_size], idx);
+			new_size++;
+		} else {
+			idx = *idxptr;
+		}
+
+		index_array.push_back(idx);
+	}
+
+	vertex_array.resize(new_size);
+	// ----- reindex end -----
+
+	print_line("after index");
+	print_line(vertex_array.size());
+
+	PackedVector3Array point_array;
+	PackedVector3Array normal_array;
+	for (SurfaceTool::Vertex p : vertex_array) {
+		point_array.push_back(p.vertex);
+		normal_array.push_back(p.normal);
+	}
+
+
+	Vector<int> new_index_array;
+	for (int in : index_array) {
+		new_index_array.push_back(in);
+	}
+
+	/*
+	print_line(point_array.size());
+	print_line(normal_array.size());
+	print_line(index_array.size());
+	*/
+
+	p_arr[RS::ARRAY_VERTEX] = point_array;
+	p_arr[RS::ARRAY_NORMAL] = normal_array;
 	p_arr[RS::ARRAY_TANGENT] = tangents;
 	p_arr[RS::ARRAY_TEX_UV] = uvs;
-	p_arr[RS::ARRAY_INDEX] = indices;
+	p_arr[RS::ARRAY_INDEX] = new_index_array;
 
 	// regular mesh does not have add_surface_from_arrays, but ArrayMesh is a child of Mesh, so it can be passed with set_mesh
 	Ref<ArrayMesh> arr_mesh;
