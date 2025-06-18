@@ -26,6 +26,8 @@ class TerrainGenerator : public Node3D {
 	bool _generating = true;
 	bool _deleting = false;
 
+	//Ref<StandardMaterial3D> shared_mat;
+
 	/*
 	- Here is why the _chunks map uses TypedDictionary<Vector2i, NodePath> specifically
 	- Vector2i represents where the chunk is in the grid surrounding the player

@@ -6,11 +6,9 @@ void TerrainGenerator::_notification(int p_what) {
 			process(get_process_delta_time());
 			break;
 
-		/*
 		case NOTIFICATION_READY:
 			ready();
 			break;
-		*/
 
 		case NOTIFICATION_EXIT_TREE: { 		// Thread must be disposed (or "joined"), for portability.
 			//clean_up();
@@ -19,20 +17,9 @@ void TerrainGenerator::_notification(int p_what) {
 }
 
 // processes that only need to be done on intialization - generates the basic values needed going forward
-/*
 void TerrainGenerator::ready() {
-	partition_distance = 4;
-
-	for(int8_t z = -partition_distance; z <= partition_distance; z++) {
-		for(int8_t x = -partition_distance; x <= partition_distance; x++) {
-			Partition* partition = memnew(Partition(Vector2i(x, z), x, z));
-			terrain_grid.insert(Vector2i(x, z), partition);
-			
-			add_child(partition);
-		}
-	}
+	//shared_mat.instantiate();
 }
-*/
 
 /*
 CURRENT ISSUES:
@@ -68,6 +55,7 @@ void TerrainGenerator::process(double delta) {
 
 			Chunk* chunk = memnew(Chunk);
 			chunk->chunk_position = chunk_position;
+			//chunk->set_material(shared_mat);
 			add_child(chunk, true);
 			_chunks[grid_position] = chunk->get_path();
 

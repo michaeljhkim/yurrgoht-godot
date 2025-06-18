@@ -8,10 +8,11 @@
 #include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h
 
 #include "scene/3d/mesh_instance_3d.h"
-#include "scene/3d/physics/static_body_3d.h"
-#include "scene/resources/3d/primitive_meshes.h"
+//#include "scene/3d/physics/static_body_3d.h"
+//#include "scene/resources/3d/primitive_meshes.h"
 #include "core/templates/a_hash_map.h"
-#include "scene/resources/surface_tool.h"
+#include "scene/resources/surface_tool.h" // only need this for Vertex struct
+#include "thirdparty/misc/mikktspace.h"
 
 #include "core/core_bind.h"
 
@@ -22,6 +23,9 @@ private:
 	Ref<core_bind::Thread> _thread;
     FastNoiseLite noise;
 	Vector3 center_offset;
+
+	LocalVector<SurfaceTool::Vertex> vertex_array;
+	LocalVector<int> index_array;
 
 protected:
     struct VertexHasher {
@@ -48,7 +52,6 @@ protected:
             return true;
         }
 
-
 		SmoothGroupVertex(const SurfaceTool::Vertex &p_vertex) {
 			vertex = p_vertex.vertex;
 			smooth_group = p_vertex.smooth_group;
@@ -64,6 +67,12 @@ protected:
         }
     };
 
+    //mikktspace callbacks
+    struct TangentGenerationContextUserData {
+        LocalVector<SurfaceTool::Vertex> *vertices;
+        LocalVector<int> *indices;
+    };
+
 	void _notification(int p_notification);
 	//void init();	// probably do not need this, ready should take care of everything
 	void ready();
@@ -72,7 +81,19 @@ protected:
     void regenerate();
     void _generate_chunk_collider();
     void _generate_chunk_mesh();
+
+    //probably do not need this
     void _generate_chunk_normals();
+    void _generate_chunk_tangents();
+
+	//mikktspace callbacks
+	static int mikktGetNumFaces(const SMikkTSpaceContext *pContext);
+	static int mikktGetNumVerticesOfFace(const SMikkTSpaceContext *pContext, const int iFace);
+	static void mikktGetPosition(const SMikkTSpaceContext *pContext, float fvPosOut[], const int iFace, const int iVert);
+	static void mikktGetNormal(const SMikkTSpaceContext *pContext, float fvNormOut[], const int iFace, const int iVert);
+	static void mikktGetTexCoord(const SMikkTSpaceContext *pContext, float fvTexcOut[], const int iFace, const int iVert);
+	static void mikktSetTSpaceDefault(const SMikkTSpaceContext *pContext, const float fvTangent[], const float fvBiTangent[], const float fMagS, const float fMagT,
+			const tbool bIsOrientationPreserving, const int iFace, const int iVert);
 
 	static void _bind_methods();
 
@@ -91,6 +112,9 @@ public:
     Node* voxel_world;
 
     Ref<core_bind::Thread> get_thread() { return _thread; }
+
+    //void set_material(const Ref<Material> &new_material) { set_material_override(new_material); }
+
 
     /*
     Chunk();

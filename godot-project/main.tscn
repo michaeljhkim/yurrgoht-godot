@@ -25,7 +25,7 @@ environment = SubResource("Environment_0xm2m")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.982935, 0.183952, 0, -0.183951, 0.982936, 0, 147.836, 22)
-shadow_enabled = true
+light_bake_mode = 0
 
 [node name="PlayerCharacter" parent="." instance=ExtResource("1_ig7tw")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 43.1896, 0)
@@ -33,6 +33,7 @@ speed = 50
 jump_velocity = 8.0
 
 [node name="Terrain" type="StaticBody3D" parent="."]
+visible = false
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Terrain"]
 shape = SubResource("ConcavePolygonShape3D_h2yge")
