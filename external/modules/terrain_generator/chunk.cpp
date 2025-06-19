@@ -208,16 +208,6 @@ void Chunk::_generate_chunk_mesh() {
 				index_array.push_back(thisrow + i + 1);
 				index_array.push_back(thisrow + i);
 				*/
-
-				/*
-				index_array.push_back(i + j     * (subdivide_w + 1 + 2));
-				index_array.push_back(i + (j+1) * (subdivide_w + 1 + 2));
-				index_array.push_back(i + j     * (subdivide_w + 1 + 2) + 1);
-
-				index_array.push_back(i + (j+1) * (subdivide_w + 1 + 2));
-				index_array.push_back(i + (j+1) * (subdivide_w + 1 + 2) + 1);
-				index_array.push_back(i + j     * (subdivide_w + 1 + 2) + 1);
-				*/
 			}
 
 			x += size.x / (subdivide_w + 1.0);
@@ -227,15 +217,18 @@ void Chunk::_generate_chunk_mesh() {
 		prevrow = thisrow;
 		thisrow = point;
 	}
+	Vector3 start_vertex = vertex_array[0].vertex;
 	Vector3 last_vertex = vertex_array[vertex_array.size()-1].vertex;
+
+	//print_line("old array size:", vertex_array.size());
+	//print_line("new array size:", vertex_size_test.size());
+
 
 	// ----- deindex start -----
 	LocalVector<SurfaceTool::Vertex> old_vertex_array = vertex_array;
 	vertex_array.clear();
 	// There are 6 indices per vertex
 	for (const int &index : index_array) {
-		//print_line("index size: ", uint32_t(index));
-		//print_line("old_vertex_array size: ", old_vertex_array.size());
 		ERR_FAIL_COND(uint32_t(index) >= old_vertex_array.size());
 		vertex_array.push_back(old_vertex_array[index]);
 	}
@@ -295,8 +288,8 @@ void Chunk::_generate_chunk_mesh() {
 	uint32_t new_size = 0;
 	for (SurfaceTool::Vertex &vertex : vertex_array) {
 		// remove 1 row/column from all 4 sides, since those were extras generated purely for removing seaming between chunks
-		if ((vertex.vertex.x == start_pos.x) ||
-			(vertex.vertex.z == start_pos.y) ||
+		if ((vertex.vertex.x == start_vertex.x) ||
+			(vertex.vertex.z == start_vertex.z) ||
 			(vertex.vertex.x == last_vertex.x) ||
 			(vertex.vertex.z == last_vertex.z)) {
 			
@@ -364,14 +357,6 @@ void Chunk::_generate_chunk_mesh() {
 		w[idx * 4 + 3] = w_sign;
 		*/
 	}
-
-	/*
-	Vector<int> new_index_array;
-	for (int in : index_array) {
-		new_index_array.push_back(in);
-	}
-	*/
-
 
 	// removed a row of indices from all 4 sides of chunk
 	int sub_point = 0;
