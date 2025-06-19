@@ -28,13 +28,13 @@ void Chunk::_notification(int p_what) {
 void Chunk::ready() {
 	//voxel_world = get_parent();
 
-	//set_position(Vector3(chunk_position * CHUNK_SIZE));
-    //set_name(VariantUtilityFunctions::var_to_str(chunk_position)); 
+    set_position(Vector3(chunk_position * CHUNK_SIZE));
+    set_name(VariantUtilityFunctions::var_to_str(chunk_position)); 
 
 	// TEMPORARY!!!
-	//set_ignore_occlusion_culling(true);
+	set_ignore_occlusion_culling(true);
 
-	//_generate_chunk_mesh();
+	_generate_chunk_mesh();
 }
 
 
@@ -63,57 +63,31 @@ void Chunk::regenerate() {
 - also after this, figure out a way to make it so that I do not need to create a new temporary array to extract vertices/normals
 */
 void Chunk::_generate_chunk_mesh() {
-	//set_transparency(1);
 	/*
-    set_position(Vector3(chunk_position * CHUNK_SIZE));
-
-	noise.set_noise_type(FastNoiseLite::TYPE_SIMPLEX);
-	noise.set_frequency(0.008);
-	noise.set_fractal_type(FastNoiseLite::FRACTAL_PING_PONG);
-	noise.set_fractal_octaves(10);
-	noise.set_fractal_gain(0.27);
-	noise.set_fractal_ping_pong_strength(0.86);
-	noise.set_cellular_distance_function(FastNoiseLite::DISTANCE_EUCLIDEAN_SQUARED);
-
 	Ref<PlaneMesh> plane_mesh;
 	plane_mesh.instantiate();
 	plane_mesh->set_size(Vector2(CHUNK_SIZE, CHUNK_SIZE));
-	plane_mesh->set_subdivide_width(CHUNK_SIZE);
-	plane_mesh->set_subdivide_depth(CHUNK_SIZE);
-	set_mesh(plane_mesh);
-
-	//noise.set_offset(get_global_position());
-	noise.set_offset(get_position());
+	plane_mesh->set_subdivide_width(CHUNK_SIZE-1);
+	plane_mesh->set_subdivide_depth(CHUNK_SIZE-1);
 
 	Ref<SurfaceTool> surface_tool;
 	surface_tool.instantiate();
-	surface_tool->clear();
-	surface_tool->create_from(get_mesh(), 0);
+	surface_tool->create_from(plane_mesh, 0);
+	Array data = surface_tool->commit_to_arrays();
+	PackedVector3Array vertices = data[ArrayMesh::ARRAY_VERTEX];
+
+	// due to how godots arrays work, the modified vertex must be applied in this manner
+	for (int i = 0; i < vertices.size(); i++) {
+		Vector3 vertex = vertices[i];
+		vertex.y = noise.get_noise_2d(get_global_position().x + vertex.x, get_global_position().z + vertex.z) * AMPLITUDE;
+		vertices.set(i, vertex);
+	}
+	data[ArrayMesh::ARRAY_VERTEX] = vertices;
 
 	Ref<ArrayMesh> array_mesh;
 	array_mesh.instantiate();
-	array_mesh = surface_tool->commit();
-
-	Ref<MeshDataTool> data_tool;
-	data_tool.instantiate();
-	data_tool->clear();
-	data_tool->create_from_surface(array_mesh, 0);
-
-	float vertex_count = data_tool->get_vertex_count();
-
-	// due to how godots arrays work, the modified vertex must be applied in this manner
-	for (int i = 0; i < vertex_count; i++) {
-		Vector3 vertex = data_tool->get_vertex(i);
-		//vertex.y = noise.get_noise_3d(vertex.x, vertex.y, vertex.z) * AMPLITUDE;
-		float value = noise.get_noise_3d(vertex.x, vertex.y, vertex.z);
-		vertex.y =  value * AMPLITUDE;
-		data_tool->set_vertex(i, vertex);
-	}
-	array_mesh->clear_surfaces();
-	data_tool->commit_to_surface(array_mesh);
-
-	surface_tool->clear();
-	surface_tool->begin(Mesh::PRIMITIVE_TRIANGLES);
+	array_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, data);
+	
 	surface_tool->create_from(array_mesh, 0);
 	surface_tool->generate_normals();
 
@@ -124,11 +98,10 @@ void Chunk::_generate_chunk_mesh() {
 
 	plane_mesh.unref();
 	surface_tool.unref();
-	data_tool.unref();
 	array_mesh.unref();
-
 	return;
 	*/
+
 
 
 	Array p_arr;
@@ -143,23 +116,42 @@ void Chunk::_generate_chunk_mesh() {
 	int i, j, prevrow, thisrow, point;
 	float x, z;
 
-	float step_x = size.x / (subdivide_w - 1.0);
-	float step_z = size.y / (subdivide_d - 1.0);
+
+	/*
+	int int_subdivide_d = subdivide_d + 1;
+	int int_subdivide_w = subdivide_w + 1;
+	float float_subdivide_d = subdivide_d + 1.0f;
+	float float_subdivide_w = subdivide_w + 1.0f;
+	*/
+	
+	/*
+	int int_subdivide_d = subdivide_d + 1 + 1;
+	int int_subdivide_w = subdivide_w + 1 + 1;
+	float float_subdivide_d = subdivide_d + 1.0f;
+	float float_subdivide_w = subdivide_w + 1.0f;
+	*/
+
+	float step_x = size.x / (subdivide_w + 1.0);
+	float step_z = size.y / (subdivide_d + 1.0);
 
 	// Plane mesh can use default UV2 calculation as implemented in Primitive Mesh
-	//Size2 start_pos = size * -0.5 - Vector2(step_x, step_z);
+	Size2 start_pos = size * -0.5 - Vector2(step_x, step_z);
 	//Size2 start_pos = size * -0.5;
-
-	// THIS IS HEADING IN THE CORRECT DIRECTION SOMEHOW
-	Size2 start_pos = size * -0.5 - Vector2(step_x*4, step_z*4) - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE;
 	point = 0;
+
+	/*
+	Vector<float> tangents;
+#define ADD_TANGENT(m_x, m_y, m_z, m_d) \
+	tangents.push_back(m_x);            \
+	tangents.push_back(m_y);            \
+	tangents.push_back(m_z);            \
+	tangents.push_back(m_d);
+	*/
 
 	/* top + bottom */
 	z = start_pos.y;
 	thisrow = point;
 	prevrow = 0;
-
-	//PackedVector3Array local_vertex_array;
 
 	for (j = 0; j <= (subdivide_d + 1); j++) {
 		x = start_pos.x;
@@ -171,10 +163,9 @@ void Chunk::_generate_chunk_mesh() {
 
 			// Point orientation Y
 			SurfaceTool::Vertex vert;
-			float height = noise.get_noise_2d(-x, -z) * AMPLITUDE;
+			float height = noise.get_noise_2d(get_global_position().x-x, get_global_position().z-z) * AMPLITUDE;
 			//float height = 0.0;
 			vert.vertex = Vector3(-x, height, -z) + center_offset;
-			//local_vertex_array.push_back(vert.vertex);
 
 			// Tangent
 			//ADD_TANGENT(1.0, 0.0, 0.0, 1.0);
@@ -185,11 +176,6 @@ void Chunk::_generate_chunk_mesh() {
 
 			point++;
 
-			/*
-			Start at i>1 and end at i<(subdivide_w + 1)
-			- or store that specific indices in a temp array
-			- remember that prevrow and thisrow must be accounted for, they add according to the loop
-			*/
 			if (i > 0 && j > 0) {
 				index_array.push_back(prevrow + i - 1);
 				index_array.push_back(prevrow + i);
@@ -199,15 +185,6 @@ void Chunk::_generate_chunk_mesh() {
 				index_array.push_back(thisrow + i);
 				index_array.push_back(thisrow + i - 1);
 
-				/*
-				index_array.push_back(prevrow + i);
-				index_array.push_back(prevrow + i + 1);
-				index_array.push_back(thisrow + i);
-
-				index_array.push_back(prevrow + i + 1);
-				index_array.push_back(thisrow + i + 1);
-				index_array.push_back(thisrow + i);
-				*/
 
 				/*
 				index_array.push_back(i + j     * (subdivide_w + 1 + 2));
@@ -222,8 +199,8 @@ void Chunk::_generate_chunk_mesh() {
 
 			x += size.x / (subdivide_w + 1.0);
 		}
-		z += size.y / (subdivide_d + 1.0);
 
+		z += size.y / (subdivide_d + 1.0);
 		prevrow = thisrow;
 		thisrow = point;
 	}
@@ -295,6 +272,7 @@ void Chunk::_generate_chunk_mesh() {
 	uint32_t new_size = 0;
 	for (SurfaceTool::Vertex &vertex : vertex_array) {
 		// remove 1 row/column from all 4 sides, since those were extras generated purely for removing seaming between chunks
+		/*
 		if ((vertex.vertex.x == start_pos.x) ||
 			(vertex.vertex.z == start_pos.y) ||
 			(vertex.vertex.x == last_vertex.x) ||
@@ -302,6 +280,7 @@ void Chunk::_generate_chunk_mesh() {
 			
 			continue;
 		}
+		*/
 
 		int *idxptr = indices.getptr(vertex);
 		int idx;
@@ -365,35 +344,9 @@ void Chunk::_generate_chunk_mesh() {
 		*/
 	}
 
-	/*
 	Vector<int> new_index_array;
 	for (int in : index_array) {
 		new_index_array.push_back(in);
-	}
-	*/
-
-
-	// removed a row of indices from all 4 sides of chunk
-	int sub_point = 0;
-	int sub_thisrow = sub_point;
-	int sub_prevrow = 0;
-	Vector<int> sub_index_array;
-
-	for (int sub_j = 1; sub_j < (subdivide_d + 1); sub_j++) {
-		for (int sub_i = 1; sub_i < (subdivide_w + 1); sub_i++) {
-			sub_point++;
-			if (i > 1 && j > 1) {
-				sub_index_array.push_back(sub_prevrow + sub_i - 1);
-				sub_index_array.push_back(sub_prevrow + sub_i);
-				sub_index_array.push_back(sub_thisrow + sub_i - 1);
-
-				sub_index_array.push_back(sub_prevrow + sub_i);
-				sub_index_array.push_back(sub_thisrow + sub_i);
-				sub_index_array.push_back(sub_thisrow + sub_i - 1);
-			}
-		}
-		sub_prevrow = sub_thisrow;
-		sub_thisrow = sub_point;
 	}
 
 	p_arr[RS::ARRAY_VERTEX] = point_array;
@@ -401,7 +354,7 @@ void Chunk::_generate_chunk_mesh() {
 	p_arr[RS::ARRAY_TANGENT] = tangent_array;
 	//p_arr[RS::ARRAY_TANGENT] = tangents;
 	p_arr[RS::ARRAY_TEX_UV] = uv_array;
-	p_arr[RS::ARRAY_INDEX] = sub_index_array;
+	p_arr[RS::ARRAY_INDEX] = new_index_array;
 
 	// regular mesh does not have add_surface_from_arrays, but ArrayMesh is a child of Mesh, so it can be passed with set_mesh
 	Ref<ArrayMesh> arr_mesh;

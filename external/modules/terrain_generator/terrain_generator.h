@@ -34,7 +34,7 @@ class TerrainGenerator : public Node3D {
 	- NodePath is the most accurate way to access a specific child node publicly
 	- indices were constantly changing within the parent node, so managing with indices was impossible
 	*/
-	TypedDictionary<Vector2i, NodePath> _chunks;
+	TypedDictionary<Vector2, NodePath> _chunks;
 	CharacterBody3D* player_character = nullptr;		// This is an OBJECT
 
 protected:

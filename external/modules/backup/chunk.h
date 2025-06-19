@@ -9,11 +9,9 @@
 
 #include "scene/3d/mesh_instance_3d.h"
 //#include "scene/3d/physics/static_body_3d.h"
-#include "scene/resources/3d/primitive_meshes.h"
+//#include "scene/resources/3d/primitive_meshes.h"
 #include "core/templates/a_hash_map.h"
 #include "scene/resources/surface_tool.h" // only need this for Vertex struct
-#include "scene/resources/mesh_data_tool.h"
-
 #include "thirdparty/misc/mikktspace.h"
 
 #include "core/core_bind.h"
@@ -80,6 +78,10 @@ protected:
 	void ready();
 	void process(float delta);
 
+    void regenerate();
+    void _generate_chunk_collider();
+    void _generate_chunk_mesh();
+
     //probably do not need this
     void _generate_chunk_normals();
     void _generate_chunk_tangents();
@@ -96,12 +98,8 @@ protected:
 	static void _bind_methods();
 
 public:
-    void regenerate();
-    void _generate_chunk_collider();
-    void _generate_chunk_mesh();
-
-    static constexpr float CHUNK_SIZE = 16; // Keep in sync with TerrainGenerator.
-    static constexpr float TEXTURE_SHEET_WIDTH = 8;
+    static constexpr int CHUNK_SIZE = 16; // Keep in sync with TerrainGenerator.
+    static constexpr int TEXTURE_SHEET_WIDTH = 8;
 
     static constexpr int CHUNK_LAST_INDEX = CHUNK_SIZE - 1;
     static constexpr float TEXTURE_TILE_SIZE = 1.0 / TEXTURE_SHEET_WIDTH;

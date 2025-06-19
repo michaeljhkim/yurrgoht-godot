@@ -5,7 +5,7 @@ void TerrainGenerator::_notification(int p_what) {
 		case NOTIFICATION_PROCESS:
 			process(get_process_delta_time());
 			break;
-
+		/*
 		case NOTIFICATION_READY:
 			ready();
 			break;
@@ -13,6 +13,7 @@ void TerrainGenerator::_notification(int p_what) {
 		case NOTIFICATION_EXIT_TREE: { 		// Thread must be disposed (or "joined"), for portability.
 			//clean_up();
 		} break;
+		*/
 	}
 }
 
@@ -24,15 +25,15 @@ void TerrainGenerator::ready() {
 /*
 CURRENT ISSUES:
 - New mesh chunks generate significantly further away that expected
-- stitching between chunks is non-existant, but can probably fix with adding 1 row/column of vertices to each side of each chunk
-- then remove them after calculating normals
+- I think my biggest issue is the actual chunk placement
+- also swapping between ints and floats. I should probably look into that way more
 */
 void TerrainGenerator::process(double delta) {
 	if (player_character == nullptr) return;
 
 	//Vector3 player_location = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f) * 64.f) * Vector3(1.f, 0.f, 1.f);
 	//Vector3i player_chunk = Vector3i((player_character->get_global_position() / Chunk::CHUNK_SIZE).round());
-	Vector3i player_chunk = player_character->get_global_position().snapped(Vector3i(1, 1, 1) * Chunk::CHUNK_SIZE) * Vector3i(1, 0, 1);
+	Vector3 player_chunk = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f) * Chunk::CHUNK_SIZE) * Vector3(1.f, 0.f, 1.f);
 	
 	if (_deleting || (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z))) {
 		_delete_far_away_chunks(player_chunk);
@@ -46,17 +47,18 @@ void TerrainGenerator::process(double delta) {
 	// Check existing chunks within range. If it doesn't exist, create it.
 	for (int x = (player_chunk.x - effective_render_distance); x <= (player_chunk.x + effective_render_distance); x++) {
 		for (int z = (player_chunk.z - effective_render_distance); z <= (player_chunk.z + effective_render_distance); z++) {
-			Vector3i chunk_position = Vector3i(x, 0, z);
-			Vector2i grid_position(x, z);
+			Vector3 chunk_position = Vector3(x, 0, z);
+			Vector2 grid_position(x, z);
 
-			if ((Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(grid_position)) > render_distance) || 
+			if ((Vector2(player_chunk.x, player_chunk.z).distance_to(grid_position) > render_distance) || 
 				_chunks.has(grid_position))
 				continue;
 
 			Chunk* chunk = memnew(Chunk);
 			chunk->chunk_position = chunk_position;
+			chunk->_generate_chunk_mesh();
 			//chunk->set_material(shared_mat);
-			add_child(chunk, true);
+			add_child(chunk);
 			_chunks[grid_position] = chunk->get_path();
 
 			//print_line("chunk name: " + chunk->get_path());
@@ -113,8 +115,8 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3i player_chunk) {
 
 	const Array key_list = _chunks.keys();
 	
-	for (const Vector2i chunk_key : key_list) {
-		if (Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk_key)) > _delete_distance) {
+	for (const Vector2 chunk_key : key_list) {
+		if (Vector2(player_chunk.x, player_chunk.z).distance_to(chunk_key) > _delete_distance) {
 			Node* child = get_node(_chunks[chunk_key]);
 
 			// No longer need this, but this is just in case
