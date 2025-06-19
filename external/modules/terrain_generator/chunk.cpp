@@ -129,6 +129,7 @@ void Chunk::_generate_chunk_mesh() {
 
 	return;
 	*/
+	print_line("CHUNK MESHING STARTING");
 
 
 	Array p_arr;
@@ -283,9 +284,10 @@ void Chunk::_generate_chunk_mesh() {
 
 	// ----- reindex start -----
 	// explain the numbers later
-	//uint32_t first_index = vertex_array.size() - (subdivide_w + (subdivide_w - 1) + ((subdivide_d - 1) * 2));
+	//uint32_t first_index = vertex_array.size() - (((subdivide_w + 2) + (subdivide_w + 1) + ((subdivide_d + 1) * 2))*6);
 	//AHashMap<SurfaceTool::Vertex &, int, VertexHasher> indices = first_index;
-	AHashMap<SurfaceTool::Vertex &, int, VertexHasher> indices = vertex_array.size();
+	//AHashMap<SurfaceTool::Vertex &, int, VertexHasher> indices = vertex_array.size();
+	AHashMap<SurfaceTool::Vertex &, int, VertexHasher> indices;
 	//print_line("removed extra rows/volumns: ", first_index);
 
 	uint32_t new_size = 0;
@@ -295,7 +297,6 @@ void Chunk::_generate_chunk_mesh() {
 			(vertex.vertex.z == start_vertex.z) ||
 			(vertex.vertex.x == last_vertex.x) ||
 			(vertex.vertex.z == last_vertex.z)) {
-			
 			continue;
 		}
 
@@ -306,18 +307,16 @@ void Chunk::_generate_chunk_mesh() {
 			vertex_array[new_size] = vertex;
 			indices.insert_new(vertex_array[new_size], idx);
 			new_size++;
-
-			//ADD_TANGENT(1.0, 0.0, 0.0, 1.0);
-
 		} else {
 			idx = *idxptr;
 		}
 
 		index_array.push_back(idx);
 	}
+	//print_line("index_array size : ", indices.size());
 
 	vertex_array.resize(new_size);
-	print_line("resize after index: ", vertex_array.size());
+	//print_line("resize after index: ", vertex_array.size());
 
 	// ----- reindex end -----
 	// This is also the end of normal calculations and refactoring - time for tangents
@@ -338,6 +337,8 @@ void Chunk::_generate_chunk_mesh() {
 		point_array.push_back(v.vertex);
 		normal_array.push_back(v.normal);
 		uv_array.push_back(v.uv);
+
+		//print_line(v.vertex, v.normal, v.uv);
 
 		//Tangent calculations
 		w[idx * 4 + 0] = v.tangent.x;
@@ -360,6 +361,14 @@ void Chunk::_generate_chunk_mesh() {
 		w[idx * 4 + 3] = w_sign;
 		*/
 	}
+	for (int test = 0; test < index_array.size(); test+=6) {
+		print_line(index_array[test], index_array[test+1], index_array[test+2], index_array[test+3], index_array[test+4], index_array[test+5]);
+	}
+
+	Vector<int> test_index_array;
+	for (int test2 : index_array) {
+		test_index_array.push_back(test2);
+	}
 
 	// removed a row of indices from all 4 sides of chunk
 	int sub_point = 0;
@@ -378,6 +387,15 @@ void Chunk::_generate_chunk_mesh() {
 				sub_index_array.push_back(sub_prevrow + sub_i);
 				sub_index_array.push_back(sub_thisrow + sub_i);
 				sub_index_array.push_back(sub_thisrow + sub_i - 1);
+				
+				/*
+				print_line( (sub_prevrow + sub_i - 1),  
+							(sub_prevrow + sub_i),
+							(sub_thisrow + sub_i - 1),
+							(sub_prevrow + sub_i),
+							(sub_thisrow + sub_i),
+							(sub_thisrow + sub_i - 1) );
+				*/
 			}
 		}
 		sub_prevrow = sub_thisrow;
@@ -388,7 +406,9 @@ void Chunk::_generate_chunk_mesh() {
 	p_arr[RS::ARRAY_NORMAL] = normal_array;
 	p_arr[RS::ARRAY_TANGENT] = tangent_array;
 	p_arr[RS::ARRAY_TEX_UV] = uv_array;
-	p_arr[RS::ARRAY_INDEX] = sub_index_array;
+	//p_arr[RS::ARRAY_INDEX] = sub_index_array;
+	p_arr[RS::ARRAY_INDEX] = test_index_array;
+	
 
 	// regular mesh does not have add_surface_from_arrays, but ArrayMesh is a child of Mesh, so it can be passed with set_mesh
 	Ref<ArrayMesh> arr_mesh;
@@ -396,6 +416,11 @@ void Chunk::_generate_chunk_mesh() {
 	arr_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, p_arr);
 
 	set_mesh(arr_mesh);
+
+	//arr_mesh->clear_surfaces();
+	//arr_mesh.unref();
+
+	print_line("FINISHED CHUNK MESHING");
 }
 
 

@@ -100,7 +100,7 @@ public:
     void _generate_chunk_collider();
     void _generate_chunk_mesh();
 
-    static constexpr float CHUNK_SIZE = 16; // Keep in sync with TerrainGenerator.
+    static constexpr float CHUNK_SIZE = 4; // Keep in sync with TerrainGenerator.
     static constexpr float TEXTURE_SHEET_WIDTH = 8;
 
     static constexpr int CHUNK_LAST_INDEX = CHUNK_SIZE - 1;
