@@ -115,26 +115,27 @@ void Chunk::_generate_chunk_mesh() {
 		thisrow = point;
 	}
 	/*
-	- These are use to cut off the edges later.
-	- Logic:
-
-	(0,0) (0,1) (0,2) (0,3)
-	(1,0) (1,1) (1,2) (1,3)
-	(2,0) (2,1) (2,2) (2,3)
-	(3,0) (3,1) (3,2) (3,3)
-
-	start_vertex = (0,0)
-	last_vertex = (3,3)
-	- any vertice that has a x/z value of either 0 or 3, will be removed:
-
-	(1,1) (1,2)
-	(2,1) (2,2)
+	* These are use to cut off the edges later.
+	* Logic:
+	*
+	* (0,0) (0,1) (0,2) (0,3)
+	* (1,0) (1,1) (1,2) (1,3)
+	* (2,0) (2,1) (2,2) (2,3)
+	* (3,0) (3,1) (3,2) (3,3)
+	*
+	* start_vertex = (0,0)
+	* last_vertex = (3,3)
+	* any vertice that has a x/z value of either 0 or 3, will be removed:
+	*
+	* (1,1) (1,2)
+	* (2,1) (2,2)
 	*/
 	Vector3 start_vertex = vertex_array[0].vertex;
 	Vector3 last_vertex = vertex_array[vertex_array.size()-1].vertex;
 
-
-	// ----- deindex start -----
+	/*
+	  ---------- DE-INDEX START ----------
+	*/
 	LocalVector<SurfaceTool::Vertex> old_vertex_array = vertex_array;
 	vertex_array.clear();
 	// There are 6 indices per vertex
@@ -143,7 +144,9 @@ void Chunk::_generate_chunk_mesh() {
 		vertex_array.push_back(old_vertex_array[index]);
 	}
 	index_array.clear();
-	// ----- deindex end -----
+	/*
+	  ---------- DE-INDEX END ----------
+	*/
 
 	// Normal Calculations
 	AHashMap<SmoothGroupVertex, Vector3, SmoothGroupVertexHasher> smooth_hash = vertex_array.size();
@@ -185,14 +188,16 @@ void Chunk::_generate_chunk_mesh() {
 	*/
 	_generate_chunk_tangents();
 
-	// ----- reindex start -----
-	// explain the numbers later
+
+	/*
+	  ---------- RE-INDEX START ----------
+	*/
 	//AHashMap<SurfaceTool::Vertex &, int, VertexHasher> indices = vertex_array.size();
 	AHashMap<SurfaceTool::Vertex &, int, VertexHasher> indices;
 
 	uint32_t new_size = 0;
 	for (SurfaceTool::Vertex &vertex : vertex_array) {
-		// remove 1 row/column from all 4 sides, since those were extras generated purely for removing seaming between chunks
+		// removes vertices as explained from the logic above
 		if ((vertex.vertex.x == start_vertex.x) ||
 			(vertex.vertex.z == start_vertex.z) ||
 			(vertex.vertex.x == last_vertex.x) ||
@@ -213,26 +218,28 @@ void Chunk::_generate_chunk_mesh() {
 
 		index_array.push_back(idx);
 	}
-
 	vertex_array.resize(new_size);
+	/*
+	  ---------- RE-INDEX END ----------
+	*/
 
-	// ----- reindex end -----
+	// Extracting vertices, normals, uvs, and tangents into array formats that add_surface_from_arrays() accepts
+	PackedVector3Array sub_vertex_array;
+	PackedVector3Array sub_normal_array;
+	PackedVector2Array sub_uv_array;
 
-	PackedVector3Array point_array;
-	PackedVector3Array normal_array;
-	PackedVector2Array uv_array;
-
-	PackedFloat32Array tangent_array;
-	tangent_array.resize(vertex_array.size() * 4);
-	float *w = tangent_array.ptrw();
+	// Tangents are a little special, they have a 4th value called handedness - determines visibility direction
+	PackedFloat32Array sub_tangent_array;
+	sub_tangent_array.resize(vertex_array.size() * 4);
+	float *w = sub_tangent_array.ptrw();
 
 	for (uint32_t idx = 0; idx < vertex_array.size(); idx++) {
 		const SurfaceTool::Vertex &v = vertex_array[idx];
-		point_array.push_back(v.vertex);
-		normal_array.push_back(v.normal);
-		uv_array.push_back(v.uv);
+		sub_vertex_array.push_back(v.vertex);
+		sub_normal_array.push_back(v.normal);
+		sub_uv_array.push_back(v.uv);
 
-		//Tangent calculations
+		// Tangent calculations
 		w[idx * 4 + 0] = v.tangent.x;
 		w[idx * 4 + 1] = v.tangent.y;
 		w[idx * 4 + 2] = v.tangent.z;
@@ -240,15 +247,16 @@ void Chunk::_generate_chunk_mesh() {
 		w[idx * 4 + 3] = d < 0 ? -1 : 1;
 	}
 
+	// Index array
 	Vector<int> sub_index_array;
 	for (int sub_index : index_array) {
 		sub_index_array.push_back(sub_index);
 	}
 
-	p_arr[RS::ARRAY_VERTEX] = point_array;
-	p_arr[RS::ARRAY_NORMAL] = normal_array;
-	p_arr[RS::ARRAY_TANGENT] = tangent_array;
-	p_arr[RS::ARRAY_TEX_UV] = uv_array;
+	p_arr[RS::ARRAY_VERTEX] = sub_vertex_array;
+	p_arr[RS::ARRAY_NORMAL] = sub_normal_array;
+	p_arr[RS::ARRAY_TANGENT] = sub_tangent_array;
+	p_arr[RS::ARRAY_TEX_UV] = sub_uv_array;
 	p_arr[RS::ARRAY_INDEX] = sub_index_array;
 	
 
