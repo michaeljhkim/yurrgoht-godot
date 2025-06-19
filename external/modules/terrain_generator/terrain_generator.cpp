@@ -56,11 +56,8 @@ void TerrainGenerator::process(double delta) {
 
 			Chunk* chunk = memnew(Chunk);
 			chunk->chunk_position = chunk_position;
-			chunk->_generate_chunk_mesh();
-			//chunk->set_material(shared_mat);
 			add_child(chunk);
 			_chunks[grid_position] = chunk->get_path();
-
 			//print_line("chunk name: " + chunk->get_path());
 
 			return;

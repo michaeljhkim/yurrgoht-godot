@@ -3,19 +3,18 @@
 
 #include "core/object/ref_counted.h"
 #include "core/variant/variant_utility.h"
-//#include "scene/resources/image_texture.h"
 
 #include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h
 
 #include "scene/3d/mesh_instance_3d.h"
 //#include "scene/3d/physics/static_body_3d.h"
-#include "scene/resources/3d/primitive_meshes.h"
+//#include "scene/resources/3d/primitive_meshes.h"
 #include "core/templates/a_hash_map.h"
 #include "scene/resources/surface_tool.h" // only need this for Vertex struct
-#include "scene/resources/mesh_data_tool.h"
 
 #include "thirdparty/misc/mikktspace.h"
 
+// For multi-threading
 #include "core/core_bind.h"
 
 class Chunk : public MeshInstance3D {
@@ -100,7 +99,7 @@ public:
     void _generate_chunk_collider();
     void _generate_chunk_mesh();
 
-    static constexpr float CHUNK_SIZE = 4; // Keep in sync with TerrainGenerator.
+    static constexpr float CHUNK_SIZE = 16; // Keep in sync with TerrainGenerator.
     static constexpr float TEXTURE_SHEET_WIDTH = 8;
 
     static constexpr int CHUNK_LAST_INDEX = CHUNK_SIZE - 1;

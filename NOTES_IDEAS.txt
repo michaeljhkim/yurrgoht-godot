@@ -62,5 +62,11 @@ NOISE RELATED:
 
 
 CURRENT PROBLEMS:
-- Somewhere in the mesh generator, a vertice of an unaccounted value is being pushed into the mesh
-- 
+- chunks do not snap to the player correctly
+- multi-threading not implemented yet
+
+
+MULTI-THREADING NOTES:
+- godot does not allow any mesh creation outside of the main thread
+- BUT, because I did most of my code manually, I can most likely just move the calculations to another thread 
+- then add the values to the array mesh after the thread task finishes!
