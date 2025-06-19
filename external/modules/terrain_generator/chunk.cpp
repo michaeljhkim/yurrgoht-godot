@@ -57,6 +57,31 @@ void Chunk::regenerate() {
 
 - Figure out a way to make it so that I do not need to create a new temporary array to extract vertices/normals
 */
+
+/*
+- MESH = {vertices, normals, uvs, tangents, indices}
+ 
+- This function is used to generate the mesh of the chunk
+- had to calculate MESH manually
+- then added to an ArrayMesh for drawing 
+
+- Why not use PlaneMesh with SurfaceTool?
+- becauase by default, only the normals within that mesh is calculated
+- this causes major issues with seaming, where there are texture and lighting inconsistencies
+
+- The way to solve this issue is to generate the MESH as if the chunk had one extra row/column of vertices on all 4 sides
+- then remove those extra MESH values.
+- However, SurfaceTool provides no internal function that would do anyting remotely similar to this
+
+- That is why all calculations had to be done manually - but significant portions of it was copied from PlaneMesh and SurfaceTool
+- mostly copied: 
+	PlaneMesh::_create_mesh_array(), 
+	SurfaceTool::index(), 
+	SurfaceTool::deindex(), 
+	SurfaceTool::generate_normals(),
+	SurfaceTool::generate_tangents()
+- a few structs also had to be copied.
+*/
 void Chunk::_generate_chunk_mesh() {
 	Array p_arr;
 	p_arr.resize(Mesh::ARRAY_MAX);
@@ -223,7 +248,7 @@ void Chunk::_generate_chunk_mesh() {
 	  ---------- RE-INDEX END ----------
 	*/
 
-	// Extracting vertices, normals, uvs, and tangents into array formats that add_surface_from_arrays() accepts
+	// Unpacking vertices, normals, uvs, and tangents into an array format that add_surface_from_arrays() accepts
 	PackedVector3Array sub_vertex_array;
 	PackedVector3Array sub_normal_array;
 	PackedVector2Array sub_uv_array;
@@ -239,7 +264,7 @@ void Chunk::_generate_chunk_mesh() {
 		sub_normal_array.push_back(v.normal);
 		sub_uv_array.push_back(v.uv);
 
-		// Tangent calculations
+		// Tangent handedness calculations
 		w[idx * 4 + 0] = v.tangent.x;
 		w[idx * 4 + 1] = v.tangent.y;
 		w[idx * 4 + 2] = v.tangent.z;
@@ -247,7 +272,7 @@ void Chunk::_generate_chunk_mesh() {
 		w[idx * 4 + 3] = d < 0 ? -1 : 1;
 	}
 
-	// Index array
+	// Unpacking indices into an array format that add_surface_from_arrays() accepts
 	Vector<int> sub_index_array;
 	for (int sub_index : index_array) {
 		sub_index_array.push_back(sub_index);
@@ -266,9 +291,6 @@ void Chunk::_generate_chunk_mesh() {
 	arr_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, p_arr);
 
 	set_mesh(arr_mesh);
-
-	//arr_mesh->clear_surfaces();
-	//arr_mesh.unref();
 }
 
 

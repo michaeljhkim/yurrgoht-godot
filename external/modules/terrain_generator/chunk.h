@@ -19,6 +19,87 @@
 
 class Chunk : public MeshInstance3D {
 	GDCLASS(Chunk, MeshInstance3D);
+    /*
+    struct Vertex {
+		// Trivial data for which the hash is computed using hash_buffer.
+		// ----------------------------------------------------------------
+		uint32_t smooth_group = 0; // Must be first.
+
+		Color color;
+		Vector3 normal; // normal, binormal, tangent.
+		Vector3 binormal;
+		Vector3 tangent;
+		Vector2 uv;
+		Vector2 uv2;
+		Color custom[RS::ARRAY_CUSTOM_COUNT];
+
+		Vector3 vertex; // Must be last.
+		// ----------------------------------------------------------------
+
+		Vector<int> bones;
+		Vector<float> weights;
+
+		bool operator==(const Vertex &p_vertex) const {
+            if (vertex != p_vertex.vertex) {
+                return false;
+            }
+
+            if (uv != p_vertex.uv) {
+                return false;
+            }
+
+            if (uv2 != p_vertex.uv2) {
+                return false;
+            }
+
+            if (normal != p_vertex.normal) {
+                return false;
+            }
+
+            if (binormal != p_vertex.binormal) {
+                return false;
+            }
+
+            if (tangent != p_vertex.tangent) {
+                return false;
+            }
+
+            if (color != p_vertex.color) {
+                return false;
+            }
+
+            if (bones.size() != p_vertex.bones.size()) {
+                return false;
+            }
+
+            for (int i = 0; i < bones.size(); i++) {
+                if (bones[i] != p_vertex.bones[i]) {
+                    return false;
+                }
+            }
+
+            for (int i = 0; i < weights.size(); i++) {
+                if (weights[i] != p_vertex.weights[i]) {
+                    return false;
+                }
+            }
+
+            for (int i = 0; i < RS::ARRAY_CUSTOM_COUNT; i++) {
+                if (custom[i] != p_vertex.custom[i]) {
+                    return false;
+                }
+            }
+
+            if (smooth_group != p_vertex.smooth_group) {
+                return false;
+            }
+
+            return true;
+        }
+
+		Vertex() {}
+	};
+    */
 
 private:
 	Ref<core_bind::Thread> _thread;
