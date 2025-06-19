@@ -151,15 +151,14 @@ void Chunk::_generate_chunk_mesh() {
 	//Size2 start_pos = size * -0.5;
 
 	// THIS IS HEADING IN THE CORRECT DIRECTION SOMEHOW
-	Size2 start_pos = size * -0.5 - Vector2(step_x*4, step_z*4) - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE;
+	//Size2 start_pos = size * -0.5 - Vector2(step_x*4, step_z*4) - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE;
+	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE;
 	point = 0;
 
 	/* top + bottom */
 	z = start_pos.y;
 	thisrow = point;
 	prevrow = 0;
-
-	//PackedVector3Array local_vertex_array;
 
 	for (j = 0; j <= (subdivide_d + 1); j++) {
 		x = start_pos.x;
@@ -172,9 +171,7 @@ void Chunk::_generate_chunk_mesh() {
 			// Point orientation Y
 			SurfaceTool::Vertex vert;
 			float height = noise.get_noise_2d(-x, -z) * AMPLITUDE;
-			//float height = 0.0;
 			vert.vertex = Vector3(-x, height, -z) + center_offset;
-			//local_vertex_array.push_back(vert.vertex);
 
 			// Tangent
 			//ADD_TANGENT(1.0, 0.0, 0.0, 1.0);
@@ -185,11 +182,6 @@ void Chunk::_generate_chunk_mesh() {
 
 			point++;
 
-			/*
-			Start at i>1 and end at i<(subdivide_w + 1)
-			- or store that specific indices in a temp array
-			- remember that prevrow and thisrow must be accounted for, they add according to the loop
-			*/
 			if (i > 0 && j > 0) {
 				index_array.push_back(prevrow + i - 1);
 				index_array.push_back(prevrow + i);
@@ -210,18 +202,29 @@ void Chunk::_generate_chunk_mesh() {
 				*/
 			}
 
-			x += size.x / (subdivide_w + 1.0);
+			x += size.x / (subdivide_w - 1.0);
 		}
-		z += size.y / (subdivide_d + 1.0);
+		z += size.y / (subdivide_d - 1.0);
 
 		prevrow = thisrow;
 		thisrow = point;
 	}
+	/*
+	- These are use to cut off the edges later.
+	- Logic:
+	
+	(0,0) (0,1) (0,2) (0,3)
+	(1,0) (1,1) (1,2) (1,3)
+	(2,0) (2,1) (2,2) (2,3)
+	(3,0) (3,1) (3,2) (3,3)
+
+	start_vertex = (0,0)
+	last_vertex = (3,3)
+
+	- any vertice that has a x/z value of either 0 or 3, will be removed.
+	*/
 	Vector3 start_vertex = vertex_array[0].vertex;
 	Vector3 last_vertex = vertex_array[vertex_array.size()-1].vertex;
-
-	//print_line("old array size:", vertex_array.size());
-	//print_line("new array size:", vertex_size_test.size());
 
 
 	// ----- deindex start -----
@@ -314,7 +317,7 @@ void Chunk::_generate_chunk_mesh() {
 	}
 
 	vertex_array.resize(new_size);
-	//print_line("resize after index: ", vertex_array.size());
+	print_line("resize after index: ", vertex_array.size());
 
 	// ----- reindex end -----
 	// This is also the end of normal calculations and refactoring - time for tangents
@@ -364,8 +367,8 @@ void Chunk::_generate_chunk_mesh() {
 	int sub_prevrow = 0;
 	Vector<int> sub_index_array;
 
-	for (int sub_j = 1; sub_j < (subdivide_d + 1); sub_j++) {
-		for (int sub_i = 1; sub_i < (subdivide_w + 1); sub_i++) {
+	for (int sub_j = 1; sub_j <= subdivide_d; sub_j++) {
+		for (int sub_i = 1; sub_i <= subdivide_w; sub_i++) {
 			sub_point++;
 			if (i > 1 && j > 1) {
 				sub_index_array.push_back(sub_prevrow + sub_i - 1);
@@ -384,7 +387,6 @@ void Chunk::_generate_chunk_mesh() {
 	p_arr[RS::ARRAY_VERTEX] = point_array;
 	p_arr[RS::ARRAY_NORMAL] = normal_array;
 	p_arr[RS::ARRAY_TANGENT] = tangent_array;
-	//p_arr[RS::ARRAY_TANGENT] = tangents;
 	p_arr[RS::ARRAY_TEX_UV] = uv_array;
 	p_arr[RS::ARRAY_INDEX] = sub_index_array;
 
