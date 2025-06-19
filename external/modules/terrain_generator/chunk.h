@@ -3,14 +3,14 @@
 
 #include "core/object/ref_counted.h"
 #include "core/variant/variant_utility.h"
+#include "core/templates/a_hash_map.h"
 
 #include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h
 
 #include "scene/3d/mesh_instance_3d.h"
 //#include "scene/3d/physics/static_body_3d.h"
 //#include "scene/resources/3d/primitive_meshes.h"
-#include "core/templates/a_hash_map.h"
-#include "scene/resources/surface_tool.h" // only need this for Vertex struct
+//#include "scene/resources/surface_tool.h" // only need this for Vertex struct
 
 #include "thirdparty/misc/mikktspace.h"
 
@@ -19,7 +19,15 @@
 
 class Chunk : public MeshInstance3D {
 	GDCLASS(Chunk, MeshInstance3D);
-    /*
+
+private:
+	Ref<core_bind::Thread> _thread;
+    FastNoiseLite noise;
+	Vector3 center_offset;
+
+protected:
+
+    //Copied from SurfaceTool
     struct Vertex {
 		// Trivial data for which the hash is computed using hash_buffer.
 		// ----------------------------------------------------------------
@@ -40,54 +48,31 @@ class Chunk : public MeshInstance3D {
 		Vector<float> weights;
 
 		bool operator==(const Vertex &p_vertex) const {
-            if (vertex != p_vertex.vertex) {
-                return false;
-            }
-
-            if (uv != p_vertex.uv) {
-                return false;
-            }
-
-            if (uv2 != p_vertex.uv2) {
-                return false;
-            }
-
-            if (normal != p_vertex.normal) {
-                return false;
-            }
-
-            if (binormal != p_vertex.binormal) {
-                return false;
-            }
-
-            if (tangent != p_vertex.tangent) {
-                return false;
-            }
-
-            if (color != p_vertex.color) {
-                return false;
-            }
-
-            if (bones.size() != p_vertex.bones.size()) {
+            if ((vertex != p_vertex.vertex) ||
+                (uv != p_vertex.uv) ||
+                (uv2 != p_vertex.uv2) ||
+                (normal != p_vertex.normal) ||
+                (binormal != p_vertex.binormal) ||
+                (tangent != p_vertex.tangent) ||
+                (color != p_vertex.color) ||
+                (bones.size() != p_vertex.bones.size()) 
+            ) {
                 return false;
             }
 
             for (int i = 0; i < bones.size(); i++) {
-                if (bones[i] != p_vertex.bones[i]) {
+                if (bones[i] != p_vertex.bones[i])
                     return false;
-                }
             }
 
             for (int i = 0; i < weights.size(); i++) {
-                if (weights[i] != p_vertex.weights[i]) {
+                if (weights[i] != p_vertex.weights[i])
                     return false;
-                }
             }
 
             for (int i = 0; i < RS::ARRAY_CUSTOM_COUNT; i++) {
-                if (custom[i] != p_vertex.custom[i]) {
+                if (custom[i] != p_vertex.custom[i])
                     return false;
-                }
             }
 
             if (smooth_group != p_vertex.smooth_group) {
@@ -99,19 +84,9 @@ class Chunk : public MeshInstance3D {
 
 		Vertex() {}
 	};
-    */
 
-private:
-	Ref<core_bind::Thread> _thread;
-    FastNoiseLite noise;
-	Vector3 center_offset;
-
-	LocalVector<SurfaceTool::Vertex> vertex_array;
-	LocalVector<int> index_array;
-
-protected:
     struct VertexHasher {
-		static _FORCE_INLINE_ uint32_t hash(const SurfaceTool::Vertex &p_vtx) {
+		static _FORCE_INLINE_ uint32_t hash(const Vertex &p_vtx) {
             uint32_t h = hash_djb2_buffer((const uint8_t *)p_vtx.bones.ptr(), p_vtx.bones.size() * sizeof(int));
             h = hash_djb2_buffer((const uint8_t *)p_vtx.weights.ptr(), p_vtx.weights.size() * sizeof(float), h);
 
@@ -134,7 +109,7 @@ protected:
             return true;
         }
 
-		SmoothGroupVertex(const SurfaceTool::Vertex &p_vertex) {
+		SmoothGroupVertex(const Vertex &p_vertex) {
 			vertex = p_vertex.vertex;
 			smooth_group = p_vertex.smooth_group;
 		}
@@ -151,18 +126,9 @@ protected:
 
     //mikktspace callbacks
     struct TangentGenerationContextUserData {
-        LocalVector<SurfaceTool::Vertex> *vertices;
+        LocalVector<Vertex> *vertices;
         LocalVector<int> *indices;
     };
-
-	void _notification(int p_notification);
-	//void init();	// probably do not need this, ready should take care of everything
-	void ready();
-	void process(float delta);
-
-    //probably do not need this
-    void _generate_chunk_normals();
-    void _generate_chunk_tangents();
 
 	//mikktspace callbacks
 	static int mikktGetNumFaces(const SMikkTSpaceContext *pContext);
@@ -173,26 +139,39 @@ protected:
 	static void mikktSetTSpaceDefault(const SMikkTSpaceContext *pContext, const float fvTangent[], const float fvBiTangent[], const float fMagS, const float fMagT,
 			const tbool bIsOrientationPreserving, const int iFace, const int iVert);
 
+
+	void _notification(int p_notification);
+	//void init();	// probably do not need this, ready should take care of everything
+	void ready();
+	void process(float delta);
+
 	static void _bind_methods();
 
+	LocalVector<Vertex> vertex_array;
+	LocalVector<int> index_array;
+
+
 public:
+    // can probably remove these, but keeping for now
     void regenerate();
     void _generate_chunk_collider();
+    Node* voxel_world;
+
     void _generate_chunk_mesh();
+    
+    // mostly for keeping the mesh generation code clean
+    void _generate_chunk_normals(bool p_flip = false);
+    void _generate_chunk_tangents();
+
 
     static constexpr float CHUNK_SIZE = 16; // Keep in sync with TerrainGenerator.
     static constexpr float TEXTURE_SHEET_WIDTH = 8;
-
     static constexpr int CHUNK_LAST_INDEX = CHUNK_SIZE - 1;
     static constexpr float TEXTURE_TILE_SIZE = 1.0 / TEXTURE_SHEET_WIDTH;
 
     static constexpr float AMPLITUDE = 16.0f;
 
-    PackedVector3Array vertices;
     Vector3i chunk_position;
-
-    Node* voxel_world;
-
     Ref<core_bind::Thread> get_thread() { return _thread; }
 
     //void set_material(const Ref<Material> &new_material) { set_material_override(new_material); }

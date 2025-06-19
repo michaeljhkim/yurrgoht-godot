@@ -1,7 +1,7 @@
 #include "chunk.h"
 #include "thirdparty/embree/kernels/bvh/bvh_statistics.h"
 
-//typedef SurfaceTool::Vertex Vertex;
+//typedef Vertex Vertex;
 
 void Chunk::_notification(int p_what) {
 	switch (p_what) {
@@ -89,7 +89,6 @@ void Chunk::_generate_chunk_mesh() {
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
 	int subdivide_w = CHUNK_SIZE+1;
 	int subdivide_d = CHUNK_SIZE+1;
-	bool p_flip = false;
 
 	int i, j, prevrow, thisrow, point;
 	float x, z;
@@ -112,7 +111,7 @@ void Chunk::_generate_chunk_mesh() {
 			v /= subdivide_w;
 
 			// Point orientation Y
-			SurfaceTool::Vertex vert;
+			Vertex vert;
 			float height = noise.get_noise_2d(-x, -z) * AMPLITUDE;
 			vert.vertex = Vector3(-x, height, -z) + center_offset;
 
@@ -157,56 +156,11 @@ void Chunk::_generate_chunk_mesh() {
 	*/
 	Vector3 start_vertex = vertex_array[0].vertex;
 	Vector3 last_vertex = vertex_array[vertex_array.size()-1].vertex;
-
+	
 	/*
-	  ---------- DE-INDEX START ----------
+	GENERATE NORMALS
 	*/
-	LocalVector<SurfaceTool::Vertex> old_vertex_array = vertex_array;
-	vertex_array.clear();
-	// There are 6 indices per vertex
-	for (const int &index : index_array) {
-		ERR_FAIL_COND(uint32_t(index) >= old_vertex_array.size());
-		vertex_array.push_back(old_vertex_array[index]);
-	}
-	index_array.clear();
-	/*
-	  ---------- DE-INDEX END ----------
-	*/
-
-	// Normal Calculations
-	AHashMap<SmoothGroupVertex, Vector3, SmoothGroupVertexHasher> smooth_hash = vertex_array.size();
-
-	for (uint32_t vi = 0; vi < vertex_array.size(); vi += 3) {
-		SurfaceTool::Vertex *v = &vertex_array[vi];
-
-		Vector3 normal;
-		!p_flip ?
-			normal = Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal:
-			normal = Plane(v[2].vertex, v[1].vertex, v[0].vertex).normal;
-
-		// Add face normal to smooth vertex influence if vertex is member of a smoothing group
-		for (int i = 0; i < 3; i++) {
-			if (v[i].smooth_group != UINT32_MAX) {
-				Vector3 *lv = smooth_hash.getptr(v[i]);
-				if (!lv) {
-					smooth_hash.insert_new(v[i], normal);
-				} else {
-					(*lv) += normal;
-				}
-			} else {
-				v[i].normal = normal;
-			}
-		}
-	}
-
-	for (SurfaceTool::Vertex &vertex : vertex_array) {
-		if (vertex.smooth_group != UINT32_MAX) {
-			Vector3 *lv = smooth_hash.getptr(vertex);
-			!lv ?
-				vertex.normal = Vector3():
-				vertex.normal = lv->normalized(); 
-		}
-	}
+	_generate_chunk_normals();
 
 	/*
 	GENERATE TANGENTS
@@ -217,11 +171,11 @@ void Chunk::_generate_chunk_mesh() {
 	/*
 	  ---------- RE-INDEX START ----------
 	*/
-	//AHashMap<SurfaceTool::Vertex &, int, VertexHasher> indices = vertex_array.size();
-	AHashMap<SurfaceTool::Vertex &, int, VertexHasher> indices;
+	//AHashMap<Vertex &, int, VertexHasher> indices = vertex_array.size();
+	AHashMap<Vertex &, int, VertexHasher> indices;
 
 	uint32_t new_size = 0;
-	for (SurfaceTool::Vertex &vertex : vertex_array) {
+	for (Vertex &vertex : vertex_array) {
 		// removes vertices as explained from the logic above
 		if ((vertex.vertex.x == start_vertex.x) ||
 			(vertex.vertex.z == start_vertex.z) ||
@@ -259,7 +213,7 @@ void Chunk::_generate_chunk_mesh() {
 	float *w = sub_tangent_array.ptrw();
 
 	for (uint32_t idx = 0; idx < vertex_array.size(); idx++) {
-		const SurfaceTool::Vertex &v = vertex_array[idx];
+		const Vertex &v = vertex_array[idx];
 		sub_vertex_array.push_back(v.vertex);
 		sub_normal_array.push_back(v.normal);
 		sub_uv_array.push_back(v.uv);
@@ -294,10 +248,67 @@ void Chunk::_generate_chunk_mesh() {
 }
 
 
-void Chunk::_generate_chunk_normals() {
+
+/*
+GENERATE CHUNK NORMALS
+*/
+void Chunk::_generate_chunk_normals(bool p_flip) {
+	/*
+	  ---------- DE-INDEX START ----------
+	*/
+	LocalVector<Vertex> old_vertex_array = vertex_array;
+	vertex_array.clear();
+	// There are 6 indices per vertex
+	for (const int &index : index_array) {
+		ERR_FAIL_COND(uint32_t(index) >= old_vertex_array.size());
+		vertex_array.push_back(old_vertex_array[index]);
+	}
+	index_array.clear();
+	/*
+	  ---------- DE-INDEX END ----------
+	*/
+
+	// Normal Calculations
+	AHashMap<SmoothGroupVertex, Vector3, SmoothGroupVertexHasher> smooth_hash = vertex_array.size();
+
+	for (uint32_t vi = 0; vi < vertex_array.size(); vi += 3) {
+		Vertex *v = &vertex_array[vi];
+
+		Vector3 normal;
+		!p_flip ?
+			normal = Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal:
+			normal = Plane(v[2].vertex, v[1].vertex, v[0].vertex).normal;
+
+		// Add face normal to smooth vertex influence if vertex is member of a smoothing group
+		for (int i = 0; i < 3; i++) {
+			if (v[i].smooth_group != UINT32_MAX) {
+				Vector3 *lv = smooth_hash.getptr(v[i]);
+				if (!lv) {
+					smooth_hash.insert_new(v[i], normal);
+				} else {
+					(*lv) += normal;
+				}
+			} else {
+				v[i].normal = normal;
+			}
+		}
+	}
+
+	for (Vertex &vertex : vertex_array) {
+		if (vertex.smooth_group != UINT32_MAX) {
+			Vector3 *lv = smooth_hash.getptr(vertex);
+			!lv ?
+				vertex.normal = Vector3():
+				vertex.normal = lv->normalized(); 
+		}
+	}
 }
 
 
+
+/*
+GENERATE CHUNK TANGENTS
+*/
 void Chunk::_generate_chunk_tangents() {
 	SMikkTSpaceInterface mkif;
 	mkif.m_getNormal = mikktGetNormal;
@@ -313,7 +324,7 @@ void Chunk::_generate_chunk_tangents() {
 
 	TangentGenerationContextUserData triangle_data;
 	triangle_data.vertices = &vertex_array;
-	for (SurfaceTool::Vertex &vertex : vertex_array) {
+	for (Vertex &vertex : vertex_array) {
 		vertex.binormal = Vector3();
 		vertex.tangent = Vector3();
 	}
@@ -394,7 +405,7 @@ void Chunk::mikktGetTexCoord(const SMikkTSpaceContext *pContext, float fvTexcOut
 void Chunk::mikktSetTSpaceDefault(const SMikkTSpaceContext *pContext, const float fvTangent[], const float fvBiTangent[], const float fMagS, const float fMagT,
 		const tbool bIsOrientationPreserving, const int iFace, const int iVert) {
 	TangentGenerationContextUserData &triangle_data = *reinterpret_cast<TangentGenerationContextUserData *>(pContext->m_pUserData);
-	SurfaceTool::Vertex *vtx = nullptr;
+	Vertex *vtx = nullptr;
 	if (triangle_data.indices->size() > 0) {
 		uint32_t index = triangle_data.indices->operator[](iFace * 3 + iVert);
 		if (index < triangle_data.vertices->size()) {
