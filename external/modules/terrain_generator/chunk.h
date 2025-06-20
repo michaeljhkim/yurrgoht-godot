@@ -158,7 +158,7 @@ public:
     // can probably remove these, but keeping for now
     void regenerate();
     void _generate_chunk_collider();
-    Node* voxel_world;
+    //Node* voxel_world;
 
     void _generate_chunk_mesh();
     void _draw_mesh();
@@ -176,11 +176,9 @@ public:
     static constexpr float AMPLITUDE = 16.0f;
 
     //Ref<core_bind::Thread> get_thread() { return _thread; }
-
-    //void set_material(const Ref<Material> &new_material) { set_material_override(new_material); }
-
-    Chunk();
-    ~Chunk();
+    
+    //Chunk();
+    //~Chunk();
 };
 
 

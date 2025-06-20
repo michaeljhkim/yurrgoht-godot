@@ -1,8 +1,8 @@
 #include "chunk.h"
 #include "thirdparty/embree/kernels/bvh/bvh_statistics.h"
 
-Chunk::Chunk() {}
-Chunk::~Chunk() {}
+//Chunk::Chunk() {}
+//Chunk::~Chunk() {}
 
 
 void Chunk::_notification(int p_what) {
@@ -17,6 +17,7 @@ void Chunk::_notification(int p_what) {
 			ready();
 			break;
 		
+		case NOTIFICATION_UNPARENTED:
 		case NOTIFICATION_EXIT_TREE: {
 			vertex_array.clear();
 			index_array.clear();
@@ -24,8 +25,14 @@ void Chunk::_notification(int p_what) {
 
 			arr_mesh->clear_surfaces();
 			arr_mesh->clear_blend_shapes();
-			arr_mesh.unref();
+			arr_mesh->clear_cache();
+			//arr_mesh.unref(); 
 
+			for (Variant c : get_children()) {
+				get_child(c)->queue_free();
+				remove_child(get_child(c));
+			}
+			
 		} break;
 	}
 }
