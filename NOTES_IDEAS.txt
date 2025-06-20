@@ -59,14 +59,17 @@ NOISE RELATED:
 - But, you could provide ONLY the vertices that will need to be accomodated
 
 
-
-
-CURRENT PROBLEMS:
-- chunks do not snap to the player correctly
-- multi-threading not implemented yet
-
-
 MULTI-THREADING NOTES:
 - godot does not allow any mesh creation outside of the main thread
 - BUT, because I did most of my code manually, I can most likely just move the calculations to another thread 
 - then add the values to the array mesh after the thread task finishes!
+
+
+TODO LIST:
+- proper LOD system not implemented yet (remember that there will be seams issues between different LOD chunks)
+- add collision 
+- consider if all chunks should have collision, or just the minimum amount 
+- maybe minimum chunks?
+- if all chunks had collision, I could perhaps go crazy with physics? Potentially less compute wasted than trying to minimize collision.
+
+- add multi-threading

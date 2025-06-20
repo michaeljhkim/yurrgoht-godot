@@ -171,7 +171,9 @@ void Chunk::_generate_chunk_mesh() {
 	/*
 	  ---------- RE-INDEX START ----------
 	*/
-	//AHashMap<Vertex &, int, VertexHasher> indices = vertex_array.size();
+	// original code from SurfaceTool had the =vertex_array.size(), but it is not needed - might have been legacy code that they forgot
+
+	// AHashMap<Vertex &, int, VertexHasher> indices = vertex_array.size();
 	AHashMap<Vertex &, int, VertexHasher> indices;
 
 	uint32_t new_size = 0;

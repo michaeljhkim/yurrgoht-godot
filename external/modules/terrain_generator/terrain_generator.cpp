@@ -22,18 +22,12 @@ void TerrainGenerator::ready() {
 	//shared_mat.instantiate();
 }
 
-/*
-CURRENT ISSUES:
-- New mesh chunks generate significantly further away that expected
-- I think my biggest issue is the actual chunk placement
-- also swapping between ints and floats. I should probably look into that way more
-*/
 void TerrainGenerator::process(double delta) {
 	if (player_character == nullptr) return;
 
 	//Vector3 player_location = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f) * 64.f) * Vector3(1.f, 0.f, 1.f);
-	//Vector3i player_chunk = Vector3i((player_character->get_global_position() / Chunk::CHUNK_SIZE).round());
-	Vector3 player_chunk = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f) * Chunk::CHUNK_SIZE) * Vector3(1.f, 0.f, 1.f);
+	//Vector3 player_chunk = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f)  / Chunk::CHUNK_SIZE );
+	Vector3i player_chunk = Vector3i((player_character->get_global_position() / Chunk::CHUNK_SIZE).round());
 	
 	if (_deleting || (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z))) {
 		_delete_far_away_chunks(player_chunk);
@@ -42,7 +36,7 @@ void TerrainGenerator::process(double delta) {
 	if (!_generating) return;
 
 	// Try to generate chunks ahead of time based on where the player is moving.
-	//player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance / 4, render_distance / 4));
+	player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance / 4, render_distance / 4));
 
 	// Check existing chunks within range. If it doesn't exist, create it.
 	for (int x = (player_chunk.x - effective_render_distance); x <= (player_chunk.x + effective_render_distance); x++) {

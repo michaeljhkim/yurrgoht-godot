@@ -164,7 +164,7 @@ public:
     void _generate_chunk_tangents();
 
 
-    static constexpr float CHUNK_SIZE = 16; // Keep in sync with TerrainGenerator.
+    static constexpr float CHUNK_SIZE = 64; // Keep in sync with TerrainGenerator.
     static constexpr float TEXTURE_SHEET_WIDTH = 8;
     static constexpr int CHUNK_LAST_INDEX = CHUNK_SIZE - 1;
     static constexpr float TEXTURE_TILE_SIZE = 1.0 / TEXTURE_SHEET_WIDTH;

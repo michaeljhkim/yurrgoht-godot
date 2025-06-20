@@ -18,7 +18,7 @@ class TerrainGenerator : public Node3D {
 	// export these values - to be defined in editor
 	int seed_input;
 
-	int render_distance = 4;
+	int render_distance = 8;
 	int _delete_distance = render_distance + 2;
 	int effective_render_distance = 0;
 	Vector3i _old_player_chunk;
