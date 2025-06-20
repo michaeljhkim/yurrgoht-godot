@@ -5,25 +5,68 @@ void TerrainGenerator::_notification(int p_what) {
 		case NOTIFICATION_PROCESS:
 			process(get_process_delta_time());
 			break;
-		/*
+		
 		case NOTIFICATION_READY:
 			ready();
 			break;
-
+			
 		case NOTIFICATION_EXIT_TREE: { 		// Thread must be disposed (or "joined"), for portability.
+			clean_up();
+
+			if (_thread.is_valid() && _thread->is_alive()) {
+				_mutex->lock();
+				_thread_run = false;
+				_mutex->unlock();
+
+				_thread->wait_to_finish();	// Wait until it exits.
+			}
+
+			_thread.unref();
+			_mutex.unref();
+			_mutex_2.unref();
+
+			// thread ended, so I do not need to use mutexes
+			_thread_task_queue.clear();
+			_new_chunks_queue.clear();
+
 			//clean_up();
 		} break;
-		*/
 	}
 }
 
 // processes that only need to be done on intialization - generates the basic values needed going forward
 void TerrainGenerator::ready() {
-	//shared_mat.instantiate();
+	_mutex.instantiate();
+	_mutex_2.instantiate();
+	_thread.instantiate();
+	_thread->start(callable_mp(this, &TerrainGenerator::_thread_process), core_bind::Thread::PRIORITY_NORMAL);
+	print_line("THE THREAD STARTS AT LEAST");
 }
 
 void TerrainGenerator::process(double delta) {
 	if (player_character == nullptr) return;
+
+	AHashMap<Vector3, Chunk*> _new_chunks;
+
+	_mutex_2->lock();
+	if (!_new_chunks_queue.is_empty()) {
+		_new_chunks = _new_chunks_queue;
+	}
+	_mutex_2->unlock();
+
+	if (!_new_chunks.is_empty()) {
+		for (KeyValue<Vector3, Chunk*> cn : _new_chunks) {
+			//cn.value->_draw_mesh();
+	
+			add_child(cn.value);
+			_chunks[cn.key] = cn.value->get_path();
+		}
+		_new_chunks.clear();
+
+		_mutex_2->lock();
+		_new_chunks_queue.clear();
+		_mutex_2->unlock();
+	}
 
 	//Vector3 player_location = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f) * 64.f) * Vector3(1.f, 0.f, 1.f);
 	//Vector3 player_chunk = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f)  / Chunk::CHUNK_SIZE );
@@ -35,23 +78,32 @@ void TerrainGenerator::process(double delta) {
 	}
 	if (!_generating) return;
 
-	// Try to generate chunks ahead of time based on where the player is moving.
+	// Try to generate chunks ahead of time based on where the player is moving. - not entirely sure what this does (study more later, low priority)
 	player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance / 4, render_distance / 4));
 
 	// Check existing chunks within range. If it doesn't exist, create it.
 	for (int x = (player_chunk.x - effective_render_distance); x <= (player_chunk.x + effective_render_distance); x++) {
 		for (int z = (player_chunk.z - effective_render_distance); z <= (player_chunk.z + effective_render_distance); z++) {
 			Vector3 chunk_position = Vector3(x, 0, z);
-			Vector2 grid_position(x, z);
 
-			if ((Vector2(player_chunk.x, player_chunk.z).distance_to(grid_position) > render_distance) || 
-				_chunks.has(grid_position))
+			if ((Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(x, z)) > render_distance) || 
+				_chunks.has(chunk_position)
+			) {
 				continue;
+			}
 
-			Chunk* chunk = memnew(Chunk);
-			chunk->chunk_position = chunk_position;
-			add_child(chunk);
-			_chunks[grid_position] = chunk->get_path();
+			//Chunk* chunk = memnew(Chunk);
+			//chunk->chunk_position = chunk_position;
+			
+			// If I do indeed decide to multi-thread, I would need to move these to after the fact - call_defferred
+			//add_child(chunk);
+			//_chunks[grid_position] = chunk->get_path();
+			
+			// this mutex lock is for _thread_task_queue
+			_mutex->lock();
+			_thread_task_queue.push_back(chunk_position);
+			_mutex->unlock();
+
 			//print_line("chunk name: " + chunk->get_path());
 
 			return;
@@ -69,26 +121,71 @@ void TerrainGenerator::process(double delta) {
 }
 
 void TerrainGenerator::clean_up() {
-	/*
-	for (KeyValue<Vector2i, int32_t> chunk : _chunks) {
-		Ref<core_bind::Thread> thread = Object::cast_to<Chunk>(get_child(chunk.value))->get_thread();
-		if (thread != nullptr)
-			thread->wait_to_finish();
-
-		thread.unref();
-	}
-	*/
-	
 	_chunks.clear();
 	set_process(false);
 
 	for (int c = 0; c < get_child_count(); c++) {
 		//remove_child(child);
 		get_child(c)->queue_free();
-		//child.unref();
     }
 }
 
+/*
+- for the most part, this is an infinite loop, until the class itself is down
+- remember, mutexes ONLY lock threads if there is another attempt to lock a value
+*/
+void TerrainGenerator::_thread_process() {
+	bool running = true;
+	bool tasks_exists = true;
+	Vector3 chunk_position;
+
+	while (running) {
+		_mutex->lock();
+		running = _thread_run;	// The main thread only modifies this value once, so this will virtually never cause any stutters
+
+		tasks_exists = !_thread_task_queue.is_empty();
+		if (tasks_exists) {
+			chunk_position = _thread_task_queue[0];
+		}
+
+		_mutex->unlock();
+
+		// There are no tasks currently, continue
+		// check 'running' flag here, just in case
+		if (!tasks_exists || !running) {
+			continue;
+		}
+
+		// These are the computations that I did not want to run on the main thread
+		// instantiating and generating the chunk
+		Chunk* chunk = memnew(Chunk);
+		chunk->_set_chunk_position(chunk_position);
+		chunk->_generate_chunk_mesh();
+		chunk->_draw_mesh();
+
+		//call_deferred("_add_child_chunk", chunk_position, chunk);
+		
+		// we are done with the task, remove from task queue
+		_mutex->lock();
+		_thread_task_queue.remove_at(0);
+		_mutex->unlock();
+
+		_mutex_2->lock();
+		_new_chunks_queue[chunk_position] = chunk;
+		_mutex_2->unlock();
+	}
+}
+
+/*
+function
+
+
+while thread.is_alive(), and this thread is not stopped,
+	- pop one chunk from task queue
+	- start(mesh calculations)
+	- add finished chunks to finished queue
+- draw all chunks in finished queue
+*/
 
 void TerrainGenerator::_delete_far_away_chunks(Vector3i player_chunk) {
 	_old_player_chunk = player_chunk;
@@ -106,8 +203,8 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3i player_chunk) {
 
 	const Array key_list = _chunks.keys();
 	
-	for (const Vector2 chunk_key : key_list) {
-		if (Vector2(player_chunk.x, player_chunk.z).distance_to(chunk_key) > _delete_distance) {
+	for (const Vector3 chunk_key : key_list) {
+		if (Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk_key.x, chunk_key.z)) > _delete_distance) {
 			Node* child = get_node(_chunks[chunk_key]);
 
 			// No longer need this, but this is just in case

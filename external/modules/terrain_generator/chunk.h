@@ -14,14 +14,13 @@
 
 #include "thirdparty/misc/mikktspace.h"
 
-// For multi-threading
-#include "core/core_bind.h"
-
 class Chunk : public MeshInstance3D {
 	GDCLASS(Chunk, MeshInstance3D);
 
 private:
-	Ref<core_bind::Thread> _thread;
+	Array p_arr;
+	Ref<ArrayMesh> arr_mesh;
+
     FastNoiseLite noise;
 	Vector3 center_offset;
 
@@ -150,14 +149,19 @@ protected:
 	LocalVector<Vertex> vertex_array;
 	LocalVector<int> index_array;
 
+    Vector3 chunk_position;
 
 public:
+    void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
+
+
     // can probably remove these, but keeping for now
     void regenerate();
     void _generate_chunk_collider();
     Node* voxel_world;
 
     void _generate_chunk_mesh();
+    void _draw_mesh();
     
     // mostly for keeping the mesh generation code clean
     void _generate_chunk_normals(bool p_flip = false);
@@ -171,18 +175,14 @@ public:
 
     static constexpr float AMPLITUDE = 16.0f;
 
-    Vector3i chunk_position;
-    Ref<core_bind::Thread> get_thread() { return _thread; }
+    //Ref<core_bind::Thread> get_thread() { return _thread; }
 
     //void set_material(const Ref<Material> &new_material) { set_material_override(new_material); }
 
-
-    /*
     Chunk();
     ~Chunk();
-    */
 };
 
 
 
-#endif      //CHUNK_H
+#endif

@@ -1,7 +1,9 @@
 #include "chunk.h"
 #include "thirdparty/embree/kernels/bvh/bvh_statistics.h"
 
-//typedef Vertex Vertex;
+Chunk::Chunk() {}
+Chunk::~Chunk() {}
+
 
 void Chunk::_notification(int p_what) {
 	switch (p_what) {
@@ -14,14 +16,17 @@ void Chunk::_notification(int p_what) {
 		case NOTIFICATION_READY:
 			ready();
 			break;
+		
+		case NOTIFICATION_EXIT_TREE: {
+			vertex_array.clear();
+			index_array.clear();
+			p_arr.clear();
 
-		/*
-		case NOTIFICATION_EXIT_TREE: { 		// Thread must be disposed (or "joined"), for portability.
-			if (_thread.is_valid()) _thread->wait_to_finish();	// Wait until it exits.
+			arr_mesh->clear_surfaces();
+			arr_mesh->clear_blend_shapes();
+			arr_mesh.unref();
 
-			_thread.unref();
 		} break;
-		*/
 	}
 }
 
@@ -31,7 +36,7 @@ void Chunk::ready() {
 	// Should probably not use this since vertex calculations are on global scale - keeping for reference
 	//set_position(Vector3(chunk_position * CHUNK_SIZE));
 
-	_generate_chunk_mesh();
+	//_generate_chunk_mesh();
 }
 
 
@@ -52,9 +57,19 @@ void Chunk::regenerate() {
 }
 
 
-/*
-- THIS IS SOMETHING I CAN DO MULTITHREADED SINCE IT IS 100% NOW JUST DONE BY ME
+// This sets the mesh, which essentially gives the engine a thumbs up to draw
+// not actual drawing
+void Chunk::_draw_mesh() {
+	// regular mesh does not have add_surface_from_arrays, but ArrayMesh is a child of Mesh, so it can be passed with set_mesh
+	arr_mesh.instantiate();
+	arr_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, p_arr);
 
+	set_mesh(arr_mesh);
+}
+
+
+
+/*
 - Figure out a way to make it so that I do not need to create a new temporary array to extract vertices/normals
 */
 
@@ -71,8 +86,13 @@ void Chunk::regenerate() {
 
 - The way to solve this issue is to generate the MESH as if the chunk had one extra row/column of vertices on all 4 sides
 - then remove those extra MESH values.
-- However, SurfaceTool provides no internal function that would do anyting remotely similar to this
+	- e.g: chunk of size 4x4 
+	- 1 row/column of vertices is added to each side, making it 6x6
+	- the entire MESH is calculated as 6x6
+	- afterwards, the extra vertices are removed, making it 4x4 again
+	- boom, now the chunks connect as if there are no seams
 
+- However, SurfaceTool provides no internal function that would do anyting remotely similar to this.
 - That is why all calculations had to be done manually - but significant portions of it was copied from PlaneMesh and SurfaceTool
 - mostly copied: 
 	PlaneMesh::_create_mesh_array(), 
@@ -83,7 +103,6 @@ void Chunk::regenerate() {
 - a few structs also had to be copied.
 */
 void Chunk::_generate_chunk_mesh() {
-	Array p_arr;
 	p_arr.resize(Mesh::ARRAY_MAX);
 
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
@@ -131,9 +150,15 @@ void Chunk::_generate_chunk_mesh() {
 				index_array.push_back(thisrow + i - 1);
 			}
 
-			x += size.x / (subdivide_w - 1.0);
+			/*
+			Step size for x and z
+
+			- distance between this vertice and the next
+			- but we -1.f here because the step size should be based on the original size
+			*/
+			x += size.x / (subdivide_w - 1.f);	
 		}
-		z += size.y / (subdivide_d - 1.0);
+		z += size.y / (subdivide_d - 1.f);
 
 		prevrow = thisrow;
 		thisrow = point;
@@ -239,17 +264,7 @@ void Chunk::_generate_chunk_mesh() {
 	p_arr[RS::ARRAY_TANGENT] = sub_tangent_array;
 	p_arr[RS::ARRAY_TEX_UV] = sub_uv_array;
 	p_arr[RS::ARRAY_INDEX] = sub_index_array;
-	
-
-	// regular mesh does not have add_surface_from_arrays, but ArrayMesh is a child of Mesh, so it can be passed with set_mesh
-	Ref<ArrayMesh> arr_mesh;
-	arr_mesh.instantiate();
-	arr_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, p_arr);
-
-	set_mesh(arr_mesh);
 }
-
-
 
 /*
 GENERATE CHUNK NORMALS
