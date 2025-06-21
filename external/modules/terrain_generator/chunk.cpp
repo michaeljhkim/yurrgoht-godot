@@ -27,7 +27,7 @@ void Chunk::_notification(int p_what) {
 			arr_mesh->clear_blend_shapes();
 			arr_mesh->clear_cache();
 			//arr_mesh.unref(); 
-
+			
 			for (Variant c : get_children()) {
 				get_child(c)->queue_free();
 				remove_child(get_child(c));

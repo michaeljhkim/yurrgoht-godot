@@ -132,12 +132,10 @@ void TerrainGenerator::clean_up() {
 	_chunks.clear();
 	set_process(false);
 
-	/*
 	for (Variant c : get_children()) {
 		get_child(c)->queue_free();
 		remove_child(get_child(c));
     }
-	*/
 
 	print_line("CHILDS LEFT NUM: ", get_child_count());
 }
