@@ -11,7 +11,7 @@ void TerrainGenerator::_notification(int p_what) {
 			break;
 
 		// put this into destructor maybe as well
-		case NOTIFICATION_UNPARENTED:
+		//case NOTIFICATION_UNPARENTED:
 		case NOTIFICATION_EXIT_TREE: { 		// Thread must be disposed (or "joined"), for portability.
 			clean_up();
 
@@ -30,8 +30,8 @@ void TerrainGenerator::_notification(int p_what) {
 			_run_mutex.unref();
 
 			// thread ended, so I do not need to use mutexes
-			//_thread_task_queue.clear();
-			//_new_chunks_queue.clear();
+			_thread_task_queue.clear();
+			_new_chunks_queue.clear();
 
 			//clean_up();
 		} break;
@@ -50,41 +50,40 @@ void TerrainGenerator::ready() {
 
 void TerrainGenerator::process(double delta) {
 	if (player_character == nullptr) return;
-
+	
 	AHashMap<Vector3, Chunk*> _new_chunks;
 
 	_mutex_2->lock();
 	if (!_new_chunks_queue.is_empty()) {
 		_new_chunks = _new_chunks_queue;
+		_new_chunks_queue.reset();
 	}
 	_mutex_2->unlock();
 
 	if (!_new_chunks.is_empty()) {
 		for (KeyValue<Vector3, Chunk*> cn : _new_chunks) {
-			//cn.value->_draw_mesh();
-	
+			// THIS PART SPECIFICALLY IS CAUSING THE MEMORY LEAKS
+			//cn.value->_generate_chunk_mesh();	
+			cn.value->_draw_mesh();
+
 			add_child(cn.value);
 			_chunks[cn.key] = cn.value->get_path();
 		}
 		_new_chunks.reset();
-
-		_mutex_2->lock();
-		_new_chunks_queue.reset();
-		_mutex_2->unlock();
 	}
 
 	//Vector3 player_location = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f) * 64.f) * Vector3(1.f, 0.f, 1.f);
 	//Vector3 player_chunk = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f)  / Chunk::CHUNK_SIZE );
-	Vector3 player_chunk = Vector3((player_character->get_global_position() / Chunk::CHUNK_SIZE).round());
+	Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 	
-	if (_deleting || (Vector2i(player_chunk.x,player_chunk.z) != Vector2i(_old_player_chunk.x,_old_player_chunk.z))) {
+	if (_deleting || (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z))) {
 		_delete_far_away_chunks(player_chunk);
 		_generating = true;
 	}
 	if (!_generating) return;
 
 	// Try to generate chunks ahead of time based on where the player is moving. - not entirely sure what this does (study more later, low priority)
-	player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance / 4, render_distance / 4));
+	player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance/4, render_distance/4));
 
 	// Check existing chunks within range. If it doesn't exist, create it.
 	for (int x = (player_chunk.x - effective_render_distance); x <= (player_chunk.x + effective_render_distance); x++) {
@@ -174,12 +173,14 @@ void TerrainGenerator::_thread_process() {
 		// instantiating and generating the chunk
 		Chunk* chunk = memnew(Chunk);
 		chunk->_set_chunk_position(chunk_position);
-		chunk->_generate_chunk_mesh();
-		chunk->_draw_mesh();
+		chunk->_generate_chunk_mesh(_mutex_2);
+		//chunk->_draw_mesh();
 
 		//call_deferred("_add_child_chunk", chunk_position, chunk);
 
 		_mutex_2->lock();
+		//chunk->_generate_chunk_mesh();
+
 		_new_chunks_queue[chunk_position] = chunk;
 		_mutex_2->unlock();
 
@@ -215,6 +216,8 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	
 	for (const Vector3 chunk_key : key_list) {
 		if (Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk_key.x, chunk_key.z)) > _delete_distance) {
+			//Node* child = ;
+
 			// No longer need this, but this is just in case
 			if (!has_node(_chunks[chunk_key])) {
 				NodePath name = _chunks[chunk_key];
@@ -224,6 +227,8 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 
 			get_node(_chunks[chunk_key])->queue_free();
 			remove_child(get_node(_chunks[chunk_key]));
+			//call_deferred("remove_child", get_node(_chunks[chunk_key]));
+			//call_deferred("_chunks.erase", chunk_key);
 			_chunks.erase(chunk_key);
 
 			deleted_this_frame += 1;

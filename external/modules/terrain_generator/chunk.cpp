@@ -1,8 +1,28 @@
 #include "chunk.h"
 #include "thirdparty/embree/kernels/bvh/bvh_statistics.h"
 
-//Chunk::Chunk() {}
-//Chunk::~Chunk() {}
+Chunk::Chunk() {}
+Chunk::~Chunk() {
+	vertex_array.clear();
+	index_array.clear();
+	p_arr.clear();
+	p_arr.~Array();
+
+	arr_mesh->clear_surfaces();
+	arr_mesh->clear_blend_shapes();
+	arr_mesh->clear_cache();
+	//arr_mesh->detach_from_objectdb();
+	//arr_mesh->clear_internal_resource_paths();
+	//arr_mesh->~ArrayMesh();
+	arr_mesh.unref();
+	
+	/*
+	for (Variant c : get_children()) {
+		get_child(c)->queue_free();
+		remove_child(get_child(c));
+	}
+	*/
+}
 
 
 void Chunk::_notification(int p_what) {
@@ -17,8 +37,9 @@ void Chunk::_notification(int p_what) {
 			ready();
 			break;
 		
-		case NOTIFICATION_UNPARENTED:
+		//case NOTIFICATION_UNPARENTED:
 		case NOTIFICATION_EXIT_TREE: {
+			/*
 			vertex_array.clear();
 			index_array.clear();
 			p_arr.clear();
@@ -26,12 +47,15 @@ void Chunk::_notification(int p_what) {
 			arr_mesh->clear_surfaces();
 			arr_mesh->clear_blend_shapes();
 			arr_mesh->clear_cache();
+			
+			arr_mesh->unreference();
 			//arr_mesh.unref(); 
 			
 			for (Variant c : get_children()) {
 				get_child(c)->queue_free();
 				remove_child(get_child(c));
 			}
+			*/
 			
 		} break;
 	}
@@ -46,22 +70,6 @@ void Chunk::ready() {
 	//_generate_chunk_mesh();
 }
 
-
-void Chunk::regenerate() {
-	// Clear out all old nodes first.
-	/*
-	for (int c = 0; c < get_child_count(true); c++) {
-		Node* child = get_child(c);
-		remove_child(child);
-		child->queue_free();
-		//child.unref();
-    }
-	*/
-
-	// Then generate new ones.
-	//_generate_chunk_collider();
-	_generate_chunk_mesh();
-}
 
 
 // This sets the mesh, which essentially gives the engine a thumbs up to draw
@@ -109,8 +117,9 @@ void Chunk::_draw_mesh() {
 	SurfaceTool::generate_tangents()
 - a few structs also had to be copied.
 */
-void Chunk::_generate_chunk_mesh() {
+void Chunk::_generate_chunk_mesh(Ref<core_bind::Mutex> mutex) {
 	p_arr.resize(Mesh::ARRAY_MAX);
+	//mutex->unlock();
 
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
 	int subdivide_w = CHUNK_SIZE+1;
@@ -192,6 +201,7 @@ void Chunk::_generate_chunk_mesh() {
 	/*
 	GENERATE NORMALS
 	*/
+	mutex->lock();
 	_generate_chunk_normals();
 
 	/*
@@ -265,6 +275,7 @@ void Chunk::_generate_chunk_mesh() {
 	for (int sub_index : index_array) {
 		sub_index_array.push_back(sub_index);
 	}
+	mutex->unlock();
 
 	p_arr[RS::ARRAY_VERTEX] = sub_vertex_array;
 	p_arr[RS::ARRAY_NORMAL] = sub_normal_array;

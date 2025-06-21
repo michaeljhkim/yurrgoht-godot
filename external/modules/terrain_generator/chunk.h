@@ -12,6 +12,9 @@
 //#include "scene/resources/3d/primitive_meshes.h"
 //#include "scene/resources/surface_tool.h" // only need this for Vertex struct
 
+// For multi-threading
+#include "core/core_bind.h"
+
 #include "thirdparty/misc/mikktspace.h"
 
 class Chunk : public MeshInstance3D {
@@ -154,13 +157,11 @@ protected:
 public:
     void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
 
-
     // can probably remove these, but keeping for now
-    void regenerate();
     void _generate_chunk_collider();
     //Node* voxel_world;
 
-    void _generate_chunk_mesh();
+    void _generate_chunk_mesh(Ref<core_bind::Mutex> mutex);
     void _draw_mesh();
     
     // mostly for keeping the mesh generation code clean
@@ -177,8 +178,8 @@ public:
 
     //Ref<core_bind::Thread> get_thread() { return _thread; }
     
-    //Chunk();
-    //~Chunk();
+    Chunk();
+    ~Chunk();
 };
 
 

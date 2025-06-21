@@ -8,9 +8,6 @@
 #include "scene/3d/physics/character_body_3d.h"
 #include "chunk.h"
 
-// For multi-threading
-#include "core/core_bind.h"
-
 #include <queue>
 
 
