@@ -44,7 +44,7 @@ protected:
 	bool _thread_run = true;
 
 	// godot has no real queues, so I had to make do
-	AHashMap<Vector3, Chunk*> _thread_task_queue;
+	PackedVector3Array _thread_task_queue;
 	AHashMap<Vector3, Chunk*> _new_chunks_queue;
 
 	void _thread_process();

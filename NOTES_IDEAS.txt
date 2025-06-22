@@ -77,3 +77,9 @@ TODO LIST:
 - so long as I make the node a child at the very end, after doing all of the caluations and instantiations, it is fine
 - ready function will not be activated until after it enters the scene tree, so I need to keep that in mind
 - I could make it so that the ready function activates the draw function directly since I would have done the mesh calculations before
+
+
+THERE IS STILL ONE TINY MEMORY LEAK LEFT:
+
+Orphan StringName: Node (static: 10, total: 11)
+StringName: 1 unclaimed string names at exit.

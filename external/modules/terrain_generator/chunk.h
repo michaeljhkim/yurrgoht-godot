@@ -22,7 +22,7 @@ class Chunk : public MeshInstance3D {
 
 private:
 	Array p_arr;
-	Ref<ArrayMesh> arr_mesh;
+	Ref<ArrayMesh> arr_mesh;    // purely so I can unreferrence at the end - need to gaurentee 
 
     Ref<FastNoiseLite> noise;
 	Vector3 center_offset;
@@ -162,7 +162,6 @@ public:
     //Node* voxel_world;
 
     void _generate_chunk_mesh();
-    void _draw_mesh();
     
     // mostly for keeping the mesh generation code clean
     void _generate_chunk_normals(bool p_flip = false);

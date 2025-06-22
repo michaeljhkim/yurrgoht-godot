@@ -5,34 +5,8 @@ Chunk::Chunk() {
 }
 
 Chunk::~Chunk() {
-	vertex_array.clear();
-	index_array.clear();
-	p_arr.clear();
-	p_arr.~Array();
-
 	noise.unref();
-	
-	/*
-	arr_mesh->clear_surfaces();
-	arr_mesh->clear_blend_shapes();
-	arr_mesh->clear_cache();
-	*/
-
-	arr_mesh->unreference();
 	arr_mesh.unref();
-
-	if (!is_queued_for_deletion()) {
-		queue_free();	
-	}
-
-	for (Variant c : get_children()) {
-		Node* child = get_child(c);
-
-		if (!child->is_queued_for_deletion()) {
-			child->queue_free();
-		}
-		remove_child(child);
-    }
 }
 
 
@@ -48,27 +22,10 @@ void Chunk::_notification(int p_what) {
 			ready();
 			break;
 		
-		//case NOTIFICATION_UNPARENTED:
-		case NOTIFICATION_EXIT_TREE: {
-			/*
-			vertex_array.clear();
-			index_array.clear();
-			p_arr.clear();
-
-			arr_mesh->clear_surfaces();
-			arr_mesh->clear_blend_shapes();
-			arr_mesh->clear_cache();
-			
-			arr_mesh->unreference();
-			//arr_mesh.unref(); 
-			
-			for (Variant c : get_children()) {
-				get_child(c)->queue_free();
-				remove_child(get_child(c));
-			}
-			*/
-			
-		} break;
+		/*
+		case NOTIFICATION_EXIT_TREE: {} 
+		break;
+		*/
 	}
 }
 
@@ -80,20 +37,6 @@ void Chunk::ready() {
 
 	//_generate_chunk_mesh();
 }
-
-
-
-// This sets the mesh, which essentially gives the engine a thumbs up to draw
-// not actual drawing
-
-// regular mesh does not have add_surface_from_arrays, but ArrayMesh is a child of Mesh, so it can be passed with set_mesh
-void Chunk::_draw_mesh() {
-	arr_mesh.instantiate(); 
-	arr_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, p_arr);
-
-	set_mesh(arr_mesh);
-}
-
 
 
 /*
@@ -292,6 +235,13 @@ void Chunk::_generate_chunk_mesh() {
 	p_arr[RS::ARRAY_TANGENT] = sub_tangent_array;
 	p_arr[RS::ARRAY_TEX_UV] = sub_uv_array;
 	p_arr[RS::ARRAY_INDEX] = sub_index_array;
+
+	
+	// regular mesh does not have add_surface_from_arrays, but ArrayMesh is a child of Mesh, so it can be passed with set_mesh
+	arr_mesh.instantiate(); 
+	arr_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, p_arr);
+
+	set_mesh(arr_mesh);
 }
 
 /*

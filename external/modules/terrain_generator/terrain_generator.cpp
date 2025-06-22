@@ -18,12 +18,6 @@ TerrainGenerator::~TerrainGenerator() {
 	_run_mutex.unref();
 
 	// thread ended, so I do not need to use mutexes
-	for (KeyValue<Vector3, Chunk*> task : _thread_task_queue) {
-		if (!task.value->is_queued_for_deletion()) {
-			task.value->queue_free();
-		}
-	}
-
 	for (KeyValue<Vector3, Chunk*> new_task : _new_chunks_queue) {
 		if (!new_task.value->is_queued_for_deletion()) {
 			new_task.value->queue_free();
@@ -43,32 +37,11 @@ void TerrainGenerator::_notification(int p_what) {
 			ready();
 			break;
 
-		// put this into destructor maybe as well
-		//case NOTIFICATION_UNPARENTED:
-		case NOTIFICATION_EXIT_TREE: { 		// Thread must be disposed (or "joined"), for portability.
-			/*
-			clean_up();
-
-			//if (_thread.is_valid() && _thread->is_alive()) {
-			if (_thread.is_valid()) {
-				_run_mutex->lock();
-				_thread_run = false;
-				_run_mutex->unlock();
-
-				_thread->wait_to_finish();	// Wait until it exits.
-			}
-			
-			_thread.unref();
-			_mutex.unref();
-			_mutex_2.unref();
-			_run_mutex.unref();
-
-			// thread ended, so I do not need to use mutexes
-			_thread_task_queue.clear();
-			_new_chunks_queue.clear();
-			*/
-
-		} break;
+		/*
+		// Thread must be disposed (or "joined"), for portability.
+		case NOTIFICATION_EXIT_TREE: { } 
+		break;
+		*/
 	}
 }
 
@@ -77,15 +50,11 @@ void TerrainGenerator::clean_up() {
 	set_process(false);
 
 	for (Variant c : get_children()) {
-		Node* child = get_child(c);
-
-		if (!child->is_queued_for_deletion()) {
-			child->queue_free();
-			remove_child(child);
-		}
+		get_child(c)->queue_free();
+		remove_child(get_child(c));
     }
 
-	print_line("CHILDS LEFT NUM: ", get_child_count());
+	//print_line("CHILDS LEFT NUM: ", get_child_count());
 }
 
 
@@ -116,7 +85,6 @@ void TerrainGenerator::process(double delta) {
 		for (KeyValue<Vector3, Chunk*> cn : _new_chunks) {
 			add_child(cn.value);
 			_chunks[cn.key] = cn.value->get_path();
-			//cn.value->_draw_mesh();
 		}
 		_new_chunks.reset();
 	}
@@ -159,10 +127,8 @@ void TerrainGenerator::process(double delta) {
 			*/
 
 			// this mutex lock is for _thread_task_queue
-			_thread_task_queue[chunk_position] = memnew(Chunk);
+			_thread_task_queue.push_back(chunk_position);
 			_mutex->unlock();
-
-			//print_line("chunk name: " + chunk->get_path());
 
 			return;
 		}
@@ -186,7 +152,6 @@ void TerrainGenerator::_thread_process() {
 	bool running = true;
 	bool tasks_exists = true;
 	Vector3 chunk_position;
-	Chunk* chunk;
 
 	while (running) {
 		_run_mutex->lock();
@@ -196,26 +161,20 @@ void TerrainGenerator::_thread_process() {
 		_mutex->lock();
 		tasks_exists = !_thread_task_queue.is_empty();
 		if (tasks_exists) {
-			chunk_position = _thread_task_queue.get_by_index(0).key;
-			chunk = _thread_task_queue.get_by_index(0).value;
-
-			// we can remove the from here since we now have a copy
+			chunk_position = _thread_task_queue[0];
 		}
 		_mutex->unlock();
 
-		// There are no tasks currently, continue
-		// check 'running' flag here, just in case
+		// There are no tasks currently, continue || check 'running' flag here, just in case
 		if (!tasks_exists || !running) {
 			continue;
 		}
 
 		// These are the computations that I did not want to run on the main thread
 		// instantiating and generating the chunk
-		//Chunk* chunk = memnew(Chunk);
-
+		Chunk* chunk = memnew(Chunk);
 		chunk->_set_chunk_position(chunk_position);
 		chunk->_generate_chunk_mesh();
-		chunk->_draw_mesh();
 
 		if (!running) {
 			chunk->queue_free();
@@ -226,9 +185,9 @@ void TerrainGenerator::_thread_process() {
 		_new_chunks_queue[chunk_position] = chunk;
 		_mutex_2->unlock();
 
-		// its only save to remove from this AFTER the fact
+		// its only save to remove this value AFTER instantiating the above, because the main thread constantly checks the _thread_task_queue
 		_mutex->lock();
-		_thread_task_queue.erase_by_index(0);
+		_thread_task_queue.remove_at(0);
 		_mutex->unlock();
 
 		chunk = nullptr;
@@ -270,13 +229,8 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 				continue;
 			}
 
-			//get_node(_chunks[chunk_key])->queue_free();
-			Node* temp_chunk = get_node(_chunks[chunk_key]);
-
-			if (!temp_chunk->is_queued_for_deletion()) {
-				temp_chunk->queue_free();
-				remove_child(temp_chunk);
-			}
+			get_node(_chunks[chunk_key])->queue_free();
+			remove_child(get_node(_chunks[chunk_key]));
 			_chunks.erase(chunk_key);
 
 			deleted_this_frame += 1;
