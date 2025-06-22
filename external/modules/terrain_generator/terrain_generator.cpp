@@ -1,5 +1,38 @@
 #include "terrain_generator.h"
 
+TerrainGenerator::~TerrainGenerator() {
+	clean_up();
+
+	//if (_thread.is_valid() && _thread->is_alive()) {
+	if (_thread.is_valid()) {
+		_run_mutex->lock();
+		_thread_run = false;
+		_run_mutex->unlock();
+
+		_thread->wait_to_finish();	// Wait until it exits.
+	}
+	
+	_thread.unref();
+	_mutex.unref();
+	_mutex_2.unref();
+	_run_mutex.unref();
+
+	// thread ended, so I do not need to use mutexes
+	for (KeyValue<Vector3, Chunk*> task : _thread_task_queue) {
+		if (!task.value->is_queued_for_deletion()) {
+			task.value->queue_free();
+		}
+	}
+
+	for (KeyValue<Vector3, Chunk*> new_task : _new_chunks_queue) {
+		if (!new_task.value->is_queued_for_deletion()) {
+			new_task.value->queue_free();
+		}
+	}
+	_thread_task_queue.clear();
+	_new_chunks_queue.clear();
+}
+
 void TerrainGenerator::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_PROCESS:
@@ -13,6 +46,7 @@ void TerrainGenerator::_notification(int p_what) {
 		// put this into destructor maybe as well
 		//case NOTIFICATION_UNPARENTED:
 		case NOTIFICATION_EXIT_TREE: { 		// Thread must be disposed (or "joined"), for portability.
+			/*
 			clean_up();
 
 			//if (_thread.is_valid() && _thread->is_alive()) {
@@ -23,7 +57,7 @@ void TerrainGenerator::_notification(int p_what) {
 
 				_thread->wait_to_finish();	// Wait until it exits.
 			}
-
+			
 			_thread.unref();
 			_mutex.unref();
 			_mutex_2.unref();
@@ -32,11 +66,29 @@ void TerrainGenerator::_notification(int p_what) {
 			// thread ended, so I do not need to use mutexes
 			_thread_task_queue.clear();
 			_new_chunks_queue.clear();
+			*/
 
-			//clean_up();
 		} break;
 	}
 }
+
+void TerrainGenerator::clean_up() {
+	_chunks.clear();
+	set_process(false);
+
+	for (Variant c : get_children()) {
+		Node* child = get_child(c);
+
+		if (!child->is_queued_for_deletion()) {
+			child->queue_free();
+			remove_child(child);
+		}
+    }
+
+	print_line("CHILDS LEFT NUM: ", get_child_count());
+}
+
+
 
 // processes that only need to be done on intialization - generates the basic values needed going forward
 void TerrainGenerator::ready() {
@@ -62,12 +114,9 @@ void TerrainGenerator::process(double delta) {
 
 	if (!_new_chunks.is_empty()) {
 		for (KeyValue<Vector3, Chunk*> cn : _new_chunks) {
-			// THIS PART SPECIFICALLY IS CAUSING THE MEMORY LEAKS
-			//cn.value->_generate_chunk_mesh();	
-			cn.value->_draw_mesh();
-
 			add_child(cn.value);
 			_chunks[cn.key] = cn.value->get_path();
+			//cn.value->_draw_mesh();
 		}
 		_new_chunks.reset();
 	}
@@ -90,9 +139,12 @@ void TerrainGenerator::process(double delta) {
 		for (int z = (player_chunk.z - effective_render_distance); z <= (player_chunk.z + effective_render_distance); z++) {
 			Vector3 chunk_position = Vector3(x, 0, z);
 
+			_mutex->lock();
 			if ((Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(x, z)) > render_distance) || 
-				_chunks.has(chunk_position)
+				_chunks.has(chunk_position) ||
+				_thread_task_queue.has(chunk_position)
 			) {
+				_mutex->unlock();
 				continue;
 			}
 
@@ -107,8 +159,7 @@ void TerrainGenerator::process(double delta) {
 			*/
 
 			// this mutex lock is for _thread_task_queue
-			_mutex->lock();
-			_thread_task_queue.push_back(chunk_position);
+			_thread_task_queue[chunk_position] = memnew(Chunk);
 			_mutex->unlock();
 
 			//print_line("chunk name: " + chunk->get_path());
@@ -127,18 +178,6 @@ void TerrainGenerator::process(double delta) {
 	}
 }
 
-void TerrainGenerator::clean_up() {
-	_chunks.clear();
-	set_process(false);
-
-	for (Variant c : get_children()) {
-		get_child(c)->queue_free();
-		remove_child(get_child(c));
-    }
-
-	print_line("CHILDS LEFT NUM: ", get_child_count());
-}
-
 /*
 - for the most part, this is an infinite loop, until the class itself is down
 - remember, mutexes ONLY lock threads if there is another attempt to lock a value
@@ -147,6 +186,7 @@ void TerrainGenerator::_thread_process() {
 	bool running = true;
 	bool tasks_exists = true;
 	Vector3 chunk_position;
+	Chunk* chunk;
 
 	while (running) {
 		_run_mutex->lock();
@@ -156,10 +196,10 @@ void TerrainGenerator::_thread_process() {
 		_mutex->lock();
 		tasks_exists = !_thread_task_queue.is_empty();
 		if (tasks_exists) {
-			chunk_position = _thread_task_queue[0];
+			chunk_position = _thread_task_queue.get_by_index(0).key;
+			chunk = _thread_task_queue.get_by_index(0).value;
 
 			// we can remove the from here since we now have a copy
-			_thread_task_queue.remove_at(0);
 		}
 		_mutex->unlock();
 
@@ -171,18 +211,25 @@ void TerrainGenerator::_thread_process() {
 
 		// These are the computations that I did not want to run on the main thread
 		// instantiating and generating the chunk
-		Chunk* chunk = memnew(Chunk);
-		chunk->_set_chunk_position(chunk_position);
-		chunk->_generate_chunk_mesh(_mutex_2);
-		//chunk->_draw_mesh();
+		//Chunk* chunk = memnew(Chunk);
 
-		//call_deferred("_add_child_chunk", chunk_position, chunk);
+		chunk->_set_chunk_position(chunk_position);
+		chunk->_generate_chunk_mesh();
+		chunk->_draw_mesh();
+
+		if (!running) {
+			chunk->queue_free();
+			return;
+		}
 
 		_mutex_2->lock();
-		//chunk->_generate_chunk_mesh();
-
 		_new_chunks_queue[chunk_position] = chunk;
 		_mutex_2->unlock();
+
+		// its only save to remove from this AFTER the fact
+		_mutex->lock();
+		_thread_task_queue.erase_by_index(0);
+		_mutex->unlock();
 
 		chunk = nullptr;
 	}
@@ -216,19 +263,20 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	
 	for (const Vector3 chunk_key : key_list) {
 		if (Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk_key.x, chunk_key.z)) > _delete_distance) {
-			//Node* child = ;
-
 			// No longer need this, but this is just in case
 			if (!has_node(_chunks[chunk_key])) {
 				NodePath name = _chunks[chunk_key];
 				print_line("NULL CHILD: " + name);
 				continue;
-			} 
+			}
 
-			get_node(_chunks[chunk_key])->queue_free();
-			remove_child(get_node(_chunks[chunk_key]));
-			//call_deferred("remove_child", get_node(_chunks[chunk_key]));
-			//call_deferred("_chunks.erase", chunk_key);
+			//get_node(_chunks[chunk_key])->queue_free();
+			Node* temp_chunk = get_node(_chunks[chunk_key]);
+
+			if (!temp_chunk->is_queued_for_deletion()) {
+				temp_chunk->queue_free();
+				remove_child(temp_chunk);
+			}
 			_chunks.erase(chunk_key);
 
 			deleted_this_frame += 1;

@@ -1,27 +1,38 @@
 #include "chunk.h"
 #include "thirdparty/embree/kernels/bvh/bvh_statistics.h"
 
-Chunk::Chunk() {}
+Chunk::Chunk() {
+}
+
 Chunk::~Chunk() {
 	vertex_array.clear();
 	index_array.clear();
 	p_arr.clear();
 	p_arr.~Array();
 
+	noise.unref();
+	
+	/*
 	arr_mesh->clear_surfaces();
 	arr_mesh->clear_blend_shapes();
 	arr_mesh->clear_cache();
-	//arr_mesh->detach_from_objectdb();
-	//arr_mesh->clear_internal_resource_paths();
-	//arr_mesh->~ArrayMesh();
-	arr_mesh.unref();
-	
-	/*
-	for (Variant c : get_children()) {
-		get_child(c)->queue_free();
-		remove_child(get_child(c));
-	}
 	*/
+
+	arr_mesh->unreference();
+	arr_mesh.unref();
+
+	if (!is_queued_for_deletion()) {
+		queue_free();	
+	}
+
+	for (Variant c : get_children()) {
+		Node* child = get_child(c);
+
+		if (!child->is_queued_for_deletion()) {
+			child->queue_free();
+		}
+		remove_child(child);
+    }
 }
 
 
@@ -74,9 +85,10 @@ void Chunk::ready() {
 
 // This sets the mesh, which essentially gives the engine a thumbs up to draw
 // not actual drawing
+
+// regular mesh does not have add_surface_from_arrays, but ArrayMesh is a child of Mesh, so it can be passed with set_mesh
 void Chunk::_draw_mesh() {
-	// regular mesh does not have add_surface_from_arrays, but ArrayMesh is a child of Mesh, so it can be passed with set_mesh
-	arr_mesh.instantiate();
+	arr_mesh.instantiate(); 
 	arr_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, p_arr);
 
 	set_mesh(arr_mesh);
@@ -117,9 +129,9 @@ void Chunk::_draw_mesh() {
 	SurfaceTool::generate_tangents()
 - a few structs also had to be copied.
 */
-void Chunk::_generate_chunk_mesh(Ref<core_bind::Mutex> mutex) {
+void Chunk::_generate_chunk_mesh() {
 	p_arr.resize(Mesh::ARRAY_MAX);
-	//mutex->unlock();
+	noise.instantiate();
 
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
 	int subdivide_w = CHUNK_SIZE+1;
@@ -147,7 +159,7 @@ void Chunk::_generate_chunk_mesh(Ref<core_bind::Mutex> mutex) {
 
 			// Point orientation Y
 			Vertex vert;
-			float height = noise.get_noise_2d(-x, -z) * AMPLITUDE;
+			float height = noise->get_noise_2d(-x, -z) * AMPLITUDE;
 			vert.vertex = Vector3(-x, height, -z) + center_offset;
 
 			// UVs
@@ -201,14 +213,13 @@ void Chunk::_generate_chunk_mesh(Ref<core_bind::Mutex> mutex) {
 	/*
 	GENERATE NORMALS
 	*/
-	mutex->lock();
 	_generate_chunk_normals();
 
 	/*
 	GENERATE TANGENTS
 	*/
 	_generate_chunk_tangents();
-
+	
 
 	/*
 	  ---------- RE-INDEX START ----------
@@ -275,7 +286,6 @@ void Chunk::_generate_chunk_mesh(Ref<core_bind::Mutex> mutex) {
 	for (int sub_index : index_array) {
 		sub_index_array.push_back(sub_index);
 	}
-	mutex->unlock();
 
 	p_arr[RS::ARRAY_VERTEX] = sub_vertex_array;
 	p_arr[RS::ARRAY_NORMAL] = sub_normal_array;

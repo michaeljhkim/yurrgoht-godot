@@ -24,7 +24,7 @@ private:
 	Array p_arr;
 	Ref<ArrayMesh> arr_mesh;
 
-    FastNoiseLite noise;
+    Ref<FastNoiseLite> noise;
 	Vector3 center_offset;
 
 protected:
@@ -161,7 +161,7 @@ public:
     void _generate_chunk_collider();
     //Node* voxel_world;
 
-    void _generate_chunk_mesh(Ref<core_bind::Mutex> mutex);
+    void _generate_chunk_mesh();
     void _draw_mesh();
     
     // mostly for keeping the mesh generation code clean

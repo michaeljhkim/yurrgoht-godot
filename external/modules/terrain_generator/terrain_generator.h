@@ -44,7 +44,7 @@ protected:
 	bool _thread_run = true;
 
 	// godot has no real queues, so I had to make do
-	Vector<Vector3> _thread_task_queue;
+	AHashMap<Vector3, Chunk*> _thread_task_queue;
 	AHashMap<Vector3, Chunk*> _new_chunks_queue;
 
 	void _thread_process();
@@ -53,7 +53,7 @@ protected:
 
 public:
 	TerrainGenerator();
-	//~TerrainGenerator();
+	~TerrainGenerator();
 
 	void _notification(int p_notification);
 	//void init();	// probably do not need this, ready should take care of everything
