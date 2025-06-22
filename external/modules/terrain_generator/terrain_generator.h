@@ -46,11 +46,24 @@ protected:
 	Ref<core_bind::Thread> _thread;		// worker thread - only need one worker thread currently
 
 	// godot has no real queues, so I had to make do
-	Vector<Callable> _thread_task_queue;
 	Vector<Chunk*> _add_child_queue;
+
+	/*
+	- used as a vector for the most part, the reason why it is not a vector is because Callables with specified bindings are not uniquely identified
+	- on the brightside, this allows Callables to be created if and only if it does not exist
+
+	REASONS FOR USING AHashMap AND NOT:
+	- RBMap: 
+		- do not need to iterate over elements (except for deletion at the very end)
+	- HashMap:
+		- do not need to keep an iterator or const pointer to Key, and intend to add/remove elements in the meantime
+		- do not need to preserve insertion order when using erase (just need to get element at index 0)
+		- `KeyValue` size is not very large
+	*/
+	AHashMap<StringName, Callable> _thread_task_queue;	
 	
 	// for copying the _add_child_queue - main thread only
-	Vector<Chunk*> _new_chunks;
+	//Vector<Chunk*> _new_chunks;
 
 	// Only for the worker thread
 	void _thread_process();
