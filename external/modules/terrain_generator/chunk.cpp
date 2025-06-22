@@ -33,7 +33,7 @@ void Chunk::ready() {
 	//voxel_world = get_parent();
 
 	// Should probably not use this since vertex calculations are on global scale - keeping for reference
-	//set_position(Vector3(chunk_position * CHUNK_SIZE));
+	//set_position(Vector3(grid_position * CHUNK_SIZE));
 
 	//_generate_chunk_mesh();
 }
@@ -84,7 +84,7 @@ void Chunk::_generate_chunk_mesh() {
 	float x, z;
 
 	//Size2 start_pos = size * -0.5;
-	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE;
+	Size2 start_pos = size * -0.5 - Vector2(grid_position.x, grid_position.z) * CHUNK_SIZE;
 	point = 0;
 
 	/* top + bottom */
@@ -425,7 +425,7 @@ void Chunk::_bind_methods() {
 Old code for generate_chunk_mesh() - keeping here for reference
 */
 /*
-    set_position(Vector3(chunk_position * CHUNK_SIZE));
+    set_position(Vector3(grid_position * CHUNK_SIZE));
 
 	noise.set_noise_type(FastNoiseLite::TYPE_SIMPLEX);
 	noise.set_frequency(0.008);

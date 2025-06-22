@@ -46,9 +46,9 @@ protected:
 	// godot has no real queues, so I had to make do
 	//PackedVector3Array _thread_task_queue;
 	Vector<Callable> _thread_task_queue;
-	AHashMap<Vector3, Chunk*> _add_child_queue;
+	Vector<Chunk*> _add_child_queue;
 
-	void _instantiate_chunk(Vector3 chunk_position);
+	void _instantiate_chunk(Vector3 grid_position);
 
 	void _thread_process();
 

@@ -152,10 +152,11 @@ protected:
 	LocalVector<Vertex> vertex_array;
 	LocalVector<int> index_array;
 
-    Vector3 chunk_position;
+    Vector3 grid_position;
 
 public:
-    void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
+    void _set_grid_position(Vector3 new_position) { grid_position = new_position; }
+    Vector3 _get_grid_position() { return grid_position; }
 
     // can probably remove these, but keeping for now
     void _generate_chunk_collider();
