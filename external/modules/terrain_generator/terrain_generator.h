@@ -19,6 +19,10 @@ class TerrainGenerator : public Node3D {
 	// export these values - to be defined in editor
 	int seed_input;
 
+	/*
+	- maximum possible number of chunks being rendered is (render_distance + 2)^2
+	- e.g, (4+2)^2 = 36 chunks possible (but is unlikely)
+	*/
 	int render_distance = 4;
 	int _delete_distance = render_distance + 2;
 	int effective_render_distance = 0;
@@ -28,29 +32,29 @@ class TerrainGenerator : public Node3D {
 	bool _deleting = false;
 
 	/*
-	- Here is why the _chunks map uses TypedDictionary<Vector2i, NodePath> specifically
-	- Vector2i represents where the chunk is in the grid surrounding the player
-	- NodePath is the most accurate way to access a specific child node publicly
-	- indices were constantly changing within the parent node, so managing with indices was impossible
+	- Here is why the _chunks map uses TypedDictionary<Vector3, NodePath> specifically
+	- Vector3 represents where the chunk is in the grid (not a physical grid, just chunks surrounding player)
+	- NodePath is the most direct/safe way to access a specific child node publicly
+	- indices were constantly changing within the parent node, so using indices was impossible
 	*/
-	TypedDictionary<Vector3, NodePath> _chunks;
+	TypedDictionary<Vector3, NodePath> _chunk_paths;
 	CharacterBody3D* player_character = nullptr;		// This is an OBJECT
 
 protected:
-	Ref<core_bind::Mutex> _mutex_RUN;
-	Ref<core_bind::Mutex> _mutex_TTQ;	// for the _thread_task_queue
-	Ref<core_bind::Mutex> _mutex_ACQ;	// for the _add_child_queue
-	Ref<core_bind::Thread> _thread;
-	bool _thread_run = true;
+	Ref<core_bind::Mutex> _mutex_TTQ;	// mutex for _thread_task_queue
+	Ref<core_bind::Mutex> _mutex_ACQ;	// mutex for _add_child_queue
+	Ref<core_bind::Thread> _thread;		// worker thread - only need one worker thread currently
 
 	// godot has no real queues, so I had to make do
-	//PackedVector3Array _thread_task_queue;
 	Vector<Callable> _thread_task_queue;
 	Vector<Chunk*> _add_child_queue;
+	
+	// for copying the _add_child_queue - main thread only
+	Vector<Chunk*> _new_chunks;
 
-	void _instantiate_chunk(Vector3 grid_position);
-
+	// Only for the worker thread
 	void _thread_process();
+	void _instantiate_chunk(Vector3 grid_position);
 
 	static void _bind_methods();
 

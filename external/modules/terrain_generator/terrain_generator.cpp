@@ -1,10 +1,27 @@
 #include "terrain_generator.h"
 
+/*
+CREDITs: 
+- general structure borrowed from 'Voxel Game' demo https://github.com/godotengine/godot-demo-projects/tree/4.2-31d1c0c/3d/voxel
+
+NOTES:
+- remember that instantiating a node is usually safe on another thread, but ONLY if it is outside of the main scene tree
+- basically, only touch nodes in the main scene tree ONLY IF on the main thread
+*/
+
+
+// constructor - sets up default values
+TerrainGenerator::TerrainGenerator() {
+	set_process(true);
+}
+
+// destructor - make sure to clean up anything that the main scene tree might not
 TerrainGenerator::~TerrainGenerator() {
+	// worker thread will usually be active up until destruction
 	if (_thread.is_valid()) {
-		_mutex_RUN->lock();
-		_thread_run = false;
-		_mutex_RUN->unlock();
+		_mutex_TTQ->lock();
+		_thread_task_queue.push_back(Callable());	// empty (null) callable function
+		_mutex_TTQ->unlock();
 
 		_thread->wait_to_finish();	// Wait until it exits.
 	}
@@ -12,12 +29,15 @@ TerrainGenerator::~TerrainGenerator() {
 	_thread.unref();
 	_mutex_TTQ.unref();
 	_mutex_ACQ.unref();
-	_mutex_RUN.unref();
 
 	clean_up();
 
 }
 
+/*
+- allows C++ classes to use the same ready/process signals as in gdscript
+- GDExtension has this built in
+*/
 void TerrainGenerator::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_PROCESS:
@@ -36,15 +56,19 @@ void TerrainGenerator::_notification(int p_what) {
 	}
 }
 
+
+// called only in destructor
 void TerrainGenerator::clean_up() {
-	_chunks.clear();
+	_chunk_paths.clear();
 	set_process(false);
 
+	// delete child nodes
 	for (Variant c : get_children()) {
 		get_child(c)->queue_free();
 		remove_child(get_child(c));
     }
 
+	// delete nodes that are queued to be children
 	// thread ended, so I do not need to use mutexes
 	for (Chunk* new_task : _add_child_queue) {
 		if (!new_task->is_queued_for_deletion()) {
@@ -53,15 +77,12 @@ void TerrainGenerator::clean_up() {
 	}
 	_thread_task_queue.clear();
 	_add_child_queue.clear();
-
-	//print_line("CHILDS LEFT NUM: ", get_child_count());
 }
 
 
 
 // processes that only need to be done on intialization - mutexes, thread
 void TerrainGenerator::ready() {
-	_mutex_RUN.instantiate();
 	_mutex_TTQ.instantiate();
 	_mutex_ACQ.instantiate();
 	_thread.instantiate();
@@ -71,9 +92,8 @@ void TerrainGenerator::ready() {
 
 void TerrainGenerator::process(double delta) {
 	if (player_character == nullptr) return;
-	
-	Vector<Chunk*> _new_chunks;
 
+	// add newly instantiated chunks as child nodes
 	_mutex_ACQ->lock();
 	if (!_add_child_queue.is_empty()) {
 		_new_chunks = _add_child_queue;
@@ -84,13 +104,12 @@ void TerrainGenerator::process(double delta) {
 	if (!_new_chunks.is_empty()) {
 		for (Chunk* NC : _new_chunks) {
 			add_child(NC);
-			_chunks[NC->_get_grid_position()] = NC->get_path();
+			_chunk_paths[NC->_get_grid_position()] = NC->get_path();
 		}
 		_new_chunks.clear();
 	}
+	// adding child nodes finished
 
-	//Vector3 player_location = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f) * 64.f) * Vector3(1.f, 0.f, 1.f);
-	//Vector3 player_chunk = player_character->get_global_position().snapped(Vector3(1.f, 1.f, 1.f)  / Chunk::CHUNK_SIZE );
 	Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 	
 	if (_deleting || (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z))) {
@@ -109,15 +128,19 @@ void TerrainGenerator::process(double delta) {
 			Callable task_function = callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(grid_position);
 
 			_mutex_TTQ->lock();
-			// we NEED to check if these exist, otherwise extra nodes WILL be created and orphaned due to other existance checks
+			/*
+			- these conditions need to be checked, otherwise extra nodes WILL be created and orphaned
+
+			- check _thread_task_queue first, because the worker thread may need to use it right after
+			*/
 			if (
-				_thread_task_queue.has(task_function) ||	// we check _thread_task_queue first, since if true, we want to unlock the mutex asap
-				_chunks.has(grid_position) ||
+				_thread_task_queue.has(task_function) ||	
+				_chunk_paths.has(grid_position) ||
 				(Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(x, z)) > render_distance)
 			) {
 				_mutex_TTQ->unlock();
 
-				task_function.~Callable();
+				task_function.~Callable();	// since the chunk is invalid, we should destroy the instiation function
 				continue;
 			}
 
@@ -125,13 +148,14 @@ void TerrainGenerator::process(double delta) {
 			_mutex_TTQ->unlock();
 
 			/*
+			// single thread version
 			Chunk* chunk = memnew(Chunk);
 			chunk->_set_grid_position(grid_position);
 			chunk->_generate_chunk_mesh();
 			chunk->_draw_mesh();
 
 			add_child(chunk);
-			_chunks[grid_position] = chunk->get_path();
+			_chunk_paths[grid_position] = chunk->get_path();
 			*/
 
 			return;
@@ -148,65 +172,55 @@ void TerrainGenerator::process(double delta) {
 	}
 }
 
+
 /*
+- worker thread function
+
 - for the most part, this is an infinite loop, until the class itself is down
 - remember, mutexes ONLY lock threads if there is another attempt to lock a value
 */
 void TerrainGenerator::_thread_process() {
 	bool running = true;
-	bool tasks_exists = true;
 	Callable task;
 
 	while (running) {
-		_mutex_RUN->lock();
-		running = _thread_run;
-		_mutex_RUN->unlock();
-
 		_mutex_TTQ->lock();
-		tasks_exists = !_thread_task_queue.is_empty();
-		if (tasks_exists) {
-			task = _thread_task_queue[0];
-		}
-		_mutex_TTQ->unlock();
-
-		// There are no tasks currently, continue
-		if (!tasks_exists) {
+		if (_thread_task_queue.is_empty()) {	// there are no tasks currently, continue
+			_mutex_TTQ->unlock();
 			continue;
 		}
+		task = _thread_task_queue[0];			// tasks do exist, copy the front of the queue (Vector)
+		_mutex_TTQ->unlock();
+		
+		if (task.is_null())		// destructor adds empty 'Callable' to _thread_task_queue - signals shutdown to _thread_process
+			running = false;
+		else 
+			task.call();		// all arguements are bound (with .bind) BEFORE being added to task queue, so no arguements need to be provided here
+			
 
-		task.call();	// arguements should have been bound using .bind() before adding to task queue
-
-		// its only save to remove the callable AFTER instantiating the above, because the main thread constantly checks the _thread_task_queue
+		// task call complete, remove from the front of queue
+		// only safe to remove AFTER calling, due to main thread checking _thread_task_queue
 		_mutex_TTQ->lock();
-		_thread_task_queue.remove_at(0);
+		_thread_task_queue.remove_at(0);	
 		_mutex_TTQ->unlock();
 	}
 }
 
+
 /*
-- realistically, should only be called inside thread
+- Computations that can safely be done outside of main thread - instantiating/generating the chunk
+- should only be called inside _thread_process
 */
 void TerrainGenerator::_instantiate_chunk(Vector3 grid_position) {
-	// These are the computations that I did not want to run on the main thread
-	// instantiating and generating the chunk
 	Chunk* chunk = memnew(Chunk);
 	chunk->_set_grid_position(grid_position);
 	chunk->_generate_chunk_mesh();
 
-	// if 'running' flag was set to false right before here
-	/*
-	if (!running) {
-		chunk->queue_free();
-		return;
-	}
-	*/
-
-	// it is possible for the _add_child_queue to push back a chunk, then the chunk to be cleared immediately. Must figure out how to prevent this 
 	_mutex_ACQ->lock();
 	_add_child_queue.push_back(chunk);
 	_mutex_ACQ->unlock();
 
-	chunk = nullptr;
+	chunk = nullptr;	// gaurentees reference removal
 }
 
 /*
@@ -218,7 +232,6 @@ while thread.is_alive(), and this thread is not stopped,
 	- add finished chunks to finished queue
 - draw all chunks in finished queue
 */
-
 void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	_old_player_chunk = player_chunk;
 	// If we need to delete chunks, give the new chunk system a chance to catch up.
@@ -231,20 +244,19 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	int max_deletions = CLAMP(2 * (render_distance - effective_render_distance), 2, 8);
 
 	// Also take the opportunity to delete far away chunks.
-	// remove_child
 
-	for (const Vector3 chunk_key : _chunks.keys()) {
+	for (const Vector3 chunk_key : _chunk_paths.keys()) {
 		if (Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk_key.x, chunk_key.z)) > _delete_distance) {
 			// No longer need this, but this is just in case
-			if (!has_node(_chunks[chunk_key])) {
-				NodePath name = _chunks[chunk_key];
+			if (!has_node(_chunk_paths[chunk_key])) {
+				NodePath name = _chunk_paths[chunk_key];
 				print_line("NULL CHILD: " + name);
 				continue;
 			}
 
-			get_node(_chunks[chunk_key])->queue_free();
-			remove_child(get_node(_chunks[chunk_key]));
-			_chunks.erase(chunk_key);
+			get_node(_chunk_paths[chunk_key])->queue_free();
+			remove_child(get_node(_chunk_paths[chunk_key]));
+			_chunk_paths.erase(chunk_key);
 
 			deleted_this_frame += 1;
 
@@ -260,6 +272,10 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	_deleting = false;
 }
 
+/*
+- standard editor only exports 
+- we only use the player character for position (for now)
+*/
 void TerrainGenerator::set_player_character(CharacterBody3D* p_node) {
 	if (p_node == nullptr) return;
 
@@ -275,13 +291,4 @@ void TerrainGenerator::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_player_character"), &TerrainGenerator::get_player_character);
 	
 	ClassDB::add_property("TerrainGenerator", PropertyInfo(Variant::OBJECT, "player_character", PROPERTY_HINT_NODE_TYPE, "CharacterBody3D"), "set_player_character", "get_player_character");
-}
-
-
-// constructor - sets up default values
-TerrainGenerator::TerrainGenerator() {
-	//count = 0;
-
-	// enable process
-	set_process(true);
 }
