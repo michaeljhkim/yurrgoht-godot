@@ -37,15 +37,18 @@ class TerrainGenerator : public Node3D {
 	CharacterBody3D* player_character = nullptr;		// This is an OBJECT
 
 protected:
-	Ref<core_bind::Mutex> _run_mutex;
-	Ref<core_bind::Mutex> _mutex;
-	Ref<core_bind::Mutex> _mutex_2;
+	Ref<core_bind::Mutex> _mutex_RUN;
+	Ref<core_bind::Mutex> _mutex_TTQ;	// for the _thread_task_queue
+	Ref<core_bind::Mutex> _mutex_ACQ;	// for the _add_child_queue
 	Ref<core_bind::Thread> _thread;
 	bool _thread_run = true;
 
 	// godot has no real queues, so I had to make do
-	PackedVector3Array _thread_task_queue;
-	AHashMap<Vector3, Chunk*> _new_chunks_queue;
+	//PackedVector3Array _thread_task_queue;
+	Vector<Callable> _thread_task_queue;
+	AHashMap<Vector3, Chunk*> _add_child_queue;
+
+	void _instantiate_chunk(Vector3 chunk_position);
 
 	void _thread_process();
 
