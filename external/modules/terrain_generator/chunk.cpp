@@ -274,8 +274,8 @@ void Chunk::_generate_chunk_mesh() {
 void Chunk::_draw_mesh() {
 	RS::SurfaceData surface;
 	Error err = RS::get_singleton()->mesh_create_surface_data_from_arrays(
-		&surface, 
-		(RenderingServer::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES, 
+		&surface,
+		(RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES, 
 		p_arr, 
 		TypedArray<Array>(),
 		Dictionary(),
@@ -283,7 +283,7 @@ void Chunk::_draw_mesh() {
 	);
 	ERR_FAIL_COND(err != OK);	// makes sure the surface is valid
 
-	RenderingServer::get_singleton()->mesh_add_surface(mesh_rid, surface);
+	RS::get_singleton()->mesh_add_surface(mesh_rid, surface);
 }
 
 /*

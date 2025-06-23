@@ -1,6 +1,7 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+external/godot/
 
 # Godot custom modules build generated files
 __pycache__
