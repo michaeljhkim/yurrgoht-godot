@@ -69,6 +69,8 @@ protected:
 	// Only for the worker thread
 	void _thread_process();
 	void _instantiate_chunk(Vector3 grid_position, Vector3 chunk_position);
+	void _add_chunk(Vector3 grid_position, Ref<Chunk> chunk);
+	
 	void _update_chunk_mesh(Vector3 grid_position, Vector3 chunk_position);
 
 	static void _bind_methods();

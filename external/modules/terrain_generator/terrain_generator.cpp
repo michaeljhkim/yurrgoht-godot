@@ -62,14 +62,6 @@ void TerrainGenerator::clean_up() {
 	_chunks.clear();
 	set_process(false);
 
-	// delete child nodes
-	/*
-	for (Variant c : get_children()) {
-		get_child(c)->queue_free();
-		remove_child(get_child(c));
-    }
-	*/
-
 	_thread_task_queue.clear();
 	_process_task_queue.clear();
 }
@@ -96,9 +88,20 @@ void TerrainGenerator::ready() {
 
 void TerrainGenerator::process(double delta) {
 	if (player_character == nullptr) return;
+	
+	Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
+	player_chunk.y = 0;
+	//player_character->get_global_rotation();
+
+	if (_deleting || (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z))) {
+	//if (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z)) {
+		_delete_far_away_chunks(player_chunk);
+		_generating = true;
+	}
+	if (!_generating) return;
+
 
 	// START running main thread process tasks - setup by worker thread
-	/*
 	Vector<Callable> _new_tasks;
 
 	_mutex_ACQ->lock();
@@ -114,19 +117,10 @@ void TerrainGenerator::process(double delta) {
 		}
 		_new_tasks.clear();
 	}
-	*/
 	// FINISH running main thread process tasks
 
-	Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
-	player_chunk.y = 0;
-	//player_character->get_global_rotation();
-	
-	if (_deleting || (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z))) {
-	//if (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z)) {
-		_delete_far_away_chunks(player_chunk);
-		_generating = true;
-	}
-	if (!_generating) return;
+
+
 
 	// Try to generate chunks ahead of time based on where the player is moving. - not sure what this does (study later, low priority)
 	//player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance/4, render_distance/4));
@@ -138,15 +132,24 @@ void TerrainGenerator::process(double delta) {
 			Vector3 chunk_position = player_chunk + grid_position;
 
 			//StringName task_name = String(chunk_position) + "_TerrainGenerator::_update_chunk_mesh";
-			StringName task_name = String(chunk_position);
+			StringName task_name = String(chunk_position) + "_TerrainGenerator::_instantiate_chunk";
 
 			_mutex_TTQ->lock();
-			
+
+			/*
+			if(_thread_task_queue.has(task_name))
+				print_line("_thread_task_queue.has(task_name) = TRUE");
+			if(_chunks.has(chunk_position))
+				print_line("_chunks.has(grid_position) = TRUE");
+			if(Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk_position.x, chunk_position.z)) > render_distance)
+				print_line("(Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk_position.x, chunk_position.z)) = TRUE");
+			*/
+
 			// direct callable instantiation
 			if (
 				_thread_task_queue.has(task_name) ||	// we check _thread_task_queue first, since if true, we want to unlock the mutex asap
-				_chunks.has(grid_position) ||
-				player_chunk.distance_to(chunk_position) > render_distance
+				_chunks.has(chunk_position) || 
+				(player_chunk.distance_to(chunk_position) > render_distance)
 			) {
 				_mutex_TTQ->unlock();
 				continue;
@@ -229,10 +232,13 @@ void TerrainGenerator::_instantiate_chunk(Vector3 grid_position, Vector3 chunk_p
 	//chunk->_draw_mesh();
 
 	_mutex_ACQ->lock();
-	_chunks[grid_position] = chunk;
+	//_chunks[grid_position] = chunk;
+	_process_task_queue.push_back(callable_mp(this, &TerrainGenerator::_add_chunk).bind(chunk_position, chunk));
 	_mutex_ACQ->unlock();
+}
 
-	chunk = nullptr;	// gaurentees reference removal
+void TerrainGenerator::_add_chunk(Vector3 grid_position, Ref<Chunk> chunk) {
+	_chunks[grid_position] = chunk;
 }
 
 
@@ -262,10 +268,10 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	//for (KeyValue<Vector3, Ref<Chunk>> chunk : _chunks) {
 	for (int idx = 0; idx < _chunks.size(); idx++) {
 		KeyValue<Vector3, Ref<Chunk>> chunk = _chunks.get_by_index(idx);
+		Vector2 chunk_pos = Vector2(chunk.value->_get_chunk_position().x, chunk.value->_get_chunk_position().z);
 
 		if (
-			(player_chunk.distance_to(chunk.value->_get_chunk_position()) > _delete_distance) &&
-			(RS::get_singleton()->mesh_get_surface_count(chunk.value->_get_mesh_rid()) > 0)
+			(player_chunk.distance_to(chunk.key) > _delete_distance)
 		) {
 			// add the task of freeing the mesh to the thread
 			chunk.value->_clear_mesh_data();

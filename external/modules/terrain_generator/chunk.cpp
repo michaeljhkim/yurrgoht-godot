@@ -9,8 +9,8 @@ Chunk::Chunk() {
 
 	//if (!mesh_rid.is_valid()) {
 		mesh_rid = RS::get_singleton()->mesh_create();
-		RS::get_singleton()->mesh_set_blend_shape_mode(mesh_rid, (RS::BlendShapeMode)blend_shape_mode);
-		RS::get_singleton()->mesh_set_blend_shape_count(mesh_rid, blend_shapes.size());
+		//RS::get_singleton()->mesh_set_blend_shape_mode(mesh_rid, (RS::BlendShapeMode)blend_shape_mode);
+		//RS::get_singleton()->mesh_set_blend_shape_count(mesh_rid, blend_shapes.size());
 		//RS::get_singleton()->mesh_set_path(mesh_rid, get_path());
 	//}
 
