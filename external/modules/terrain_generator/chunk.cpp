@@ -266,7 +266,9 @@ void Chunk::_generate_chunk_mesh() {
 	p_arr[RS::ARRAY_INDEX] = sub_index_array;
 
 	// draw mesh
-	RS::get_singleton()->call_on_render_thread( callable_mp(this, &Chunk::_draw_mesh) );
+	//RS::get_singleton()->call_on_render_thread( callable_mp(this, &Chunk::_draw_mesh) );
+
+	_draw_mesh();
 }
 
 void Chunk::_draw_mesh() {
@@ -279,25 +281,7 @@ void Chunk::_draw_mesh() {
 		Dictionary(),
 		0
 	);
-	ERR_FAIL_COND(err != OK);
-
-	/*
-	add_surface(
-		surface.format, 
-		PrimitiveType(surface.primitive), 
-		surface.vertex_data, 
-		surface.attribute_data, 
-		surface.skin_data, 
-		surface.vertex_count,
-		surface.index_data,
-		surface.index_count,
-		surface.aabb, 
-		surface.blend_shape_data, 
-		surface.bone_aabbs, 
-		surface.lods, 
-		surface.uv_scale
-	);
-	*/
+	ERR_FAIL_COND(err != OK);	// makes sure the surface is valid
 
 	RenderingServer::get_singleton()->mesh_add_surface(mesh_rid, surface);
 }
