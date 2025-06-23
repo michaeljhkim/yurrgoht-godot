@@ -62,6 +62,10 @@ crouch={
 
 look_sensitivity=0.01
 
+[rendering]
+
+driver/threads/thread_model=2
+
 [shader_globals]
 
 normalmap={

@@ -59,64 +59,70 @@ void TerrainGenerator::_notification(int p_what) {
 
 // called only in destructor
 void TerrainGenerator::clean_up() {
-	_chunk_paths.clear();
+	_chunks.clear();
 	set_process(false);
 
 	// delete child nodes
+	/*
 	for (Variant c : get_children()) {
 		get_child(c)->queue_free();
 		remove_child(get_child(c));
     }
+	*/
 
-	// delete nodes that are queued to be children - thread ended, so no mutexes required
-	for (Chunk* new_task : _add_child_queue) {
-		if (!new_task->is_queued_for_deletion()) {
-			new_task->queue_free();
-		}
-	}
 	_thread_task_queue.clear();
-	_add_child_queue.clear();
+	_process_task_queue.clear();
 }
 
 
 
 // processes that only need to be done on intialization - mutexes, thread
 void TerrainGenerator::ready() {
+	world_scenario = get_world_3d()->get_scenario();	// thread did not even start, so this is safe
+
 	_mutex_TTQ.instantiate();
 	_mutex_ACQ.instantiate();
 	_thread.instantiate();
 
 	_thread->start(callable_mp(this, &TerrainGenerator::_thread_process), core_bind::Thread::PRIORITY_NORMAL);
 
+	while (player_character == nullptr) {
+		continue;
+	}
+
+	//Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 	_old_player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 }
 
 void TerrainGenerator::process(double delta) {
 	if (player_character == nullptr) return;
-	
-	Vector<Chunk*> _new_chunks;
 
-	// START adding newly instantiated chunks as child nodes (if exists)
+	// START running main thread process tasks - setup by worker thread
+	/*
+	Vector<Callable> _new_tasks;
+
 	_mutex_ACQ->lock();
-	if (!_add_child_queue.is_empty()) {
-		_new_chunks = _add_child_queue;
-		_add_child_queue.clear();
+	if (!_process_task_queue.is_empty()) {
+		_new_tasks = _process_task_queue;
+		_process_task_queue.clear();
 	}
 	_mutex_ACQ->unlock();
 
-	if (!_new_chunks.is_empty()) {
-		for (Chunk* NC : _new_chunks) {
-			add_child(NC);
-			_chunk_paths[NC->_get_grid_position()] = NC->get_path();
+	if (!_new_tasks.is_empty()) {
+		for (const Callable &NT : _new_tasks) {
+			NT.call();
 		}
-		_new_chunks.clear();
+		_new_tasks.clear();
 	}
-	// FINISH adding child nodes
+	*/
+	// FINISH running main thread process tasks
 
 	Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
+	player_chunk.y = 0;
 	//player_character->get_global_rotation();
 	
 	if (_deleting || (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z))) {
+	//if (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z)) {
 		_delete_far_away_chunks(player_chunk);
 		_generating = true;
 	}
@@ -126,28 +132,27 @@ void TerrainGenerator::process(double delta) {
 	//player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance/4, render_distance/4));
 
 	// Check existing chunks within range. If it doesn't exist, create it.
-	for (int x = (player_chunk.x - effective_render_distance); x <= (player_chunk.x + effective_render_distance); x++) {
-		for (int z = (player_chunk.z - effective_render_distance); z <= (player_chunk.z + effective_render_distance); z++) {
+	for (int x = -effective_render_distance; x <= effective_render_distance; x++) {
+		for (int z = -effective_render_distance; z <= effective_render_distance; z++) {
 			Vector3 grid_position = Vector3(x, 0, z);
-			//StringName task_name = String(grid_position) + "_TerrainGenerator::_instantiate_chunk";	
-			StringName task_name = String(grid_position);	// probably do not need to add anything else
+			Vector3 chunk_position = player_chunk + grid_position;
+
+			//StringName task_name = String(chunk_position) + "_TerrainGenerator::_update_chunk_mesh";
+			StringName task_name = String(chunk_position);
 
 			_mutex_TTQ->lock();
-			/*
-			- these conditions need to be checked, otherwise extra nodes WILL be created and orphaned
-			- check _thread_task_queue first, because the worker thread may need to use it right after
-			*/
+			
+			// direct callable instantiation
 			if (
-				_thread_task_queue.has(task_name) ||
-				_chunk_paths.has(grid_position) ||
-				(Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(x, z)) > render_distance)
+				_thread_task_queue.has(task_name) ||	// we check _thread_task_queue first, since if true, we want to unlock the mutex asap
+				_chunks.has(grid_position) ||
+				player_chunk.distance_to(chunk_position) > render_distance
 			) {
 				_mutex_TTQ->unlock();
 				continue;
 			}
 
-			// direct callable instantiation
-			_thread_task_queue[task_name] = callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(grid_position);
+			_thread_task_queue[task_name] = callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(grid_position, chunk_position);
 			_mutex_TTQ->unlock();
 
 			/*
@@ -157,7 +162,7 @@ void TerrainGenerator::process(double delta) {
 			chunk->_generate_chunk_mesh();
 
 			add_child(chunk);
-			_chunk_paths[grid_position] = chunk->get_path();
+			_chunks[grid_position] = chunk->get_path();
 			*/
 
 			return;
@@ -184,6 +189,7 @@ void TerrainGenerator::process(double delta) {
 void TerrainGenerator::_thread_process() {
 	bool running = true;
 	Callable task;
+	StringName task_name;
 
 	while (running) {
 		_mutex_TTQ->lock();
@@ -212,17 +218,29 @@ void TerrainGenerator::_thread_process() {
 /*
 - Computations that can safely be done outside of main thread - instantiating/generating the chunk
 - should only be called inside _thread_process
+- probably can turn the initializing functions into lambda functions
 */
-void TerrainGenerator::_instantiate_chunk(Vector3 grid_position) {
-	Chunk* chunk = memnew(Chunk);
-	chunk->_set_grid_position(grid_position);
+void TerrainGenerator::_instantiate_chunk(Vector3 grid_position, Vector3 chunk_position) {
+	Ref<Chunk> chunk;
+	chunk.instantiate();
+	chunk->_set_world_scenario(world_scenario);
+	chunk->_set_chunk_position(chunk_position);
 	chunk->_generate_chunk_mesh();
+	//chunk->_draw_mesh();
 
 	_mutex_ACQ->lock();
-	_add_child_queue.push_back(chunk);
+	_chunks[grid_position] = chunk;
 	_mutex_ACQ->unlock();
 
 	chunk = nullptr;	// gaurentees reference removal
+}
+
+
+// done on worker thread
+void TerrainGenerator::_update_chunk_mesh(Vector3 grid_position, Vector3 chunk_position) {
+	Ref<Chunk> chunk = _chunks[grid_position];
+	chunk->_set_chunk_position(chunk_position);
+	chunk->_generate_chunk_mesh();
 }
 
 /*
@@ -241,19 +259,18 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	int max_deletions = CLAMP(2 * (render_distance - effective_render_distance), 2, 8);
 
 	// Also take the opportunity to delete far away chunks.
+	//for (KeyValue<Vector3, Ref<Chunk>> chunk : _chunks) {
+	for (int idx = 0; idx < _chunks.size(); idx++) {
+		KeyValue<Vector3, Ref<Chunk>> chunk = _chunks.get_by_index(idx);
 
-	for (const Vector3 chunk_key : _chunk_paths.keys()) {
-		if (Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk_key.x, chunk_key.z)) > _delete_distance) {
-			// No longer need this, but this is just in case
-			if (!has_node(_chunk_paths[chunk_key])) {
-				NodePath name = _chunk_paths[chunk_key];
-				print_line("NULL CHILD: " + name);
-				continue;
-			}
-
-			get_node(_chunk_paths[chunk_key])->queue_free();
-			remove_child(get_node(_chunk_paths[chunk_key]));
-			_chunk_paths.erase(chunk_key);
+		if (
+			(player_chunk.distance_to(chunk.value->_get_chunk_position()) > _delete_distance) &&
+			(RS::get_singleton()->mesh_get_surface_count(chunk.value->_get_mesh_rid()) > 0)
+		) {
+			// add the task of freeing the mesh to the thread
+			chunk.value->_clear_mesh_data();
+			chunk.value->~Chunk();
+			_chunks.erase_by_index(idx);
 
 			deleted_this_frame += 1;
 
@@ -268,6 +285,7 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	// We're done deleting.
 	_deleting = false;
 }
+
 
 /*
 - standard editor only exports 

@@ -18,6 +18,8 @@ class TerrainGenerator : public Node3D {
 
 	// export these values - to be defined in editor
 	int seed_input;
+	
+	RID world_scenario;
 
 	/*
 	- maximum possible number of chunks being rendered is (render_distance + 2)^2
@@ -37,7 +39,7 @@ class TerrainGenerator : public Node3D {
 	- NodePath is the most direct/safe way to access a specific child node publicly
 	- indices were constantly changing within the parent node, so using indices was impossible
 	*/
-	TypedDictionary<Vector3, NodePath> _chunk_paths;
+	AHashMap<Vector3, Ref<Chunk>> _chunks;
 	CharacterBody3D* player_character = nullptr;		// This is an OBJECT
 
 protected:
@@ -46,7 +48,9 @@ protected:
 	Ref<core_bind::Thread> _thread;		// worker thread - only need one worker thread currently
 
 	// godot has no real queues, so I had to make do
-	Vector<Chunk*> _add_child_queue;
+
+	// for copying the _add_child_queue - main thread only
+	Vector<Callable> _process_task_queue;
 
 	/*
 	- used as a vector for the most part, the reason why it is not a vector is because Callables with specified bindings are not uniquely identified
@@ -61,13 +65,11 @@ protected:
 		- `KeyValue` size is not very large
 	*/
 	AHashMap<StringName, Callable> _thread_task_queue;	
-	
-	// for copying the _add_child_queue - main thread only
-	//Vector<Chunk*> _new_chunks;
 
 	// Only for the worker thread
 	void _thread_process();
-	void _instantiate_chunk(Vector3 grid_position);
+	void _instantiate_chunk(Vector3 grid_position, Vector3 chunk_position);
+	void _update_chunk_mesh(Vector3 grid_position, Vector3 chunk_position);
 
 	static void _bind_methods();
 

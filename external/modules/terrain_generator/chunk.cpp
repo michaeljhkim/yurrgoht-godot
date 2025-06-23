@@ -2,13 +2,42 @@
 #include "thirdparty/embree/kernels/bvh/bvh_statistics.h"
 
 Chunk::Chunk() {
+	p_arr.resize(Mesh::ARRAY_MAX);
+	noise.instantiate();
+
+	rendering_server_instance = RenderingServer::get_singleton()->instance_create();
+
+	//if (!mesh_rid.is_valid()) {
+		mesh_rid = RS::get_singleton()->mesh_create();
+		RS::get_singleton()->mesh_set_blend_shape_mode(mesh_rid, (RS::BlendShapeMode)blend_shape_mode);
+		RS::get_singleton()->mesh_set_blend_shape_count(mesh_rid, blend_shapes.size());
+		//RS::get_singleton()->mesh_set_path(mesh_rid, get_path());
+	//}
+
+	RenderingServer::get_singleton()->instance_set_base(rendering_server_instance, mesh_rid);
 }
 
 Chunk::~Chunk() {
 	noise.unref();
-	arr_mesh.unref();
+
+	if (mesh_rid.is_valid()) {
+		ERR_FAIL_NULL(RenderingServer::get_singleton());
+		RenderingServer::get_singleton()->free(mesh_rid);
+	}
+
+	if (rendering_server_instance.is_valid()) {
+		ERR_FAIL_NULL(RenderingServer::get_singleton());
+		RenderingServer::get_singleton()->free(rendering_server_instance);
+	}
 }
 
+void Chunk::_clear_mesh_data() {
+	vertex_array.clear();
+	index_array.clear();
+	p_arr.clear();
+
+	RS::get_singleton()->mesh_clear(mesh_rid);
+}
 
 void Chunk::_notification(int p_what) {
 	switch (p_what) {
@@ -17,11 +46,13 @@ void Chunk::_notification(int p_what) {
 			process(get_process_delta_time());
 			break;
 		*/
-
+		
+		/*
 		case NOTIFICATION_READY:
 			ready();
 			break;
-		
+		*/
+
 		/*
 		case NOTIFICATION_EXIT_TREE: {} 
 		break;
@@ -73,8 +104,6 @@ void Chunk::ready() {
 - a few structs also had to be copied.
 */
 void Chunk::_generate_chunk_mesh() {
-	p_arr.resize(Mesh::ARRAY_MAX);
-	noise.instantiate();
 
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
 	int subdivide_w = CHUNK_SIZE+1;
@@ -236,12 +265,41 @@ void Chunk::_generate_chunk_mesh() {
 	p_arr[RS::ARRAY_TEX_UV] = sub_uv_array;
 	p_arr[RS::ARRAY_INDEX] = sub_index_array;
 
-	
-	// regular mesh does not have add_surface_from_arrays, but ArrayMesh is a child of Mesh, so it can be passed with set_mesh
-	arr_mesh.instantiate(); 
-	arr_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, p_arr);
+	// draw mesh
+	RS::get_singleton()->call_on_render_thread( callable_mp(this, &Chunk::_draw_mesh) );
+}
 
-	set_mesh(arr_mesh);
+void Chunk::_draw_mesh() {
+	RS::SurfaceData surface;
+	Error err = RS::get_singleton()->mesh_create_surface_data_from_arrays(
+		&surface, 
+		(RenderingServer::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES, 
+		p_arr, 
+		TypedArray<Array>(),
+		Dictionary(),
+		0
+	);
+	ERR_FAIL_COND(err != OK);
+
+	/*
+	add_surface(
+		surface.format, 
+		PrimitiveType(surface.primitive), 
+		surface.vertex_data, 
+		surface.attribute_data, 
+		surface.skin_data, 
+		surface.vertex_count,
+		surface.index_data,
+		surface.index_count,
+		surface.aabb, 
+		surface.blend_shape_data, 
+		surface.bone_aabbs, 
+		surface.lods, 
+		surface.uv_scale
+	);
+	*/
+
+	RenderingServer::get_singleton()->mesh_add_surface(mesh_rid, surface);
 }
 
 /*

@@ -1,12 +1,18 @@
 #ifndef CHUNK_H
 #define CHUNK_H
 
+// GODOT DARED ME TO OPTIMIZE! HAHAHHAHAH
+// I AM WILLING TO GO AS FAR AS POSSIBLE!!!!
+// https://docs.godotengine.org/en/stable/tutorials/performance/using_servers.html
+#include "servers/rendering_server.h"
+
 #include "core/object/ref_counted.h"
 #include "core/variant/variant_utility.h"
 #include "core/templates/a_hash_map.h"
 
 #include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h
 
+#include "scene/resources/mesh.h"
 #include "scene/3d/mesh_instance_3d.h"
 //#include "scene/3d/physics/static_body_3d.h"
 //#include "scene/resources/3d/primitive_meshes.h"
@@ -17,10 +23,19 @@
 
 #include "thirdparty/misc/mikktspace.h"
 
-class Chunk : public MeshInstance3D {
-	GDCLASS(Chunk, MeshInstance3D);
+class Chunk : public RefCounted {
+	GDCLASS(Chunk, RefCounted);
 
 private:
+    RID world_scenario;
+
+    RID rendering_server_instance;
+	//Vector<Surface> surfaces;
+    mutable RID mesh_rid;
+	Mesh::BlendShapeMode blend_shape_mode = Mesh::BlendShapeMode::BLEND_SHAPE_MODE_RELATIVE;
+	Vector<StringName> blend_shapes;
+    //RenderingServer* rendering_server_instance;
+
 	Array p_arr;
 	Ref<ArrayMesh> arr_mesh;    // purely so I can unreferrence at the end - need to gaurentee 
 
@@ -155,14 +170,22 @@ protected:
     Vector3 grid_position;
 
 public:
-    void _set_grid_position(Vector3 new_position) { grid_position = new_position; }
-    Vector3 _get_grid_position() { return grid_position; }
+    void _set_chunk_position(Vector3 new_position) { grid_position = new_position; }
+    Vector3 _get_chunk_position() { return grid_position; }
+
+    void _set_world_scenario(RID scenario) { 
+        world_scenario = scenario;
+	    RenderingServer::get_singleton()->instance_set_scenario(rendering_server_instance, world_scenario);
+    }
+
+    RID _get_mesh_rid() { return mesh_rid; }
 
     // can probably remove these, but keeping for now
     void _generate_chunk_collider();
-    //Node* voxel_world;
 
     void _generate_chunk_mesh();
+    void _draw_mesh();
+    void _clear_mesh_data();
     
     // mostly for keeping the mesh generation code clean
     void _generate_chunk_normals(bool p_flip = false);

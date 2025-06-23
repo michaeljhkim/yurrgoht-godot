@@ -72,11 +72,23 @@ TODO LIST:
 - maybe minimum chunks?
 - if all chunks had collision, I could perhaps go crazy with physics? Potentially less compute wasted than trying to minimize collision.
 
-- add multi-threading
-- remember, mutexes ONLY lock threads if there is another attempt to lock a value
-- so long as I make the node a child at the very end, after doing all of the caluations and instantiations, it is fine
-- ready function will not be activated until after it enters the scene tree, so I need to keep that in mind
-- I could make it so that the ready function activates the draw function directly since I would have done the mesh calculations before
+- LOD system is next, as well as proximity prioitising
+- chunks in the direction that the player is looking in should be prioitised
+- as well as the closest to the player
+
+- Actually, I should modify the system so that it just updates the mesh of each chunk, instead of creating new nodes
+
+
+
+
+
+- OKAY WELL THIS ESCALATED QUICKLY
+- I will now be modifying from the RENDERING SERVER directly
+- since I have most of the building blocks of a mesh, apparently its not too hard to just add it to the scene 
+- functions to remember: mesh_add_surface, mesh_create_from_surfaces, mesh_add_surface_from_arrays
+call_on_render_thread
+
+
 
 
 THERE IS STILL ONE TINY MEMORY LEAK LEFT:
