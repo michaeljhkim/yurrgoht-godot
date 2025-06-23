@@ -5,30 +5,27 @@ Chunk::Chunk() {
 	p_arr.resize(Mesh::ARRAY_MAX);
 	noise.instantiate();
 
-	rendering_server_instance = RenderingServer::get_singleton()->instance_create();
+	RS_instance_rid = RenderingServer::get_singleton()->instance_create();
 
-	//if (!mesh_rid.is_valid()) {
-		mesh_rid = RS::get_singleton()->mesh_create();
+	//if (!mesh_rid.is_valid()) {}
+		//mesh_rid = RS::get_singleton()->mesh_create();
 		//RS::get_singleton()->mesh_set_blend_shape_mode(mesh_rid, (RS::BlendShapeMode)blend_shape_mode);
 		//RS::get_singleton()->mesh_set_blend_shape_count(mesh_rid, blend_shapes.size());
 		//RS::get_singleton()->mesh_set_path(mesh_rid, get_path());
-	//}
+	
+	mesh_rid = RS::get_singleton()->mesh_create();
 
-	RenderingServer::get_singleton()->instance_set_base(rendering_server_instance, mesh_rid);
+	RenderingServer::get_singleton()->instance_set_base(RS_instance_rid, mesh_rid);
 }
 
 Chunk::~Chunk() {
 	noise.unref();
+	
+	if (mesh_rid.is_valid())
+		RS::get_singleton()->free(mesh_rid);
 
-	if (mesh_rid.is_valid()) {
-		ERR_FAIL_NULL(RenderingServer::get_singleton());
-		RenderingServer::get_singleton()->free(mesh_rid);
-	}
-
-	if (rendering_server_instance.is_valid()) {
-		ERR_FAIL_NULL(RenderingServer::get_singleton());
-		RenderingServer::get_singleton()->free(rendering_server_instance);
-	}
+	if (RS_instance_rid.is_valid())
+		RS::get_singleton()->free(RS_instance_rid);
 }
 
 void Chunk::_clear_mesh_data() {
@@ -37,36 +34,6 @@ void Chunk::_clear_mesh_data() {
 	p_arr.clear();
 
 	RS::get_singleton()->mesh_clear(mesh_rid);
-}
-
-void Chunk::_notification(int p_what) {
-	switch (p_what) {
-		/*
-		case NOTIFICATION_PROCESS:
-			process(get_process_delta_time());
-			break;
-		*/
-		
-		/*
-		case NOTIFICATION_READY:
-			ready();
-			break;
-		*/
-
-		/*
-		case NOTIFICATION_EXIT_TREE: {} 
-		break;
-		*/
-	}
-}
-
-void Chunk::ready() {
-	//voxel_world = get_parent();
-
-	// Should probably not use this since vertex calculations are on global scale - keeping for reference
-	//set_position(Vector3(grid_position * CHUNK_SIZE));
-
-	//_generate_chunk_mesh();
 }
 
 
@@ -93,7 +60,7 @@ void Chunk::ready() {
 	- afterwards, the extra vertices are removed, making it 4x4 again
 	- boom, now the chunks connect as if there are no seams
 
-- However, SurfaceTool provides no internal function that would do anyting remotely similar to this.
+- However, SurfaceTool provides no internal function that would do anything remotely similar to this.
 - That is why all calculations had to be done manually - but significant portions of it was copied from PlaneMesh and SurfaceTool
 - mostly copied: 
 	PlaneMesh::_create_mesh_array(), 
@@ -277,9 +244,9 @@ void Chunk::_draw_mesh() {
 		&surface,
 		(RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES, 
 		p_arr, 
-		TypedArray<Array>(),
-		Dictionary(),
-		0
+		TypedArray<Array>(),	// empty
+		Dictionary(),			// empty
+		0						// empty
 	);
 	ERR_FAIL_COND(err != OK);	// makes sure the surface is valid
 

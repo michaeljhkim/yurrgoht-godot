@@ -13,10 +13,6 @@
 #include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h
 
 #include "scene/resources/mesh.h"
-#include "scene/3d/mesh_instance_3d.h"
-//#include "scene/3d/physics/static_body_3d.h"
-//#include "scene/resources/3d/primitive_meshes.h"
-//#include "scene/resources/surface_tool.h" // only need this for Vertex struct
 
 // For multi-threading
 #include "core/core_bind.h"
@@ -27,17 +23,17 @@ class Chunk : public RefCounted {
 	GDCLASS(Chunk, RefCounted);
 
 private:
-    RID world_scenario;
-
-    RID rendering_server_instance;
-	//Vector<Surface> surfaces;
+    // render server pointers
+    RID RS_instance_rid;
     mutable RID mesh_rid;
-	Mesh::BlendShapeMode blend_shape_mode = Mesh::BlendShapeMode::BLEND_SHAPE_MODE_RELATIVE;
-	Vector<StringName> blend_shapes;
-    //RenderingServer* rendering_server_instance;
+    //RID world_scenario;
+
+    // possibly need in the future
+	//Vector<Surface> surfaces;
+	//Mesh::BlendShapeMode blend_shape_mode = Mesh::BlendShapeMode::BLEND_SHAPE_MODE_RELATIVE;
+	//Vector<StringName> blend_shapes;
 
 	Array p_arr;
-	Ref<ArrayMesh> arr_mesh;    // purely so I can unreferrence at the end - need to gaurentee 
 
     Ref<FastNoiseLite> noise;
 	Vector3 center_offset;
@@ -156,36 +152,30 @@ protected:
 	static void mikktSetTSpaceDefault(const SMikkTSpaceContext *pContext, const float fvTangent[], const float fvBiTangent[], const float fMagS, const float fMagT,
 			const tbool bIsOrientationPreserving, const int iFace, const int iVert);
 
-
-	void _notification(int p_notification);
-	//void init();	// probably do not need this, ready should take care of everything
-	void ready();
-	void process(float delta);
-
 	static void _bind_methods();
 
 	LocalVector<Vertex> vertex_array;
 	LocalVector<int> index_array;
 
-    Vector3 grid_position;
+    Vector3 chunk_position;
 
 public:
-    void _set_chunk_position(Vector3 new_position) { grid_position = new_position; }
-    Vector3 _get_chunk_position() { return grid_position; }
 
+    void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
+    Vector3 _get_chunk_position() { return chunk_position; }
+
+    // input is the return value of 'get_world_3d()->get_scenario()' from any node within the active main scene tree
     void _set_world_scenario(RID scenario) { 
-        world_scenario = scenario;
-	    RenderingServer::get_singleton()->instance_set_scenario(rendering_server_instance, world_scenario);
+        //world_scenario = scenario;
+	    RenderingServer::get_singleton()->instance_set_scenario(RS_instance_rid, scenario);
     }
 
-    RID _get_mesh_rid() { return mesh_rid; }
-
-    // can probably remove these, but keeping for now
-    void _generate_chunk_collider();
+    // can probably remove this, but keeping for now
+    //void _generate_chunk_collider();
+    //RID _get_mesh_rid() { return mesh_rid; }
 
     void _generate_chunk_mesh();
     void _draw_mesh();
-    void _clear_mesh_data();
     
     // mostly for keeping the mesh generation code clean
     void _generate_chunk_normals(bool p_flip = false);
@@ -193,16 +183,20 @@ public:
 
 
     static constexpr float CHUNK_SIZE = 128;
+    static constexpr float AMPLITUDE = 16.0f;
+
+    //currently not using these:
     static constexpr float TEXTURE_SHEET_WIDTH = 8;
     static constexpr int CHUNK_LAST_INDEX = CHUNK_SIZE - 1;
     static constexpr float TEXTURE_TILE_SIZE = 1.0 / TEXTURE_SHEET_WIDTH;
 
-    static constexpr float AMPLITUDE = 16.0f;
 
     //Ref<core_bind::Thread> get_thread() { return _thread; }
     
     Chunk();
     ~Chunk();
+
+    void _clear_mesh_data();
 };
 
 

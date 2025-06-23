@@ -59,11 +59,6 @@ NOISE RELATED:
 - But, you could provide ONLY the vertices that will need to be accomodated
 
 
-MULTI-THREADING NOTES:
-- godot does not allow any mesh creation outside of the main thread
-- BUT, because I did most of my code manually, I can most likely just move the calculations to another thread 
-- then add the values to the array mesh after the thread task finishes!
-
 
 TODO LIST:
 - proper LOD system not implemented yet (remember that there will be seams issues between different LOD chunks)
@@ -76,22 +71,8 @@ TODO LIST:
 - chunks in the direction that the player is looking in should be prioitised
 - as well as the closest to the player
 
-- Actually, I should modify the system so that it just updates the mesh of each chunk, instead of creating new nodes
-
-
-
-
-
-- OKAY WELL THIS ESCALATED QUICKLY
-- I will now be modifying from the RENDERING SERVER directly
-- since I have most of the building blocks of a mesh, apparently its not too hard to just add it to the scene 
-- functions to remember: mesh_add_surface, mesh_create_from_surfaces, mesh_add_surface_from_arrays
-call_on_render_thread
-
-
 
 
 THERE IS STILL ONE TINY MEMORY LEAK LEFT:
-
 Orphan StringName: Node (static: 10, total: 11)
 StringName: 1 unclaimed string names at exit.

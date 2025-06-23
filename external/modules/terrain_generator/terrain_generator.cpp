@@ -7,6 +7,8 @@ CREDITs:
 NOTES:
 - remember that instantiating a node is usually safe on another thread, but ONLY if it is outside of the main scene tree
 - basically, only touch nodes in the main scene tree ONLY IF on the main thread
+
+- notes above may not be relavant since mesh generation system no longer uses nodes
 */
 
 
@@ -20,7 +22,9 @@ TerrainGenerator::~TerrainGenerator() {
 	// worker thread will usually be active up until destruction
 	if (_thread.is_valid()) {
 		_mutex_TTQ->lock();
-		_thread_task_queue[StringName()] = Callable();	// empty (null) callable function
+		// empty (null) callable function
+		//_thread_task_queue[StringName()] = Callable();	
+		_thread_task_queue["STOP_THREAD"] = Callable();
 		_mutex_TTQ->unlock();
 
 		_thread->wait_to_finish();	// Wait until it exits.
@@ -28,7 +32,7 @@ TerrainGenerator::~TerrainGenerator() {
 	
 	_thread.unref();
 	_mutex_TTQ.unref();
-	_mutex_ACQ.unref();
+	_mutex_PTQ.unref();
 
 	clean_up();
 
@@ -70,20 +74,21 @@ void TerrainGenerator::clean_up() {
 
 // processes that only need to be done on intialization - mutexes, thread
 void TerrainGenerator::ready() {
-	world_scenario = get_world_3d()->get_scenario();	// thread did not even start, so this is safe
+	world_scenario = get_world_3d()->get_scenario();	// thread has not started yet, so this is safe
 
 	_mutex_TTQ.instantiate();
-	_mutex_ACQ.instantiate();
+	_mutex_PTQ.instantiate();
 	_thread.instantiate();
 
-	_thread->start(callable_mp(this, &TerrainGenerator::_thread_process), core_bind::Thread::PRIORITY_NORMAL);
+	_thread->start(callable_mp(this, &TerrainGenerator::_thread_process), CoreBind::Thread::PRIORITY_NORMAL);
 
+	/*
 	while (player_character == nullptr) {
 		continue;
 	}
+	*/
 
-	//Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
-	_old_player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
+	//_old_player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 }
 
 void TerrainGenerator::process(double delta) {
@@ -91,10 +96,9 @@ void TerrainGenerator::process(double delta) {
 	
 	Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 	player_chunk.y = 0;
-	//player_character->get_global_rotation();
+	//player_character->get_global_rotation();	// reference for being able to render chunks according to the direction that the player is facing
 
 	if (_deleting || (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z))) {
-	//if (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z)) {
 		_delete_far_away_chunks(player_chunk);
 		_generating = true;
 	}
@@ -102,14 +106,13 @@ void TerrainGenerator::process(double delta) {
 
 
 	// START running main thread process tasks - setup by worker thread
-	Vector<Callable> _new_tasks;
 
-	_mutex_ACQ->lock();
+	_mutex_PTQ->lock();
 	if (!_process_task_queue.is_empty()) {
 		_new_tasks = _process_task_queue;
 		_process_task_queue.clear();
 	}
-	_mutex_ACQ->unlock();
+	_mutex_PTQ->unlock();
 
 	if (!_new_tasks.is_empty()) {
 		for (const Callable &NT : _new_tasks) {
@@ -120,10 +123,15 @@ void TerrainGenerator::process(double delta) {
 	// FINISH running main thread process tasks
 
 
-
-
 	// Try to generate chunks ahead of time based on where the player is moving. - not sure what this does (study later, low priority)
 	//player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance/4, render_distance/4));
+
+	/*
+	- for the most part, this nested for-loop generates chunks around the player from inner circle to outer circle
+	- could probably take advantage of this and use the player direction to determine where to start rendering first
+	- perhaps, pre-compute all possible values into a list, and determine which block player is facing during pre-computation
+	- add to list according to generation priority? 
+	*/
 
 	// Check existing chunks within range. If it doesn't exist, create it.
 	for (int x = -effective_render_distance; x <= effective_render_distance; x++) {
@@ -132,7 +140,7 @@ void TerrainGenerator::process(double delta) {
 			Vector3 chunk_position = player_chunk + grid_position;
 
 			//StringName task_name = String(chunk_position) + "_TerrainGenerator::_update_chunk_mesh";
-			StringName task_name = String(chunk_position) + "_TerrainGenerator::_instantiate_chunk";
+			StringName task_name = String(chunk_position);
 
 			_mutex_TTQ->lock();
 
@@ -157,16 +165,6 @@ void TerrainGenerator::process(double delta) {
 
 			_thread_task_queue[task_name] = callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(grid_position, chunk_position);
 			_mutex_TTQ->unlock();
-
-			/*
-			// single thread version
-			Chunk* chunk = memnew(Chunk);
-			chunk->_set_grid_position(grid_position);
-			chunk->_generate_chunk_mesh();
-
-			add_child(chunk);
-			_chunks[grid_position] = chunk->get_path();
-			*/
 
 			return;
 		}
@@ -220,8 +218,7 @@ void TerrainGenerator::_thread_process() {
 
 /*
 - Computations that can safely be done outside of main thread - instantiating/generating the chunk
-- should only be called inside _thread_process
-- probably can turn the initializing functions into lambda functions
+- should only be called inside _thread_process - purely because it can be slow
 */
 void TerrainGenerator::_instantiate_chunk(Vector3 grid_position, Vector3 chunk_position) {
 	Ref<Chunk> chunk;
@@ -229,12 +226,10 @@ void TerrainGenerator::_instantiate_chunk(Vector3 grid_position, Vector3 chunk_p
 	chunk->_set_world_scenario(world_scenario);
 	chunk->_set_chunk_position(chunk_position);
 	chunk->_generate_chunk_mesh();
-	//chunk->_draw_mesh();
 
-	_mutex_ACQ->lock();
-	//_chunks[grid_position] = chunk;
+	_mutex_PTQ->lock();
 	_process_task_queue.push_back(callable_mp(this, &TerrainGenerator::_add_chunk).bind(chunk_position, chunk));
-	_mutex_ACQ->unlock();
+	_mutex_PTQ->unlock();
 }
 
 void TerrainGenerator::_add_chunk(Vector3 grid_position, Ref<Chunk> chunk) {
@@ -265,18 +260,15 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	int max_deletions = CLAMP(2 * (render_distance - effective_render_distance), 2, 8);
 
 	// Also take the opportunity to delete far away chunks.
-	//for (KeyValue<Vector3, Ref<Chunk>> chunk : _chunks) {
 	for (int idx = 0; idx < _chunks.size(); idx++) {
 		KeyValue<Vector3, Ref<Chunk>> chunk = _chunks.get_by_index(idx);
 		Vector2 chunk_pos = Vector2(chunk.value->_get_chunk_position().x, chunk.value->_get_chunk_position().z);
 
-		if (
-			(player_chunk.distance_to(chunk.key) > _delete_distance)
-		) {
+		if (player_chunk.distance_to(chunk.key) > _delete_distance) {
 			// add the task of freeing the mesh to the thread
 			chunk.value->_clear_mesh_data();
-			chunk.value->~Chunk();
-			_chunks.erase_by_index(idx);
+			//chunk.value->~Chunk();
+			_chunks.erase_by_index(idx);	// apparently, this calls the destructor now
 
 			deleted_this_frame += 1;
 

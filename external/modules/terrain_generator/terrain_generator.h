@@ -33,24 +33,18 @@ class TerrainGenerator : public Node3D {
 	bool _generating = true;
 	bool _deleting = false;
 
-	/*
-	- Here is why the _chunks map uses TypedDictionary<Vector3, NodePath> specifically
-	- Vector3 represents where the chunk is in the grid (not a physical grid, just chunks surrounding player)
-	- NodePath is the most direct/safe way to access a specific child node publicly
-	- indices were constantly changing within the parent node, so using indices was impossible
-	*/
+	// the master list that contains a reference to each chunk
 	AHashMap<Vector3, Ref<Chunk>> _chunks;
 	CharacterBody3D* player_character = nullptr;		// This is an OBJECT
 
 protected:
-	Ref<core_bind::Mutex> _mutex_TTQ;	// mutex for _thread_task_queue
-	Ref<core_bind::Mutex> _mutex_ACQ;	// mutex for _add_child_queue
-	Ref<core_bind::Thread> _thread;		// worker thread - only need one worker thread currently
+	Ref<CoreBind::Mutex> _mutex_TTQ;	// mutex for _thread_task_queue
+	Ref<CoreBind::Mutex> _mutex_PTQ;	// mutex _process_task_queue _process_task_queue_add_child_queue
+	Ref<CoreBind::Thread> _thread;		// worker thread - only need one worker thread currently
 
 	// godot has no real queues, so I had to make do
-
-	// for copying the _add_child_queue - main thread only
 	Vector<Callable> _process_task_queue;
+	Vector<Callable> _new_tasks;	// for copying the _process_task_queue - main thread only
 
 	/*
 	- used as a vector for the most part, the reason why it is not a vector is because Callables with specified bindings are not uniquely identified
@@ -70,7 +64,7 @@ protected:
 	void _thread_process();
 	void _instantiate_chunk(Vector3 grid_position, Vector3 chunk_position);
 	void _add_chunk(Vector3 grid_position, Ref<Chunk> chunk);
-	
+
 	void _update_chunk_mesh(Vector3 grid_position, Vector3 chunk_position);
 
 	static void _bind_methods();
@@ -78,13 +72,13 @@ protected:
 public:
 	TerrainGenerator();
 	~TerrainGenerator();
+	void clean_up();
 
 	void _notification(int p_notification);
 	//void init();	// probably do not need this, ready should take care of everything
 	void ready();
 	void process(double delta);
 
-	void clean_up();
 	void _delete_far_away_chunks(Vector3 player_chunk);
 
 	void set_player_character(CharacterBody3D* p_node);

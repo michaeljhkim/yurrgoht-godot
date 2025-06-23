@@ -12,7 +12,7 @@ config_version=5
 
 config/name="yurrgoht-godot"
 run/main_scene="uid://bxwagnsq7krdc"
-config/features=PackedStringArray("4.4", "Forward Plus")
+config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
@@ -61,10 +61,6 @@ crouch={
 [player]
 
 look_sensitivity=0.01
-
-[rendering]
-
-driver/threads/thread_model=2
 
 [shader_globals]
 
