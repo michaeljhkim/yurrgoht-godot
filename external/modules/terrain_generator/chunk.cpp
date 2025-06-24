@@ -5,7 +5,7 @@ Chunk::Chunk() {
 	p_arr.resize(Mesh::ARRAY_MAX);
 	noise.instantiate();
 
-	RS_instance_rid = RenderingServer::get_singleton()->instance_create();
+	RS_instance_rid = RS::get_singleton()->instance_create();
 
 	//if (!mesh_rid.is_valid()) {}
 		//mesh_rid = RS::get_singleton()->mesh_create();
@@ -15,7 +15,21 @@ Chunk::Chunk() {
 	
 	mesh_rid = RS::get_singleton()->mesh_create();
 
-	RenderingServer::get_singleton()->instance_set_base(RS_instance_rid, mesh_rid);
+	/*
+	- instantiate and create a new material for the mesh
+	- for now, this imitates the default material that godot uses if no material is specified
+
+	- we cannot allow godot to set the default material is because of settings testing
+	- we imitate the default material is because it allows the geometry of a mesh to be very visible
+	*/
+	material = memnew(StandardMaterial3D);
+	material->set_albedo(Color(0.7, 0.7, 0.7));  // Slightly darker gray
+	material->set_metallic(0.f);
+	material->set_roughness(1.f);
+	material->set_depth_draw_mode(BaseMaterial3D::DEPTH_DRAW_ALWAYS);
+	//material->set_depth_test();
+
+	RS::get_singleton()->instance_set_base(RS_instance_rid, mesh_rid);
 }
 
 Chunk::~Chunk() {
@@ -26,6 +40,8 @@ Chunk::~Chunk() {
 
 	if (RS_instance_rid.is_valid())
 		RS::get_singleton()->free(RS_instance_rid);
+
+	material.unref();
 }
 
 void Chunk::_clear_mesh_data() {
@@ -260,7 +276,16 @@ void Chunk::_draw_mesh() {
 	ERR_FAIL_COND(err != OK);	// makes sure the surface is valid
 
 	RS::get_singleton()->mesh_add_surface(mesh_rid, surface);
+	RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 }
+
+
+
+
+
+
+
+
 
 /*
 GENERATE CHUNK NORMALS

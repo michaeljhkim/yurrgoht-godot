@@ -21,18 +21,12 @@ TerrainGenerator::TerrainGenerator() {
 TerrainGenerator::~TerrainGenerator() {
 	// worker thread will usually be active up until destruction
 	if (_thread.is_valid()) {
-		_mutex_TTQ->lock();
-		// empty (null) callable function
-		//_thread_task_queue[StringName()] = Callable();	
-		_thread_task_queue["STOP_THREAD"] = Callable();
-		_mutex_TTQ->unlock();
-
+		THREAD_RUNNING.exchange(false, std::memory_order_acquire);
 		_thread->wait_to_finish();	// Wait until it exits.
 	}
 	
 	_thread.unref();
 	_mutex_TTQ.unref();
-	_mutex_PTQ.unref();
 
 	clean_up();
 
@@ -45,11 +39,11 @@ TerrainGenerator::~TerrainGenerator() {
 void TerrainGenerator::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_PROCESS:
-			process(get_process_delta_time());
+			_process(get_process_delta_time());
 			break;
 		
 		case NOTIFICATION_READY:
-			ready();
+			_ready();
 			break;
 
 		/*
@@ -67,17 +61,17 @@ void TerrainGenerator::clean_up() {
 	set_process(false);
 
 	_thread_task_queue.clear();
-	_process_task_queue.clear();
+	_process_tasks_buffer[0].clear();
+	_process_tasks_buffer[1].clear();
 }
 
 
 
 // processes that only need to be done on intialization - mutexes, thread
-void TerrainGenerator::ready() {
+void TerrainGenerator::_ready() {
 	world_scenario = get_world_3d()->get_scenario();	// thread has not started yet, so this is safe
 
 	_mutex_TTQ.instantiate();
-	_mutex_PTQ.instantiate();
 	_thread.instantiate();
 
 	_thread->start(callable_mp(this, &TerrainGenerator::_thread_process), CoreBind::Thread::PRIORITY_NORMAL);
@@ -85,8 +79,28 @@ void TerrainGenerator::ready() {
 	//_old_player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 }
 
-void TerrainGenerator::process(double delta) {
+void TerrainGenerator::_main_thread_tasks(u_int b_num) {
+	if (TASKS_READY[b_num].load()) {
+		TASKS_READY[b_num].exchange(false, std::memory_order_acquire);
+		PROCESSING_TASKS[b_num].exchange(true, std::memory_order_acquire);
+		
+		for (const Callable &task : _process_tasks_buffer[b_num]) {
+			task.call();
+		}
+		_process_tasks_buffer[b_num].clear();
+
+		PROCESSING_TASKS[b_num].exchange(false, std::memory_order_acquire);
+	}
+}
+
+
+void TerrainGenerator::_process(double delta) {
 	if (player_character == nullptr) return;
+
+	// START running main thread process tasks - setup by worker thread
+	_main_thread_tasks(0);
+	_main_thread_tasks(1);
+	// FINISH running main thread process tasks
 	
 	Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 	player_chunk.y = 0;
@@ -98,32 +112,14 @@ void TerrainGenerator::process(double delta) {
 	}
 	if (!_generating) return;
 
-
-	// START running main thread process tasks - setup by worker thread
-	_mutex_PTQ->lock();
-	if (!_process_task_queue.is_empty()) {
-		_new_tasks = _process_task_queue;
-		_process_task_queue.clear();
-	}
-	_mutex_PTQ->unlock();
-
-	if (!_new_tasks.is_empty()) {
-		for (const Callable &NT : _new_tasks) {
-			NT.call();
-		}
-		_new_tasks.clear();
-	}
-	// FINISH running main thread process tasks
-
-
 	// Try to generate chunks ahead of time based on where the player is moving. - not sure what this does (study later, low priority)
 	//player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance/4, render_distance/4));
 
 	/*
 	- for the most part, this nested for-loop generates chunks around the player from inner circle to outer circle
 	- could probably take advantage of this and use the player direction to determine where to start rendering first
-	- perhaps, pre-compute all possible values into a list, and determine which block player is facing during pre-computation
-	- add to list according to generation priority? 
+
+	- entire grid is scanned every iteration during generation in order to gaurentee no chunks were missed
 	*/
 
 	// Check existing chunks within range. If it doesn't exist, create it.
@@ -136,8 +132,6 @@ void TerrainGenerator::process(double delta) {
 			StringName task_name = String(chunk_position);
 
 			_mutex_TTQ->lock();
-
-			// direct callable instantiation
 			if (
 				_thread_task_queue.has(task_name) ||	// we check _thread_task_queue first, since if true, we want to unlock the mutex asap
 				_chunks.has(chunk_position) || 
@@ -147,6 +141,7 @@ void TerrainGenerator::process(double delta) {
 				continue;
 			}
 
+			// direct callable instantiation
 			_thread_task_queue[task_name] = callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(grid_position, chunk_position);
 			_mutex_TTQ->unlock();
 
@@ -157,38 +152,42 @@ void TerrainGenerator::process(double delta) {
 	// We can move on to the next stage by increasing the effective distance.
 	if (effective_render_distance < render_distance) {
 		effective_render_distance += 1;
-		//PRECOMPUTE ALL VIABLE GRID COORDINATES AND PUSH INTO A 'QUEUE'
-		/*
-		int x = 0;
-		int z = 0;
-		int d = 1;		// step size
-		//int m = 1;
-		int m = 1; 		// half length size of "square"
-		int count = 0;
-
-		// we only generate 1 chunk per frame, remember that
-		while (count < _max_distance) {
-			while (2 * x * d < m) {
-				_grid_coordinates.push_back(Vector2(x, z));
-				x += d;
-				++count;
-			}
-			while (2 * z * d < m) {
-				_grid_coordinates.push_back(Vector2(x, z));
-				z += d;
-				++count;
-			}
-
-			d = -d;
-			++m;
-		}
-		*/
 	}
 	else {
 		// Effective render distance is maxed out, done generating.
 		_generating = false;
 	}
 }
+
+/*
+
+void generate_grid(std::vector<Vector2>& grid, int& x, int& z, int& layer_radius, int max_distance) {
+    int count = grid.size();
+
+    while (count < max_distance) {
+		// isolate least significant digit, then check if odd or even
+		// even = 0, odd = 1 
+        int direction = (layer_radius & 1) * 2 - 1; 	// +1 if odd, -1 if even 
+        int limit = layer_radius / 2;
+
+        int steps_x = std::abs(limit - x * direction);
+        for (int i = 0; i < steps_x && count < max_distance; ++i) {
+            grid.push_back(Vector2(x, z));
+            x += direction;
+            ++count;
+        }
+
+        int steps_z = std::abs(limit - z * direction);
+        for (int i = 0; i < steps_z && count < max_distance; ++i) {
+            grid.push_back(Vector2(x, z));
+            z += direction;
+            ++count;
+        }
+
+        ++layer_radius;
+    }
+}
+*/
 
 
 /*
@@ -198,11 +197,11 @@ void TerrainGenerator::process(double delta) {
 - remember, mutexes ONLY lock threads if there is another attempt to lock a value
 */
 void TerrainGenerator::_thread_process() {
-	bool running = true;
 	Callable task;
 	StringName task_name;
 
-	while (running) {
+	// atomic_bool use as a flag to see if thread should keep running or not
+	while (THREAD_RUNNING) {
 		_mutex_TTQ->lock();
 		if (_thread_task_queue.is_empty()) {	// there are no tasks currently, continue
 			_mutex_TTQ->unlock();
@@ -211,12 +210,10 @@ void TerrainGenerator::_thread_process() {
 		task = _thread_task_queue.get_by_index(0).value;			// tasks do exist, copy the front of the queue (Vector)
 		_mutex_TTQ->unlock();
 		
-		if (task.is_null())		// destructor adds empty 'Callable' to _thread_task_queue - signals shutdown to _thread_process
-			running = false;
-		else 
-			task.call();		// all arguements are bound (with .bind) BEFORE being added to task queue, so no arguements need to be provided here
+		// calls the heavy task that needed this thread
+		// all arguements are bound (with .bind) BEFORE being added to task queue, so no arguements needed here
+		task.call();
 			
-
 		// task call complete, remove from the front of queue
 		// only safe to remove AFTER calling, due to main thread checking _thread_task_queue
 		_mutex_TTQ->lock();
@@ -237,9 +234,27 @@ void TerrainGenerator::_instantiate_chunk(Vector3 grid_position, Vector3 chunk_p
 	chunk->_set_chunk_position(chunk_position);
 	chunk->_generate_chunk_mesh();
 
-	_mutex_PTQ->lock();
-	_process_task_queue.push_back(callable_mp(this, &TerrainGenerator::_add_chunk).bind(chunk_position, chunk));
-	_mutex_PTQ->unlock();
+
+	/*
+	- if the main thread is not processing the first queue, we add tasks to it
+	- if the main thread is processing the first queue, but the second queue is not processing, we add tasks to the secend queue
+	*/
+	if (!PROCESSING_TASKS[0].load()) {
+		_process_tasks_buffer[0].push_back(callable_mp(this, &TerrainGenerator::_add_chunk).bind(chunk_position, chunk));
+
+		// flag main thread that _process_tasks_buffer[0] is READY to PROCESS
+		if (!_process_tasks_buffer[0].is_empty())
+			TASKS_READY[0].exchange(true, std::memory_order_acquire);
+	}
+	else if (!PROCESSING_TASKS[1].load()) {
+		_process_tasks_buffer[1].push_back(callable_mp(this, &TerrainGenerator::_add_chunk).bind(chunk_position, chunk));
+
+		// flag main thread that _process_tasks_buffer[1] is READY to PROCESS
+		if (!_process_tasks_buffer[1].is_empty())
+			TASKS_READY[1].exchange(true, std::memory_order_acquire);
+	}
+
+	
 }
 
 void TerrainGenerator::_add_chunk(Vector3 grid_position, Ref<Chunk> chunk) {
@@ -247,7 +262,7 @@ void TerrainGenerator::_add_chunk(Vector3 grid_position, Ref<Chunk> chunk) {
 }
 
 
-// done on worker thread
+// done on worker thread - unused currently
 void TerrainGenerator::_update_chunk_mesh(Vector3 grid_position, Vector3 chunk_position) {
 	Ref<Chunk> chunk = _chunks[grid_position];
 	chunk->_set_chunk_position(chunk_position);
@@ -275,10 +290,8 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 		Vector2 chunk_pos = Vector2(chunk.value->_get_chunk_position().x, chunk.value->_get_chunk_position().z);
 
 		if (player_chunk.distance_to(chunk.key) > _delete_distance) {
-			// add the task of freeing the mesh to the thread
 			chunk.value->_clear_mesh_data();
-			//chunk.value->~Chunk();
-			_chunks.erase_by_index(idx);	// apparently, this calls the destructor now
+			_chunks.erase_by_index(idx);	// this apparently also calls the destructor for Chunk
 
 			deleted_this_frame += 1;
 

@@ -73,6 +73,8 @@ TODO LIST:
 
 - Modify spawning system to just clear meshes instead of destroying the chunks
 - not sure what the numbers are, but it should be a big boost in speed?
+- WAIT, consider that if we update meshes, then we would have to update ALL chunks no matter what, instead of only adding chunks if valid
+- So it would be BETTER to just keep the current chunking system
 
 
 

@@ -32,6 +32,7 @@ private:
 	//Vector<Surface> surfaces;
 	//Mesh::BlendShapeMode blend_shape_mode = Mesh::BlendShapeMode::BLEND_SHAPE_MODE_RELATIVE;
 	//Vector<StringName> blend_shapes;
+    Ref<StandardMaterial3D> material;
 
 	Array p_arr;
 
