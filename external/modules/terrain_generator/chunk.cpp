@@ -46,7 +46,7 @@ void Chunk::_clear_mesh_data() {
  
 - This function is used to generate the mesh of the chunk
 - had to calculate MESH manually
-- then added to an ArrayMesh for drawing 
+- then pushed directly to the rendering server
 
 - Why not use PlaneMesh with SurfaceTool?
 - becauase by default, only the normals within that mesh is calculated
@@ -69,6 +69,15 @@ void Chunk::_clear_mesh_data() {
 	SurfaceTool::generate_normals(),
 	SurfaceTool::generate_tangents()
 - a few structs also had to be copied.
+
+- Now, the system did not need to push directly to the rendering server
+- The calculated array could have been added to an ArrayMesh, then added to a meshinstance3d
+- But there are 2 problems with that: unnesscary overhead, and no multi-threading is allowed
+- Once something becomes apart of the scene tree, it MUST only be modified on the main thread
+
+- These 2 issues made optimization very difficult, so I had to scrap it
+- Luckily, adding meshes directly to the RenderingServer was pretty easy
+- and that can be done on another thread, so even more chances for optimization
 */
 void Chunk::_generate_chunk_mesh() {
 

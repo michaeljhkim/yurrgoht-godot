@@ -71,6 +71,9 @@ TODO LIST:
 - chunks in the direction that the player is looking in should be prioitised
 - as well as the closest to the player
 
+- Modify spawning system to just clear meshes instead of destroying the chunks
+- not sure what the numbers are, but it should be a big boost in speed?
+
 
 
 THERE IS STILL ONE TINY MEMORY LEAK LEFT:

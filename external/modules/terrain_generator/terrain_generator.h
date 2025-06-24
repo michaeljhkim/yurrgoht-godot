@@ -3,6 +3,7 @@
 
 #include "core/object/ref_counted.h"
 #include "core/variant/typed_dictionary.h"
+#include "core/templates/fixed_vector.h"
 //#include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h
 
 #include "scene/3d/physics/character_body_3d.h"
@@ -25,9 +26,14 @@ class TerrainGenerator : public Node3D {
 	- maximum possible number of chunks being rendered is (render_distance + 2)^2
 	- e.g, (4+2)^2 = 36 chunks possible (but is unlikely)
 	*/
-	int render_distance = 4;
-	int _delete_distance = render_distance + 2;
+	static const int render_distance = 4;
+	static constexpr int _delete_distance = render_distance + 2;
+	static constexpr int _max_distance = (render_distance * 2) ^ 2;
+	
 	int effective_render_distance = 0;
+
+	static FixedVector<Vector2, _max_distance> _grid_coordinates;
+	
 	Vector3 _old_player_chunk;
 
 	bool _generating = true;
@@ -86,4 +92,4 @@ public:
 
 };
 
-#endif     //TERRAIN_GENERATOR_H
+#endif

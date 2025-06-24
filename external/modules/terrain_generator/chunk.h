@@ -182,7 +182,7 @@ public:
     void _generate_chunk_tangents();
 
 
-    static constexpr float CHUNK_SIZE = 128;
+    static constexpr float CHUNK_SIZE = 128;    // chunk_size of 64 is pretty fast - 128 and above for testing
     static constexpr float AMPLITUDE = 16.0f;
 
     //currently not using these:

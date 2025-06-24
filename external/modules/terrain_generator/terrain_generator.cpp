@@ -81,13 +81,7 @@ void TerrainGenerator::ready() {
 	_thread.instantiate();
 
 	_thread->start(callable_mp(this, &TerrainGenerator::_thread_process), CoreBind::Thread::PRIORITY_NORMAL);
-
-	/*
-	while (player_character == nullptr) {
-		continue;
-	}
-	*/
-
+	
 	//_old_player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 }
 
@@ -106,7 +100,6 @@ void TerrainGenerator::process(double delta) {
 
 
 	// START running main thread process tasks - setup by worker thread
-
 	_mutex_PTQ->lock();
 	if (!_process_task_queue.is_empty()) {
 		_new_tasks = _process_task_queue;
@@ -144,15 +137,6 @@ void TerrainGenerator::process(double delta) {
 
 			_mutex_TTQ->lock();
 
-			/*
-			if(_thread_task_queue.has(task_name))
-				print_line("_thread_task_queue.has(task_name) = TRUE");
-			if(_chunks.has(chunk_position))
-				print_line("_chunks.has(grid_position) = TRUE");
-			if(Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk_position.x, chunk_position.z)) > render_distance)
-				print_line("(Vector2(player_chunk.x, player_chunk.z).distance_to(Vector2(chunk_position.x, chunk_position.z)) = TRUE");
-			*/
-
 			// direct callable instantiation
 			if (
 				_thread_task_queue.has(task_name) ||	// we check _thread_task_queue first, since if true, we want to unlock the mutex asap
@@ -173,6 +157,32 @@ void TerrainGenerator::process(double delta) {
 	// We can move on to the next stage by increasing the effective distance.
 	if (effective_render_distance < render_distance) {
 		effective_render_distance += 1;
+		//PRECOMPUTE ALL VIABLE GRID COORDINATES AND PUSH INTO A 'QUEUE'
+		/*
+		int x = 0;
+		int z = 0;
+		int d = 1;		// step size
+		//int m = 1;
+		int m = 1; 		// half length size of "square"
+		int count = 0;
+
+		// we only generate 1 chunk per frame, remember that
+		while (count < _max_distance) {
+			while (2 * x * d < m) {
+				_grid_coordinates.push_back(Vector2(x, z));
+				x += d;
+				++count;
+			}
+			while (2 * z * d < m) {
+				_grid_coordinates.push_back(Vector2(x, z));
+				z += d;
+				++count;
+			}
+
+			d = -d;
+			++m;
+		}
+		*/
 	}
 	else {
 		// Effective render distance is maxed out, done generating.
