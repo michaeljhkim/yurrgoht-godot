@@ -29,7 +29,6 @@ TerrainGenerator::~TerrainGenerator() {
 	_mutex.unref();
 
 	clean_up();
-
 }
 
 /*
@@ -60,7 +59,8 @@ void TerrainGenerator::clean_up() {
 	_chunks.clear();
 	set_process(false);
 
-	_thread_task_queue.clear();
+	//_thread_task_queue.clear();
+	callable_queue.clear();
 }
 
 
@@ -75,7 +75,7 @@ void TerrainGenerator::_ready() {
 	_thread->start(callable_mp(this, &TerrainGenerator::_thread_process), CoreBind::Thread::PRIORITY_NORMAL);
 	
 	//_old_player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
-	start = std::chrono::high_resolution_clock::now();
+	//start = std::chrono::high_resolution_clock::now();
 }
 
 
@@ -97,6 +97,8 @@ void TerrainGenerator::_process(double delta) {
 	}
 	if (!_generating) return;
 
+	//debug values
+	start = std::chrono::high_resolution_clock::now();
 	++frames;
 
 	// Try to generate chunks ahead of time based on where the player is moving. - not sure what this does (study later, low priority)
@@ -104,9 +106,8 @@ void TerrainGenerator::_process(double delta) {
 
 	/*
 	- for the most part, this nested for-loop generates chunks around the player from inner circle to outer circle
-	- could probably take advantage of this and use the player direction to determine where to start rendering first
-
 	- entire grid is scanned every iteration during generation in order to gaurentee no chunks were missed
+	- could probably take advantage of this and use the player direction to determine where to start rendering first
 	*/
 
 	// Check existing chunks within range. If it doesn't exist, create it.
@@ -114,13 +115,14 @@ void TerrainGenerator::_process(double delta) {
 		for (int z = -effective_render_distance; z <= effective_render_distance; z++) {
 			Vector3 grid_position = Vector3(x, 0, z);
 			Vector3 chunk_position = player_chunk + grid_position;
-			++count;
+			++count;	// debug number of grid coordinates checked
 
 			//StringName task_name = String(chunk_position) + "_TerrainGenerator::_update_chunk_mesh";
 			StringName task_name = String(chunk_position);
 
+			// we check _thread_task_queue first, since if true, we want to unlock the mutex asap
 			_mutex->lock();
-			bool task_exists = callable_queue.has(task_name);	// we check _thread_task_queue first, since if true, we want to unlock the mutex asap
+			bool task_exists = callable_queue.has(task_name);	
 			//bool task_exists = _thread_task_queue.has(task_name);
 			_mutex->unlock();
 
@@ -138,7 +140,7 @@ void TerrainGenerator::_process(double delta) {
 			callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(grid_position, chunk_position));
 			_mutex->unlock();
 
-			queue_empty.store(false, std::memory_order_acquire);
+			QUEUE_EMPTY.store(false, std::memory_order_acquire);
 
 			return;
 		}
@@ -151,10 +153,17 @@ void TerrainGenerator::_process(double delta) {
 	else {
 		// Effective render distance is maxed out, done generating.
 		_generating = false;
-    	std::chrono::_V2::system_clock::time_point end = std::chrono::high_resolution_clock::now();
-		long duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
-		print_line("Time spent in miliseconds: ", duration);
+		/*
+		DEBUG
+		- Measure length of generation time
+		- Measure number of chunk coordinates checked
+		- Measure number of frames the generation takes place in
+		*/
+    	std::chrono::_V2::system_clock::time_point end = std::chrono::high_resolution_clock::now();
+		long duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+
+		print_line("Time spent in microseconds: ", duration);
 		print_line("Cycle count: ", count);
 		print_line("Generating frames count: ", frames);
 		count = 0;
@@ -167,14 +176,13 @@ void TerrainGenerator::_process(double delta) {
 - worker thread function
 
 - for the most part, this is an infinite loop, until the class itself is down
-- remember, mutexes ONLY lock threads if there is another attempt to lock a value
 */
 void TerrainGenerator::_thread_process() {
 	Callable task;
 
 	// atomic_bool use as a flag to see if thread should keep running or not
 	while (THREAD_RUNNING) {
-		if (queue_empty.load()) {
+		if (QUEUE_EMPTY.load()) {
 			continue;
 		}
 		_mutex->lock();
@@ -182,8 +190,7 @@ void TerrainGenerator::_thread_process() {
 		task = callable_queue.front();
 		_mutex->unlock();
 		
-		// all arguements are bound (with .bind) BEFORE being added to task queue, so no arguements needed here
-		task.call();
+		task.call();	// all arguements are bound (with .bind) BEFORE being added to task queue, so no arguements needed here
 			
 		// only safe to remove AFTER calling, due to main thread checking _thread_task_queue
 		_mutex->lock();
@@ -193,7 +200,7 @@ void TerrainGenerator::_thread_process() {
 			//_thread_task_queue.is_empty()
 			callable_queue.empty()
 		) {
-			queue_empty.store(true, std::memory_order_acquire);
+			QUEUE_EMPTY.store(true, std::memory_order_acquire);
 		}
 
 		_mutex->unlock();
@@ -221,11 +228,13 @@ void TerrainGenerator::_add_chunk(Vector3 grid_position, Ref<Chunk> chunk) {
 
 
 // done on worker thread - unused currently
+/*
 void TerrainGenerator::_update_chunk_mesh(Vector3 grid_position, Vector3 chunk_position) {
 	Ref<Chunk> chunk = _chunks[grid_position];
 	chunk->_set_chunk_position(chunk_position);
 	chunk->_generate_chunk_mesh();
 }
+*/
 
 /*
 - can probably delegate this to another thread
