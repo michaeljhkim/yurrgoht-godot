@@ -77,6 +77,7 @@ void TerrainGenerator::_ready() {
 	_thread->start(callable_mp(this, &TerrainGenerator::_thread_process), CoreBind::Thread::PRIORITY_NORMAL);
 	
 	//_old_player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
+	start = std::chrono::high_resolution_clock::now();
 }
 
 void TerrainGenerator::_main_thread_tasks(u_int b_num) {
@@ -156,6 +157,10 @@ void TerrainGenerator::_process(double delta) {
 	else {
 		// Effective render distance is maxed out, done generating.
 		_generating = false;
+    	std::chrono::_V2::system_clock::time_point end = std::chrono::high_resolution_clock::now();
+		long duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+
+		print_line("Time spent: ", duration);
 	}
 }
 

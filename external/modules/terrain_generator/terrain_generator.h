@@ -1,6 +1,4 @@
-#ifndef TERRAIN_GENERATOR_H
-#define TERRAIN_GENERATOR_H
-
+#pragma once
 #include "core/object/ref_counted.h"
 #include "core/variant/typed_dictionary.h"
 #include "core/templates/fixed_vector.h"
@@ -10,44 +8,12 @@
 #include "chunk.h"
 
 #include <atomic>
+#include <chrono>
 
 /*
-struct grid_algorithm {
-	// generates a list of grid coordinates in a spiral pattern starting from the center
-	// solution borrowed from: https://stackoverflow.com/questions/398299/looping-in-a-spiral
-	PackedVector2Array generator_coordaintes(int max_distance) {
-		PackedVector2Array grid;
-		Vector2 xz_vector(0, 0);
+- ROUGHLY TAKES 
+- Time spent:  837273
 
-		int layer_radius = 1; 	// each increment represents 2 sides of the 'square'
-		max_distance *= 2;		// multiply by 2, so we can remove the second nested while loop, and only require 1 for both x and z
-		bool is_z = 0; 			// determines if the current value to evaluate is 0 (x) or 1 (z)
-
-		while (index < max_distance) {
-			while (
-				(index < max_distance) &&
-				(2 * xz_vector[is_z] * direction < layer_radius)
-			) {
-				grid.push_back(xz_vector);
-				xz_vector[is_z] += direction;
-				++index;
-			}
-
-			is_z ^= 1;	// bitwise XOR - 0 (x) for even, 1 (z) for odd
-			
-			// is_z was computed for the next iteration, so we are actually checking if the next cycle is_z value is x or z
-			// if is_z is x, that means the next iteration is x, and the current iteration is actually z
-			// we only want to modify direction and layer_radius if the current iteration is z
-			if (is_z == 0)
-				continue;
-
-			direction = -direction;
-			++layer_radius;
-		}
-
-		return grid;
-	}	
-};
 */
 
 class TerrainGenerator : public Node3D {
@@ -55,6 +21,7 @@ class TerrainGenerator : public Node3D {
 
 	// export these values - to be defined in editor
 	int seed_input;
+	std::chrono::_V2::system_clock::time_point start;
 	
 	RID world_scenario;
 	std::atomic_bool PROCESSING_TASKS[2] = {false, false};
@@ -125,5 +92,3 @@ public:
 	CharacterBody3D* get_player_character() const;
 
 };
-
-#endif

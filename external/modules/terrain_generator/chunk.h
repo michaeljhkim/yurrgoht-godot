@@ -1,5 +1,4 @@
-#ifndef CHUNK_H
-#define CHUNK_H
+#pragma once
 
 // GODOT DARED ME TO OPTIMIZE! HAHAHHAHAH
 // I AM WILLING TO GO AS FAR AS POSSIBLE!!!!
@@ -199,7 +198,3 @@ public:
 
     void _clear_mesh_data();
 };
-
-
-
-#endif
