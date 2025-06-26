@@ -158,8 +158,19 @@ protected:
 	LocalVector<int> index_array;
 
     Vector3 chunk_position;
+    uint chunk_LOD = 0;
+    
+    // for storing neighboring lod chunks
+    enum ADJACENT {
+        UP,
+        DOWN,
+        LEFT,
+        RIGHT
+    };
+    bool adjacent_LODs[4] = {false};    // array only used to check if lod should be calculated
 
 public:
+    void _set_chunk_LOD(uint new_LOD) { chunk_LOD = new_LOD; }
 
     void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
     Vector3 _get_chunk_position() { return chunk_position; }

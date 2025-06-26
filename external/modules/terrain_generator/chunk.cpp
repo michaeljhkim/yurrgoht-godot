@@ -96,10 +96,14 @@ void Chunk::_clear_mesh_data() {
 - and that can be done on another thread, so even more chances for optimization
 */
 void Chunk::_generate_chunk_mesh() {
-
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
-	int subdivide_w = CHUNK_SIZE+1;
-	int subdivide_d = CHUNK_SIZE+1;
+	int lod = 1;
+	if (chunk_LOD > 1) {
+		lod = 2 ^ (chunk_LOD - 1);
+	}
+	
+	int subdivide_w = (CHUNK_SIZE / lod) + 1;
+	int subdivide_d = (CHUNK_SIZE / lod) + 1;
 
 	int i, j, prevrow, thisrow, point;
 	float x, z;

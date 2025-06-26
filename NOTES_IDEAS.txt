@@ -67,17 +67,18 @@ TODO LIST:
 - maybe minimum chunks?
 - if all chunks had collision, I could perhaps go crazy with physics? Potentially less compute wasted than trying to minimize collision.
 
-- LOD system is next, as well as proximity prioitising
-- chunks in the direction that the player is looking in should be prioitised
-- as well as the closest to the player
-
 - Modify spawning system to just clear meshes instead of destroying the chunks
 - not sure what the numbers are, but it should be a big boost in speed?
 - WAIT, consider that if we update meshes, then we would have to update ALL chunks no matter what, instead of only adding chunks if valid
 - So it would be BETTER to just keep the current chunking system
 
+- LOD system is next, as well as proximity prioitising
+- chunks in the direction that the player is looking in should be prioitised
+- as well as the closest to the player
 
-
-THERE IS STILL ONE TINY MEMORY LEAK LEFT:
-Orphan StringName: Node (static: 10, total: 11)
-StringName: 1 unclaimed string names at exit.
+- when instantiating a chunk, make sure to also give it the distance from the player
+- this distance determines LOD
+- at the same time, make sure to check if the chunk has neighbours (just check if any +1 chunk exists on top, bottom, left, or right)
+- if chunk does find neighbours, get the LOD of each neighbour
+- the chunk will adapt from either lower mesh count to higher mesh count, or higher mesh count to lower
+- the actual generation should be easy enough, the only part of the code that would require changing would be vertices

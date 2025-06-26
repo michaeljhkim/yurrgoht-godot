@@ -73,9 +73,24 @@ void TerrainGenerator::_ready() {
 	_thread.instantiate();
 
 	_thread->start(callable_mp(this, &TerrainGenerator::_thread_process), CoreBind::Thread::PRIORITY_NORMAL);
-	
 	//_old_player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
-	//start = std::chrono::high_resolution_clock::now();
+
+	// generate all possible LODs into a lookup table
+	for (int x = -render_distance; x <= render_distance; x++) {
+		for (int z = -render_distance; z <= render_distance; z++) {
+			Vector3 grid_position = Vector3(x, 0, z);
+			int distance = Vector3(0, 0, 0).distance_to(grid_position);
+
+			if (distance > render_distance) {
+				continue;
+			}
+			_LOD_table.insert(String(grid_position), distance);
+			//print_line("distance: ", distance);
+		}
+	}
+
+	//debug
+	start = std::chrono::high_resolution_clock::now();
 }
 
 
@@ -83,9 +98,8 @@ void TerrainGenerator::_ready() {
 void TerrainGenerator::_process(double delta) {
 	if (player_character == nullptr) return;
 
-	// START running main thread process tasks - setup by worker thread
+	// main thread process tasks - setup by worker thread
 	task_buffer_manager.main_thread_process();
-	// FINISH running main thread process tasks
 	
 	Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 	player_chunk.y = 0;
@@ -97,8 +111,7 @@ void TerrainGenerator::_process(double delta) {
 	}
 	if (!_generating) return;
 
-	//debug values
-	start = std::chrono::high_resolution_clock::now();
+	//debug
 	++frames;
 
 	// Try to generate chunks ahead of time based on where the player is moving. - not sure what this does (study later, low priority)
@@ -161,9 +174,9 @@ void TerrainGenerator::_process(double delta) {
 		- Measure number of frames the generation takes place in
 		*/
     	std::chrono::_V2::system_clock::time_point end = std::chrono::high_resolution_clock::now();
-		long duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+		long duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
-		print_line("Time spent in microseconds: ", duration);
+		print_line("Game start to generation calculations finished in milliseconds: ", duration);
 		print_line("Cycle count: ", count);
 		print_line("Generating frames count: ", frames);
 		count = 0;
@@ -252,13 +265,10 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	int max_deletions = CLAMP(2 * (render_distance - effective_render_distance), 2, 8);
 
 	// Also take the opportunity to delete far away chunks.
-	for (int idx = 0; idx < _chunks.size(); idx++) {
-		KeyValue<Vector3, Ref<Chunk>> chunk = _chunks.get_by_index(idx);
-		Vector2 chunk_pos = Vector2(chunk.value->_get_chunk_position().x, chunk.value->_get_chunk_position().z);
-
+	for (KeyValue<Vector3, Ref<Chunk>> chunk : _chunks) {
 		if (player_chunk.distance_to(chunk.key) > _delete_distance) {
-			chunk.value->_clear_mesh_data();
-			_chunks.erase_by_index(idx);	// this apparently also calls the destructor for Chunk
+			chunk.value->_clear_mesh_data();	//can probably just call that function from the chunk destructor
+			_chunks.erase(chunk.key);	// this apparently also calls the destructor for Chunk
 
 			deleted_this_frame += 1;
 

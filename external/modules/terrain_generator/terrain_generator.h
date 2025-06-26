@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/variant/typed_dictionary.h"
-#include "core/templates/fixed_vector.h"
 //#include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h
 
 #include "scene/3d/physics/character_body_3d.h"
@@ -42,21 +41,20 @@ class TerrainGenerator : public Node3D {
 	Ref<CoreBind::Mutex> _mutex;	// mutex for adding to task queue
 	Ref<CoreBind::Thread> _thread;		// worker thread - only need one worker thread currently
 
-	/*
-	REASONS FOR USING AHashMap AND NOT:
-	- RBMap: 
-		- do not need to iterate over elements (except for deletion at the very end)
-	- HashMap:
-		- do not need to keep an iterator or const pointer to Key, and intend to add/remove elements in the meantime
-		- do not need to preserve insertion order when using erase
-		- `KeyValue` size is not very large
-	*/
-	AHashMap<Vector3, Ref<Chunk>> _chunks;		// the master list that contains a reference to each chunk
+	// the master list that contains a reference to each chunk
+	// allows for value deletion while iterating
+	HashMap<Vector3, Ref<Chunk>> _chunks;
+
+	// lookup table for all LODs for all chunks
+	HashMap<String, uint> _LOD_table;
 
 protected:
 	AHashMap<StringName, Callable> _thread_task_queue;	// NOT USED, ONLY FOR TESTING CURRENTLY
-	TaskBufferManager task_buffer_manager;
+
+	// Using anything but AHashMap, makes it so that the chunks are loaded in order
+	// have NO idea why
 	LRUQueue<StringName, Callable> callable_queue;
+	TaskBufferManager task_buffer_manager;
     std::atomic_bool QUEUE_EMPTY = true;
 
 	// Only for the worker thread
