@@ -1,7 +1,7 @@
 #include "chunk.h"
 #include "thirdparty/embree/kernels/bvh/bvh_statistics.h"
 
-Chunk::Chunk(RID scenario, Vector2 new_position, int _new_lod) {
+Chunk::Chunk(RID scenario, Vector3 new_position, int _new_lod) {
 	RS_instance_rid = RS::get_singleton()->instance_create();
 
 	RenderingServer::get_singleton()->instance_set_scenario(RS_instance_rid, scenario);
@@ -22,11 +22,11 @@ Chunk::Chunk(RID scenario, Vector2 new_position, int _new_lod) {
 	material->set_albedo(Color(0.7, 0.7, 0.7));  // Slightly darker gray
 	material->set_metallic(0.f);
 	material->set_roughness(1.f);
-	//material->set_depth_draw_mode(BaseMaterial3D::DEPTH_DRAW_ALWAYS);
+	material->set_depth_draw_mode(BaseMaterial3D::DEPTH_DRAW_ALWAYS);
 	//material->set_depth_test();
 
 	RS::get_singleton()->instance_set_base(RS_instance_rid, mesh_rid);
-	//RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
+	RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 }
 
 Chunk::~Chunk() {
@@ -98,12 +98,7 @@ void Chunk::_clear_mesh_data() {
 void Chunk::_generate_chunk_mesh() {
 
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
-	int lod = CLAMP(
-		pow(2, chunk_LOD-1),
-		1,
-		16
-	);
-	print_line("chunk_LOD, LOD:", chunk_LOD, lod);
+	int lod = CLAMP(pow(2, chunk_LOD-1), 1, 16);
 	
 	int subdivide_w = (CHUNK_SIZE / lod) + 1;
 	int subdivide_d = (CHUNK_SIZE / lod) + 1;
@@ -111,7 +106,7 @@ void Chunk::_generate_chunk_mesh() {
 	int i, j, prevrow, thisrow, point;
 	float x, z;
 
-	Size2 start_pos = size * -0.5 - chunk_position * CHUNK_SIZE;
+	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE;
 	point = 0;
 
 	/* top + bottom */
@@ -177,7 +172,7 @@ void Chunk::_generate_chunk_mesh() {
 	* (1,1) (1,2)
 	* (2,1) (2,2)
 	*/
-	//Vector3 start_vertex = (*vertex_array.begin()).vertex;
+	//Vector3 start_vertex = (*vertex_array.begin()).vertex;	// more elegant, but end does not actually return end
 	//Vector3 last_vertex = (*vertex_array.end()).vertex;
 	Vector3 start_vertex = vertex_array[0].vertex;
 	Vector3 last_vertex = vertex_array[vertex_array.size()-1].vertex;

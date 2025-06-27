@@ -156,7 +156,7 @@ protected:
 	LocalVector<Vertex> vertex_array;
 	LocalVector<int> index_array;
 
-    Vector2 chunk_position = Vector2(0.f, 0.f);  // default values
+    Vector3 chunk_position = Vector3(0.f, 0.f, 0.f);  // default values
     int chunk_LOD = 0;
     
     // for storing neighboring lod chunks
@@ -181,8 +181,8 @@ public:
     void _set_chunk_LOD(int new_LOD) { chunk_LOD = new_LOD; }
     int _get_chunk_LOD() { return chunk_LOD; }
 
-    void _set_chunk_position(Vector2 new_position) { chunk_position = new_position; }
-    Vector2 _get_chunk_position() { return chunk_position; }
+    void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
+    Vector3 _get_chunk_position() { return chunk_position; }
 
 
     // can probably remove this, but keeping for now
@@ -206,7 +206,7 @@ public:
     static constexpr float TEXTURE_TILE_SIZE = 1.0 / TEXTURE_SHEET_WIDTH;
     
     // scenario input is the return value of 'get_world_3d()->get_scenario()' from any node within the active main scene tree
-    Chunk(RID scenario, Vector2 new_position, int _new_lod = 0);
+    Chunk(RID scenario, Vector3 new_position, int _new_lod = 0);
     ~Chunk();
 
     void _clear_mesh_data();

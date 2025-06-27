@@ -32,7 +32,7 @@ class TerrainGenerator : public Node3D {
 	static constexpr int _delete_distance = render_distance + 2;
 	int effective_render_distance = 0;
 	
-	Vector2 _old_player_chunk;
+	Vector3 _old_player_chunk;
 	CharacterBody3D* player_character = nullptr;		// This is an OBJECT
 
 	bool _generating = true;
@@ -43,7 +43,7 @@ class TerrainGenerator : public Node3D {
 
 	// the master list that contains a reference to each chunk
 	// allows for value deletion while iterating
-	HashMap<Vector2, Ref<Chunk>> _chunks;
+	HashMap<Vector3, Ref<Chunk>> _chunks;
 
 	// lookup table for all LODs for all chunks
 	HashMap<String, int> _LOD_table;
@@ -59,11 +59,11 @@ protected:
 
 	// Only for the worker thread
 	void _thread_process();
-	void _instantiate_chunk(Vector2 chunk_position, float chunk_distance);
-	void _add_chunk(Vector2 chunk_position, Ref<Chunk> chunk);
+	void _instantiate_chunk(Vector3 chunk_position, int chunk_distance);
+	void _add_chunk(Vector3 chunk_position, Ref<Chunk> chunk);
 
 	void _update_chunk_mesh(Ref<Chunk> chunk, int new_lod);
-	void _delete_chunk(Vector2 chunk_key);
+	void _delete_chunk(Vector3 chunk_key);
 
 	static void _bind_methods();
 
@@ -77,7 +77,7 @@ public:
 	void _ready();
 	void _process(double delta);
 
-	void _delete_far_away_chunks(Vector2 player_chunk);
+	void _delete_far_away_chunks(Vector3 player_chunk);
 
 	void set_player_character(CharacterBody3D* p_node);
 	CharacterBody3D* get_player_character() const;
