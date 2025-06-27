@@ -170,7 +170,6 @@ protected:
 
     std::atomic_bool CHUNK_FLAGS[1] = {false};
 
-    
 public:
     enum FLAG {
         DELETE
@@ -185,11 +184,6 @@ public:
     void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
     Vector3 _get_chunk_position() { return chunk_position; }
 
-    // input is the return value of 'get_world_3d()->get_scenario()' from any node within the active main scene tree
-    void _set_world_scenario(RID scenario) { 
-        //world_scenario = scenario;
-	    RenderingServer::get_singleton()->instance_set_scenario(RS_instance_rid, scenario);
-    }
 
     // can probably remove this, but keeping for now
     //void _generate_chunk_collider();
@@ -210,11 +204,9 @@ public:
     static constexpr float TEXTURE_SHEET_WIDTH = 8;
     static constexpr int CHUNK_LAST_INDEX = CHUNK_SIZE - 1;
     static constexpr float TEXTURE_TILE_SIZE = 1.0 / TEXTURE_SHEET_WIDTH;
-
-
-    //Ref<core_bind::Thread> get_thread() { return _thread; }
     
-    Chunk();
+    // scenario input is the return value of 'get_world_3d()->get_scenario()' from any node within the active main scene tree
+    Chunk(RID scenario, Vector3 new_position, float _new_lod = 0);
     ~Chunk();
 
     void _clear_mesh_data();

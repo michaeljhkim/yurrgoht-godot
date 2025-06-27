@@ -127,8 +127,8 @@ void TerrainGenerator::_process(double delta) {
 	// Check existing chunks within range. If it doesn't exist, create it.
 	for (int x = -effective_render_distance; x <= effective_render_distance; x++) {
 		for (int z = -effective_render_distance; z <= effective_render_distance; z++) {
-			Vector3 grid_position = Vector3(x, 0, z);
-			Vector3 chunk_position = player_chunk + grid_position;
+			Vector3 chunk_position = player_chunk + Vector3(x, 0, z);
+			float chunk_distance = player_chunk.distance_to(chunk_position);
 			++count;	// debug number of grid coordinates checked
 
 			//StringName task_update = String(chunk_position) + "_TerrainGenerator::_update_chunk_mesh";
@@ -153,7 +153,7 @@ void TerrainGenerator::_process(double delta) {
 			// direct callable instantiation
 			_mutex->lock();
 			//_thread_task_queue[task_name] = callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(grid_position, chunk_position);
-			callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(grid_position, chunk_position));
+			callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(chunk_position, chunk_distance));
 			_mutex->unlock();
 
 			// alert task thread that the task queue is no longer empty
@@ -228,11 +228,9 @@ void TerrainGenerator::_thread_process() {
 - Computations that can safely be done outside of main thread - instantiating/generating the chunk
 - should only be called inside _thread_process - purely because it can be slow
 */
-void TerrainGenerator::_instantiate_chunk(Vector3 grid_position, Vector3 chunk_position) {
+void TerrainGenerator::_instantiate_chunk(Vector3 chunk_position, float chunk_distance) {
 	Ref<Chunk> chunk;
-	chunk.instantiate();
-	chunk->_set_world_scenario(world_scenario);
-	chunk->_set_chunk_position(chunk_position);
+	chunk.instantiate(world_scenario, chunk_position, chunk_distance);		// this is the only other time world_scenario is used, so it's thread safe
 	chunk->_generate_chunk_mesh();
 
 	task_buffer_manager.tasks_push_back(callable_mp(this, &TerrainGenerator::_add_chunk).bind(chunk_position, chunk));
@@ -302,6 +300,7 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 			// ELSE IF: possible that chunk can be marked to be deleted, so we do not want to update
 			// if relative grid distance (aka LOD) is not the same, then update is needed
 			else if (chunk.value->_get_chunk_LOD() != new_distance) {
+				print_line("PLAYER POSITION, CHUNK POSITION, UPDATE DISTANCE", player_chunk, chunk.key, new_distance);
 				_mutex->lock();
 				callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_update_chunk_mesh).bind(chunk.value, new_distance));
 				_mutex->unlock();

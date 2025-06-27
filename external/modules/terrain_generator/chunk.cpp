@@ -1,32 +1,28 @@
 #include "chunk.h"
 #include "thirdparty/embree/kernels/bvh/bvh_statistics.h"
 
-Chunk::Chunk() {
-	p_arr.resize(Mesh::ARRAY_MAX);
-	noise.instantiate();
-
+Chunk::Chunk(RID scenario, Vector3 new_position, float _new_lod) {
 	RS_instance_rid = RS::get_singleton()->instance_create();
 
-	//if (!mesh_rid.is_valid()) {}
-		//mesh_rid = RS::get_singleton()->mesh_create();
-		//RS::get_singleton()->mesh_set_blend_shape_mode(mesh_rid, (RS::BlendShapeMode)blend_shape_mode);
-		//RS::get_singleton()->mesh_set_blend_shape_count(mesh_rid, blend_shapes.size());
-		//RS::get_singleton()->mesh_set_path(mesh_rid, get_path());
-	
+	RenderingServer::get_singleton()->instance_set_scenario(RS_instance_rid, scenario);
+	chunk_position = new_position;
+	chunk_LOD = _new_lod;
+
+	p_arr.resize(Mesh::ARRAY_MAX);
+	noise.instantiate();
 	mesh_rid = RS::get_singleton()->mesh_create();
 
 	/*
-	- instantiate and create a new material for the mesh
-	- for now, this imitates the default material that godot uses if no material is specified
-
-	- we cannot allow godot to set the default material is because of settings testing
+	- instantiate and create a new material for the mesh - imitates default material
 	- we imitate the default material is because it allows the geometry of a mesh to be very visible
+
+	- real godot default material cannot be used due to less testing options
 	*/
 	material = memnew(StandardMaterial3D);
 	material->set_albedo(Color(0.7, 0.7, 0.7));  // Slightly darker gray
 	material->set_metallic(0.f);
 	material->set_roughness(1.f);
-	material->set_depth_draw_mode(BaseMaterial3D::DEPTH_DRAW_ALWAYS);
+	//material->set_depth_draw_mode(BaseMaterial3D::DEPTH_DRAW_ALWAYS);
 	//material->set_depth_test();
 
 	RS::get_singleton()->instance_set_base(RS_instance_rid, mesh_rid);
@@ -99,11 +95,11 @@ void Chunk::_clear_mesh_data() {
 - and that can be done on another thread, so even more chances for optimization
 */
 void Chunk::_generate_chunk_mesh() {
-	
+
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
 	int lod = CLAMP(
-		(2^(chunk_LOD-1)),
-		1, 
+		(2^(chunk_LOD-2)),
+		1,
 		16
 	);
 	

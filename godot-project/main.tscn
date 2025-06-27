@@ -30,5 +30,4 @@ speed = 100
 jump_velocity = 8.0
 
 [node name="TerrainGenerator" type="TerrainGenerator" parent="." node_paths=PackedStringArray("player_character")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.958138, 0, 0)
 player_character = NodePath("../PlayerCharacter")
