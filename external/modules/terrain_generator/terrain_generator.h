@@ -29,7 +29,8 @@ class TerrainGenerator : public Node3D {
 	- e.g, ((4 + 2) * 2)^2 = 144 chunks possible (but is unlikely)
 	*/
 	static const int render_distance = 4;
-	static constexpr int _delete_distance = render_distance + 2;
+	//static constexpr int _delete_distance = render_distance + 2;
+	static constexpr int _delete_distance = render_distance;	// delete distance no longer needs the +2 because there is a delay in when it gets erased now
 	int effective_render_distance = 0;
 	
 	Vector3 _old_player_chunk;
@@ -46,7 +47,7 @@ class TerrainGenerator : public Node3D {
 	HashMap<Vector3, Ref<Chunk>> _chunks;
 
 	// lookup table for all LODs for all chunks
-	HashMap<String, uint> _LOD_table;
+	HashMap<String, int> _LOD_table;
 
 protected:
 	AHashMap<StringName, Callable> _thread_task_queue;	// NOT USED, ONLY FOR TESTING CURRENTLY
@@ -60,10 +61,10 @@ protected:
 	// Only for the worker thread
 	void _thread_process();
 	void _instantiate_chunk(Vector3 grid_position, Vector3 chunk_position);
-	void _add_chunk(Vector3 grid_position, Ref<Chunk> chunk);
+	void _add_chunk(Vector3 chunk_position, Ref<Chunk> chunk);
 
-	// not actually used right now
-	//void _update_chunk_mesh(Vector3 grid_position, Vector3 chunk_position);
+	void _update_chunk_mesh(Ref<Chunk> chunk, int new_lod);
+	void _delete_chunk(Vector3 chunk_key);
 
 	static void _bind_methods();
 

@@ -30,10 +30,13 @@ Chunk::Chunk() {
 	//material->set_depth_test();
 
 	RS::get_singleton()->instance_set_base(RS_instance_rid, mesh_rid);
+	RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 }
 
 Chunk::~Chunk() {
+	//_clear_mesh_data();	// check if the clear is valid
 	noise.unref();
+	RS::get_singleton()->mesh_clear(mesh_rid);
 	
 	if (mesh_rid.is_valid())
 		RS::get_singleton()->free(mesh_rid);
@@ -45,11 +48,11 @@ Chunk::~Chunk() {
 }
 
 void Chunk::_clear_mesh_data() {
+	p_arr.clear();
+	p_arr.resize(Mesh::ARRAY_MAX);
+
 	vertex_array.clear();
 	index_array.clear();
-	p_arr.clear();
-
-	RS::get_singleton()->mesh_clear(mesh_rid);
 }
 
 
@@ -96,11 +99,13 @@ void Chunk::_clear_mesh_data() {
 - and that can be done on another thread, so even more chances for optimization
 */
 void Chunk::_generate_chunk_mesh() {
+	
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
-	int lod = 1;
-	if (chunk_LOD > 1) {
-		lod = 2 ^ (chunk_LOD - 1);
-	}
+	int lod = CLAMP(
+		(2^(chunk_LOD-1)),
+		1, 
+		16
+	);
 	
 	int subdivide_w = (CHUNK_SIZE / lod) + 1;
 	int subdivide_d = (CHUNK_SIZE / lod) + 1;
@@ -108,7 +113,6 @@ void Chunk::_generate_chunk_mesh() {
 	int i, j, prevrow, thisrow, point;
 	float x, z;
 
-	//Size2 start_pos = size * -0.5;
 	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE;
 	point = 0;
 
@@ -175,6 +179,8 @@ void Chunk::_generate_chunk_mesh() {
 	* (1,1) (1,2)
 	* (2,1) (2,2)
 	*/
+	//Vector3 start_vertex = (*vertex_array.begin()).vertex;
+	//Vector3 last_vertex = (*vertex_array.end()).vertex;
 	Vector3 start_vertex = vertex_array[0].vertex;
 	Vector3 last_vertex = vertex_array[vertex_array.size()-1].vertex;
 	
@@ -195,7 +201,7 @@ void Chunk::_generate_chunk_mesh() {
 	// original code from SurfaceTool had the =vertex_array.size(), but it is not needed - might have been legacy code that they forgot
 
 	// AHashMap<Vertex &, int, VertexHasher> indices = vertex_array.size();
-	AHashMap<Vertex &, int, VertexHasher> indices;
+	AHashMap<Vertex&, int, VertexHasher> indices;
 
 	uint32_t new_size = 0;
 	for (Vertex &vertex : vertex_array) {
@@ -263,15 +269,16 @@ void Chunk::_generate_chunk_mesh() {
 
 	// draw mesh
 	//RS::get_singleton()->call_on_render_thread( callable_mp(this, &Chunk::_draw_mesh) );
-
+	
 	_draw_mesh();
 }
 
+// could probably merge with the generate thread
 void Chunk::_draw_mesh() {
 	RS::SurfaceData surface;
 	Error err = RS::get_singleton()->mesh_create_surface_data_from_arrays(
 		&surface,
-		(RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES, 
+		(RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES,
 		p_arr, 
 		TypedArray<Array>(),	// empty
 		Dictionary(),			// empty
@@ -279,8 +286,8 @@ void Chunk::_draw_mesh() {
 	);
 	ERR_FAIL_COND(err != OK);	// makes sure the surface is valid
 
+	RS::get_singleton()->mesh_clear(mesh_rid);
 	RS::get_singleton()->mesh_add_surface(mesh_rid, surface);
-	RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 }
 
 
@@ -466,7 +473,6 @@ void Chunk::mikktSetTSpaceDefault(const SMikkTSpaceContext *pContext, const floa
 
 void Chunk::_bind_methods() {
 }
-
 
 /*
 Old code for generate_chunk_mesh() - keeping here for reference

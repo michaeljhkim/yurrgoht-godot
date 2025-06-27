@@ -7,16 +7,15 @@
 
 #include "core/object/ref_counted.h"
 #include "core/variant/variant_utility.h"
-#include "core/templates/a_hash_map.h"
-
 #include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h
 
 #include "scene/resources/mesh.h"
 
 // For multi-threading
 #include "core/core_bind.h"
-
 #include "thirdparty/misc/mikktspace.h"
+
+#include <atomic>
 
 class Chunk : public RefCounted {
 	GDCLASS(Chunk, RefCounted);
@@ -157,8 +156,8 @@ protected:
 	LocalVector<Vertex> vertex_array;
 	LocalVector<int> index_array;
 
-    Vector3 chunk_position;
-    uint chunk_LOD = 0;
+    Vector3 chunk_position = Vector3(0, 0, 0);  // default values
+    int chunk_LOD = 0;
     
     // for storing neighboring lod chunks
     enum ADJACENT {
@@ -169,8 +168,19 @@ protected:
     };
     bool adjacent_LODs[4] = {false};    // array only used to check if lod should be calculated
 
+    std::atomic_bool CHUNK_FLAGS[1] = {false};
+
+    
 public:
-    void _set_chunk_LOD(uint new_LOD) { chunk_LOD = new_LOD; }
+    enum FLAG {
+        DELETE
+    };
+
+    void set_flag(FLAG flag, bool set_value) { CHUNK_FLAGS[flag].store(set_value, std::memory_order_acquire); }
+    bool get_flag(FLAG flag) { return CHUNK_FLAGS[flag].load(); }
+
+    void _set_chunk_LOD(int new_LOD) { chunk_LOD = new_LOD; }
+    int _get_chunk_LOD() { return chunk_LOD; }
 
     void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
     Vector3 _get_chunk_position() { return chunk_position; }

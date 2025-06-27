@@ -22,6 +22,7 @@
 struct TaskBufferManager {
     std::atomic_bool PROCESSING = false;
     std::array<std::unique_ptr<CircularBuffer<Callable>>, 2> TASK_BUFFERS;
+	Ref<CoreBind::Mutex> _buffer_mutex;
     
     const int MAX_BUFFER_SIZE = 100;
 
@@ -36,13 +37,23 @@ struct TaskBufferManager {
         }
     }
     
+    /*
+    - multiple tasks might be being pushed back at a time, so mutexes are needed
+    */
     void tasks_push_back(Callable task) {
+		_buffer_mutex->lock();
         TASK_BUFFERS[1]->push_back(task);
+        bool size_check = TASK_BUFFERS[0]->size() < TASK_BUFFERS[1]->size();
+		_buffer_mutex->unlock();
 
-        if (!PROCESSING.load() && (TASK_BUFFERS[0]->size() < TASK_BUFFERS[1]->size())) {
+        if (!PROCESSING.load() && size_check) {
             TASK_BUFFERS[0].swap(TASK_BUFFERS[1]);      // buffers being pointers makes efficient/clean swapping possible
             PROCESSING.store(true, std::memory_order_acquire);
         }
+    }
+
+    void priority_task_push_back(Callable task) {
+        
     }
 
     void erase_all_tasks() {
@@ -54,6 +65,8 @@ struct TaskBufferManager {
     TaskBufferManager() {
         TASK_BUFFERS[0] = std::make_unique<CircularBuffer<Callable>>(32);
         TASK_BUFFERS[1] = std::make_unique<CircularBuffer<Callable>>(32);
+
+        _buffer_mutex.instantiate();
     }
 };
 
@@ -86,6 +99,10 @@ public:
 
     TData front() {
         return (*(this->_list).back())->data;
+    }
+
+    bool is_front(TKey key_check) {
+        return key_check != (*(this->_list).back())->key;
     }
 
     bool empty() const {
