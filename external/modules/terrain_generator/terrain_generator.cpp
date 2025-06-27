@@ -103,11 +103,12 @@ void TerrainGenerator::_process(double delta) {
 	task_buffer_manager.main_thread_process();
 	
 	Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
-	player_chunk.y = 0;
+	Vector2 player_position = Vector2(player_chunk.x, player_chunk.z);
+	//player_chunk.y = 0;
 	//player_character->get_global_rotation();	// reference for being able to render chunks according to the direction that the player is facing
 
-	if (_deleting || (Vector2(player_chunk.x,player_chunk.z) != Vector2(_old_player_chunk.x,_old_player_chunk.z))) {
-		_delete_far_away_chunks(player_chunk);
+	if (_deleting || (player_position != _old_player_chunk)) {
+		_delete_far_away_chunks(player_position);
 		_generating = true;
 	}
 	if (!_generating) return;
@@ -127,8 +128,9 @@ void TerrainGenerator::_process(double delta) {
 	// Check existing chunks within range. If it doesn't exist, create it.
 	for (int x = -effective_render_distance; x <= effective_render_distance; x++) {
 		for (int z = -effective_render_distance; z <= effective_render_distance; z++) {
-			Vector3 chunk_position = player_chunk + Vector3(x, 0, z);
-			float chunk_distance = player_chunk.distance_to(chunk_position);
+			Vector2 chunk_position = player_position + Vector2(x, z);
+			float chunk_distance = floor(player_position.distance_to(chunk_position));
+			print_line("CHUNK POSITION, DISTANCE: ", chunk_position, chunk_distance);
 			++count;	// debug number of grid coordinates checked
 
 			//StringName task_update = String(chunk_position) + "_TerrainGenerator::_update_chunk_mesh";
@@ -145,7 +147,7 @@ void TerrainGenerator::_process(double delta) {
 			if (
 				task_exists ||
 				_chunks.has(chunk_position) ||
-				(player_chunk.distance_to(chunk_position) > render_distance)
+				(player_position.distance_to(chunk_position) > render_distance)
 			) {
 				continue;
 			}
@@ -228,7 +230,7 @@ void TerrainGenerator::_thread_process() {
 - Computations that can safely be done outside of main thread - instantiating/generating the chunk
 - should only be called inside _thread_process - purely because it can be slow
 */
-void TerrainGenerator::_instantiate_chunk(Vector3 chunk_position, float chunk_distance) {
+void TerrainGenerator::_instantiate_chunk(Vector2 chunk_position, float chunk_distance) {
 	Ref<Chunk> chunk;
 	chunk.instantiate(world_scenario, chunk_position, chunk_distance);		// this is the only other time world_scenario is used, so it's thread safe
 	chunk->_generate_chunk_mesh();
@@ -236,7 +238,7 @@ void TerrainGenerator::_instantiate_chunk(Vector3 chunk_position, float chunk_di
 	task_buffer_manager.tasks_push_back(callable_mp(this, &TerrainGenerator::_add_chunk).bind(chunk_position, chunk));
 }
 
-void TerrainGenerator::_add_chunk(Vector3 chunk_position, Ref<Chunk> chunk) {
+void TerrainGenerator::_add_chunk(Vector2 chunk_position, Ref<Chunk> chunk) {
 	_chunks[chunk_position] = chunk;
 }
 
@@ -248,7 +250,7 @@ void TerrainGenerator::_update_chunk_mesh(Ref<Chunk> chunk, int new_lod) {
 }
 
 // only called on main thread
-void TerrainGenerator::_delete_chunk(Vector3 chunk_key) {
+void TerrainGenerator::_delete_chunk(Vector2 chunk_key) {
 	_chunks.erase(chunk_key);
 }
 
@@ -256,7 +258,7 @@ void TerrainGenerator::_delete_chunk(Vector3 chunk_key) {
 - can probably delegate this to another thread
 - TODO later
 */
-void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
+void TerrainGenerator::_delete_far_away_chunks(Vector2 player_chunk) {
 	_old_player_chunk = player_chunk;
 	// If we need to delete chunks, give the new chunk system a chance to catch up.
 	effective_render_distance = std::max(1, effective_render_distance - 1);
@@ -265,46 +267,46 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	// We should delete old chunks more aggressively if moving fast.
 	// An easy way to calculate this is by using the effective render distance.
 	// The specific values in this formula are arbitrary and from experimentation.
-	int max_deletions = CLAMP(2 * (render_distance - effective_render_distance), 2, 8);
+	int max_deletions = CLAMP(2 * (render_distance - effective_render_distance), 2, 12);
 
 	// Also take the opportunity to delete far away chunks.
-	for (KeyValue<Vector3, Ref<Chunk>> chunk : _chunks) {
+	for (KeyValue<Vector2, Ref<Chunk>> chunk : _chunks) {
 		int new_distance = player_chunk.distance_to(chunk.key);
 		String task_name = String(chunk.key);
 
 		// flag check - we do not want to tag the same chunk again, and we do not want to update a chunk marked for deletion 
-		if (!chunk.value->get_flag(Chunk::FLAG::DELETE)) {
-			if (new_distance > _delete_distance) {
-				// if an update chunk process is in the thread task queue, and is not at the front, we remove it
-				// first process in deletion to attempt to 'catch up' to the update task quicker
-				_mutex->lock();
-				if (callable_queue.has(task_name) && !callable_queue.is_front(task_name)) {
-					callable_queue.erase(task_name);
-				}
-				_mutex->unlock();
+		if (!chunk.value->get_flag(Chunk::FLAG::DELETE) && new_distance > _delete_distance) {
+			//print_line("PLAYER POSITION, DELETE POSITION, UPDATE DISTANCE", player_chunk, chunk.key, new_distance);
 
-				// we do not delete right now because it is possible that there is an update task occuring
-				// however, we can queue delete in the main thead task queue so that once update is finished, we can immediately delete 
-				chunk.value->set_flag(Chunk::FLAG::DELETE, true);
-				task_buffer_manager.tasks_push_back(callable_mp(this, &TerrainGenerator::_delete_chunk).bind(chunk.key));
-
-				deleted_this_frame += 1;
-
-				// Limit the amount of deletions per frame to avoid lag spikes.
-				if (deleted_this_frame > max_deletions) {
-					_deleting = true;	// Continue deleting next frame.
-					return;
-				}
+			// if an update chunk process is in the thread task queue, and is not at the front, we remove it
+			// first process in deletion to attempt to 'catch up' to the update task quicker
+			_mutex->lock();
+			if (callable_queue.has(task_name) && !callable_queue.is_front(task_name)) {
+				callable_queue.erase(task_name);
 			}
+			_mutex->unlock();
+
+			// we do not delete right now because it is possible that there is an update task occuring
+			// however, we can queue delete in the main thead task queue so that once update is finished, we can immediately delete 
+			chunk.value->set_flag(Chunk::FLAG::DELETE, true);
+			task_buffer_manager.tasks_push_back(callable_mp(this, &TerrainGenerator::_delete_chunk).bind(chunk.key));
 			
-			// ELSE IF: possible that chunk can be marked to be deleted, so we do not want to update
-			// if relative grid distance (aka LOD) is not the same, then update is needed
-			else if (chunk.value->_get_chunk_LOD() != new_distance) {
-				print_line("PLAYER POSITION, CHUNK POSITION, UPDATE DISTANCE", player_chunk, chunk.key, new_distance);
-				_mutex->lock();
-				callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_update_chunk_mesh).bind(chunk.value, new_distance));
-				_mutex->unlock();
+			deleted_this_frame += 1;
+
+			// Limit the amount of deletions per frame to avoid lag spikes.
+			if (deleted_this_frame > max_deletions) {
+				_deleting = true;	// Continue deleting next frame.
+				return;
 			}
+		}
+		
+		// ELSE IF: possible that chunk can be marked to be deleted, so we do not want to update
+		// if relative grid distance (aka LOD) is not the same, then update is needed
+		if (!chunk.value->get_flag(Chunk::FLAG::DELETE) && chunk.value->_get_chunk_LOD() != new_distance) {
+			//print_line("PLAYER POSITION, CHUNK POSITION, UPDATE DISTANCE", player_chunk, chunk.key, new_distance);
+			_mutex->lock();
+			callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_update_chunk_mesh).bind(chunk.value, new_distance));
+			_mutex->unlock();
 		}
 
 	}

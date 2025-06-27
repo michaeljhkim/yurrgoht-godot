@@ -1,7 +1,7 @@
 #include "chunk.h"
 #include "thirdparty/embree/kernels/bvh/bvh_statistics.h"
 
-Chunk::Chunk(RID scenario, Vector3 new_position, float _new_lod) {
+Chunk::Chunk(RID scenario, Vector2 new_position, int _new_lod) {
 	RS_instance_rid = RS::get_singleton()->instance_create();
 
 	RenderingServer::get_singleton()->instance_set_scenario(RS_instance_rid, scenario);
@@ -26,13 +26,13 @@ Chunk::Chunk(RID scenario, Vector3 new_position, float _new_lod) {
 	//material->set_depth_test();
 
 	RS::get_singleton()->instance_set_base(RS_instance_rid, mesh_rid);
-	RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
+	//RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 }
 
 Chunk::~Chunk() {
-	//_clear_mesh_data();	// check if the clear is valid
+	_clear_mesh_data();	// check if the clear is valid
 	noise.unref();
-	RS::get_singleton()->mesh_clear(mesh_rid);
+	//RS::get_singleton()->mesh_clear(mesh_rid);
 	
 	if (mesh_rid.is_valid())
 		RS::get_singleton()->free(mesh_rid);
@@ -49,6 +49,7 @@ void Chunk::_clear_mesh_data() {
 
 	vertex_array.clear();
 	index_array.clear();
+	//RS::get_singleton()->mesh_clear(mesh_rid);
 }
 
 
@@ -98,10 +99,11 @@ void Chunk::_generate_chunk_mesh() {
 
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
 	int lod = CLAMP(
-		(2^(chunk_LOD-2)),
+		pow(2, chunk_LOD-1),
 		1,
 		16
 	);
+	print_line("chunk_LOD, LOD:", chunk_LOD, lod);
 	
 	int subdivide_w = (CHUNK_SIZE / lod) + 1;
 	int subdivide_d = (CHUNK_SIZE / lod) + 1;
@@ -109,7 +111,7 @@ void Chunk::_generate_chunk_mesh() {
 	int i, j, prevrow, thisrow, point;
 	float x, z;
 
-	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE;
+	Size2 start_pos = size * -0.5 - chunk_position * CHUNK_SIZE;
 	point = 0;
 
 	/* top + bottom */
@@ -283,6 +285,7 @@ void Chunk::_draw_mesh() {
 	ERR_FAIL_COND(err != OK);	// makes sure the surface is valid
 
 	RS::get_singleton()->mesh_clear(mesh_rid);
+	//RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 	RS::get_singleton()->mesh_add_surface(mesh_rid, surface);
 }
 
