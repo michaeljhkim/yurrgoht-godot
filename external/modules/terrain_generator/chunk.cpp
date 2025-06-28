@@ -1,6 +1,9 @@
 #include "chunk.h"
 #include "thirdparty/embree/kernels/bvh/bvh_statistics.h"
 
+// NOTE: LocalVector push_back() does check if there is enough capacity, and only resizes if full
+// Vector push_back() does not do this, and resizes regardless, so need to use set if you manually resize
+
 Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 	RS_instance_rid = RS::get_singleton()->instance_create();
 
@@ -22,11 +25,9 @@ Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 	material->set_albedo(Color(0.7, 0.7, 0.7));  // Slightly darker gray
 	material->set_metallic(0.f);
 	material->set_roughness(1.f);
-	material->set_depth_draw_mode(BaseMaterial3D::DEPTH_DRAW_ALWAYS);
 	//material->set_depth_test();
 
 	RS::get_singleton()->instance_set_base(RS_instance_rid, mesh_rid);
-	//RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 }
 
 Chunk::~Chunk() {
@@ -92,23 +93,26 @@ void Chunk::_clear_mesh_data() {
 */
 void Chunk::_generate_chunk_mesh() {
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);
-	//int lod = 1;
-	int lod = CLAMP(pow(2, chunk_LOD-1),1,16);
+	//int lod = CLAMP(pow(2, chunk_LOD-1), 1, 16);
+	int lod = CLAMP(pow(2, chunk_LOD), 1, 16);
 
+	// number of vertices
 	int subdivide_w = (CHUNK_SIZE / lod) + 1.0;
 	int subdivide_d = (CHUNK_SIZE / lod) + 1.0;
-	
+
+	// distance between vertices
 	int step_size_x = size.x / (subdivide_w - 1.0);
 	int step_size_z = size.y / (subdivide_d - 1.0);
 
-	//exact amount of vertices and indices is known
+	// exact amount of vertices and indices is known
 	vertex_array.reserve((subdivide_d + 2) * (subdivide_w + 2));
 	index_array.reserve((subdivide_d + 1) * (subdivide_w + 1) * 6);
 
 	int i, j, prevrow, thisrow, point;
 	float x, z;
 
-	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * (CHUNK_SIZE) - Vector2(step_size_x, step_size_z);
+	// subtract step size since we are calculating a chunk of size 1 larger on each side
+	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * (CHUNK_SIZE) - Vector2(step_size_x, step_size_z); 	
 	point = 0;
 
 	/* top + bottom */
@@ -128,7 +132,7 @@ void Chunk::_generate_chunk_mesh() {
 			vert.vertex = Vector3(-x, height, -z);
 
 			// UVs
-			vert.uv = Vector2(1.0 - u, 1.0 - v); /* 1.0 - uv to match orientation with Quad */
+			vert.uv = Vector2(1.0 - u, 1.0 - v); 	/* 1.0 - uv to match orientation with Quad */
 			vertex_array.push_back(vert);
 
 			point++;
@@ -202,10 +206,8 @@ void Chunk::_generate_chunk_mesh() {
 	/*
 	  ---------- RE-INDEX START ----------
 	*/
-	// original code from SurfaceTool had the =vertex_array.size(), but it is not needed - might have been legacy code that they forgot
-
-	// AHashMap<Vertex &, int, VertexHasher> indices = vertex_array.size();
-	AHashMap<Vertex&, int, VertexHasher> indices;
+	// use '=' here resizes the capacity -> avoids future (expensive) resize operations
+	AHashMap<Vertex &, int, VertexHasher> indices = vertex_array.size();
 
 	uint32_t new_size = 0;
 	for (Vertex &vertex : vertex_array) {
@@ -239,17 +241,25 @@ void Chunk::_generate_chunk_mesh() {
 	PackedVector3Array sub_vertex_array;
 	PackedVector3Array sub_normal_array;
 	PackedVector2Array sub_uv_array;
-
-	// Tangents are a little special, they have a 4th value called handedness - determines visibility direction
 	PackedFloat32Array sub_tangent_array;
+	Vector<int> sub_index_array;
+
+	// resize Vectors because the size for each Vector is known
+	sub_vertex_array.resize(vertex_array.size());
+	sub_normal_array.resize(vertex_array.size());
+	sub_uv_array.resize(vertex_array.size());
 	sub_tangent_array.resize(vertex_array.size() * 4);
+	sub_index_array.resize(index_array.size());
+
+	// Tangents are a little special, they have a 4th value called handedness -> determines visibility direction
 	float *w = sub_tangent_array.ptrw();
 
-	for (uint32_t idx = 0; idx < vertex_array.size(); idx++) {
+	// vertices, normals, uvs, tangents unpack
+	for (int idx = 0; idx < vertex_array.size(); idx++) {
 		const Vertex &v = vertex_array[idx];
-		sub_vertex_array.push_back(v.vertex);
-		sub_normal_array.push_back(v.normal);
-		sub_uv_array.push_back(v.uv);
+		sub_vertex_array.set(idx, v.vertex);
+		sub_normal_array.set(idx, v.normal);
+		sub_uv_array.set(idx, v.uv);
 
 		// Tangent handedness calculations
 		w[idx * 4 + 0] = v.tangent.x;
@@ -259,10 +269,9 @@ void Chunk::_generate_chunk_mesh() {
 		w[idx * 4 + 3] = d < 0 ? -1 : 1;
 	}
 
-	// Unpacking indices into an array format that add_surface_from_arrays() accepts
-	Vector<int> sub_index_array;
-	for (int sub_index : index_array) {
-		sub_index_array.push_back(sub_index);
+	// indices unpack
+	for (int idx = 0; idx < index_array.size(); idx++) {
+		sub_index_array.set(idx, index_array[idx]);
 	}
 
 	p_arr[RS::ARRAY_VERTEX] = sub_vertex_array;
@@ -273,11 +282,10 @@ void Chunk::_generate_chunk_mesh() {
 
 	// draw mesh
 	//RS::get_singleton()->call_on_render_thread( callable_mp(this, &Chunk::_draw_mesh) );
-	
 	_draw_mesh();
 }
 
-// could probably merge with the generate thread
+// seperated for future flexibility
 void Chunk::_draw_mesh() {
 	RS::SurfaceData surface;
 	Error err = RS::get_singleton()->mesh_create_surface_data_from_arrays(
@@ -292,6 +300,9 @@ void Chunk::_draw_mesh() {
 
 	RS::get_singleton()->mesh_clear(mesh_rid);
 	RS::get_singleton()->mesh_add_surface(mesh_rid, surface);
+
+	// for some reason, issues arise when used in constructor, use here
+	// i think its caused by mesh_clear()
 	//RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 }
 

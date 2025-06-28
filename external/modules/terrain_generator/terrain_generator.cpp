@@ -15,6 +15,7 @@ NOTES:
 // constructor - sets up default values
 TerrainGenerator::TerrainGenerator() {
 	set_process(true);
+	callable_queue.set_capacity(64);
 }
 
 // destructor - make sure to clean up anything that the main scene tree might not

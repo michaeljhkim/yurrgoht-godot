@@ -23,7 +23,7 @@ struct TaskBufferManager {
     std::atomic_bool PROCESSING = false;
     std::array<std::unique_ptr<CircularBuffer<Callable>>, 2> TASK_BUFFERS;
     //std::array<std::unique_ptr<LRUQueue<String, Callable>>, 2> TASK_BUFFERS;
-    std::array<std::unique_ptr<Vector<String>>, 2> TASK_NAMES;
+    std::array<std::unique_ptr<LocalVector<String>>, 2> TASK_NAMES;
 	Ref<CoreBind::Mutex> _task_mutex;
 	Ref<CoreBind::Mutex> _name_mutex;
     
@@ -81,10 +81,11 @@ struct TaskBufferManager {
     }
 
     TaskBufferManager() {
-        TASK_BUFFERS[0] = std::make_unique<CircularBuffer<Callable>>(32);
-        TASK_BUFFERS[1] = std::make_unique<CircularBuffer<Callable>>(32);
-        TASK_NAMES[0] = std::make_unique<Vector<String>>();
-        TASK_NAMES[1] = std::make_unique<Vector<String>>();
+        for (int i = 0; i < 2; ++i) {
+            TASK_BUFFERS[i] = std::make_unique<CircularBuffer<Callable>>(64);
+            TASK_NAMES[i] = std::make_unique<LocalVector<String>>();
+            TASK_NAMES[i]->reserve(64);
+        }
 
         _task_mutex.instantiate();
         _name_mutex.instantiate();
