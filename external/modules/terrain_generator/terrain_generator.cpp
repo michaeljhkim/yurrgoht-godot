@@ -166,7 +166,6 @@ void TerrainGenerator::_process(double delta) {
 			) {
 				continue;
 			}
-
 			//print_line("ADD chunk: ", chunk_position);
 
 			// direct callable instantiation
@@ -284,15 +283,20 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	// We should delete old chunks more aggressively if moving fast.
 	// An easy way to calculate this is by using the effective render distance.
 	// The specific values in this formula are arbitrary and from experimentation.
-	int max_deletions = CLAMP(2 * (render_distance - effective_render_distance), 2, 8);
+	int max_deletions = CLAMP(2 * (render_distance - effective_render_distance), 2, 12);
+
+	/*
+	IDEA: 
+	- add the chunks to delete to a SORTED list first, the furthest chunk being priority
+	- consider making this sorted list apart of another thread
+	*/
 
 	// Also take the opportunity to delete far away chunks.
 	for (KeyValue<Vector3, Ref<Chunk>> chunk : _chunks) {
-		float new_distance = player_chunk.distance_to(chunk.key);
 		String task_name = String(chunk.key);
 
 		// flag check - we do not want to tag the same chunk again
-		if (!chunk.value->get_flag(Chunk::FLAG::DELETE) && new_distance > _delete_distance) {
+		if (player_chunk.distance_to(chunk.key) > _delete_distance && !chunk.value->get_flag(Chunk::FLAG::DELETE)) {
 			// if an update chunk process is in the thread task queue, and is not at the front, we remove it
 			// first process in deletion to attempt to 'catch up' to the update task quicker
 			_mutex->lock();

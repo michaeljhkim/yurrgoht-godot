@@ -162,8 +162,10 @@ protected:
     
     // for storing neighboring lod chunks
     enum ADJACENT {
-        UP_DOWN,
-        LEFT_RIGHT
+        UP,
+        DOWN,
+        LEFT,
+        RIGHT
     };
     int adjacent_LOD_steps[4] = {0};    // array only used to check if lod should be calculated
 
@@ -195,7 +197,7 @@ public:
     //void _generate_chunk_collider();
     //RID _get_mesh_rid() { return mesh_rid; }
 
-    void _generate_lods(Vector2 size);
+    //void _generate_lods(Vector2 size);
 
     void _generate_chunk_mesh();
     void _draw_mesh();

@@ -6,8 +6,6 @@ Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 
 	RenderingServer::get_singleton()->instance_set_scenario(RS_instance_rid, scenario);
 	chunk_position = new_c_position;
-	//player_position = new_p_position;
-	//chunk_LOD = _new_lod;
 	chunk_LOD = new_lod;
 
 	p_arr.resize(Mesh::ARRAY_MAX);
@@ -53,39 +51,6 @@ void Chunk::_clear_mesh_data() {
 	index_array.clear();
 }
 
-void Chunk::_generate_lods(Vector2 size) {
-	float distance = player_position.distance_to(chunk_position);
-	//chunk_LOD = CLAMP(pow(2, distance-1),1,16);
-	chunk_LOD = distance;
-	return;
-
-	float lod;
-
-	distance = player_position.distance_to(chunk_position + Vector3(1, 0, 0));
-	lod = CLAMP(pow(2, distance-1),1,16);
-	if (distance <= render_distance && lod < chunk_LOD) {
-		adjacent_LOD_steps[ADJACENT::LEFT_RIGHT] = size.x / (CHUNK_SIZE / lod);
-	}
-
-	distance = player_position.distance_to(chunk_position + Vector3(-1, 0, 0));
-	lod = CLAMP(pow(2, distance-1),1,16);
-	if (distance <= render_distance && lod < chunk_LOD) {
-		adjacent_LOD_steps[ADJACENT::LEFT_RIGHT] = size.x / (CHUNK_SIZE / lod);
-	}
-
-	distance = player_position.distance_to(chunk_position + Vector3(-1, 0, 0));
-	lod = CLAMP(pow(2, distance-1),1,16);
-	if (distance <= render_distance && lod < chunk_LOD) {
-		adjacent_LOD_steps[ADJACENT::UP_DOWN] = size.y / (CHUNK_SIZE / lod);
-	}
-
-	distance = player_position.distance_to(chunk_position + Vector3( 0, 0,-1));
-	lod = CLAMP(pow(2, distance-1),1,16);
-	if (distance <= render_distance && lod < chunk_LOD) {
-		adjacent_LOD_steps[ADJACENT::UP_DOWN] = size.y / (CHUNK_SIZE / lod);
-	}
-	
-}
 
 /*
 - MESH = {vertices, normals, uvs, tangents, indices}
@@ -126,19 +91,24 @@ void Chunk::_generate_lods(Vector2 size) {
 - and that can be done on another thread, so even more chances for optimization
 */
 void Chunk::_generate_chunk_mesh() {
-
-	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
-	//float lod = player_position.distance_to(chunk_position);
+	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);
+	//int lod = 1;
 	int lod = CLAMP(pow(2, chunk_LOD-1),1,16);
+
+	int subdivide_w = (CHUNK_SIZE / lod) + 1.0;
+	int subdivide_d = (CHUNK_SIZE / lod) + 1.0;
 	
-	int subdivide_w = (CHUNK_SIZE / lod) + 1;
-	int subdivide_d = (CHUNK_SIZE / lod) + 1;
+	int step_size_x = size.x / (subdivide_w - 1.0);
+	int step_size_z = size.y / (subdivide_d - 1.0);
+
+	//exact amount of vertices and indices is known
+	vertex_array.reserve((subdivide_d + 2) * (subdivide_w + 2));
+	index_array.reserve((subdivide_d + 1) * (subdivide_w + 1) * 6);
 
 	int i, j, prevrow, thisrow, point;
-	float x = 0.f;
-	float z = 0.f;
+	float x, z;
 
-	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * (CHUNK_SIZE);
+	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * (CHUNK_SIZE) - Vector2(step_size_x, step_size_z);
 	point = 0;
 
 	/* top + bottom */
@@ -149,13 +119,12 @@ void Chunk::_generate_chunk_mesh() {
 	for (j = 0; j <= (subdivide_d + 1); j++) {
 		x = start_pos.x;
 		for (i = 0; i <= (subdivide_w + 1); i++) {
-			float u = i / subdivide_d;
-			float v = j / subdivide_w;
+			float u = i / (subdivide_w - 1.0);
+			float v = j / (subdivide_d - 1.0);
 
 			// Point orientation Y
 			Vertex vert;
 			float height = noise->get_noise_2d(-x, -z) * AMPLITUDE;
-			//vert.vertex = Vector3(-x, height, -z) + center_offset;
 			vert.vertex = Vector3(-x, height, -z);
 
 			// UVs
@@ -181,18 +150,18 @@ void Chunk::_generate_chunk_mesh() {
 			- but we -1.f here because the step size should be based on the original size
 			*/
 
-			x += size.x / ((subdivide_w-1.f) - 1.f);
+			x += step_size_x;
 			/*
 			x += (x==start_pos.x || x==start_pos.x+subdivide_w) ?
 				size.x / ((subdivide_w-1.f) * 2 - 1.f):
-				size.x / (subdivide_w-1.f);
+				size.x / ((subdivide_w-1.f) - 1.f);
 			*/
 		}
-		z += size.y / ((subdivide_d-1.f) - 1.f);
+		z += step_size_z;
 		/*
 		z += (z==start_pos.y || z==start_pos.y+subdivide_d) ?
 			size.y / ((subdivide_d-1.f) * 2 - 1.f):
-			size.y / (subdivide_d-1.f);
+			size.y / ((subdivide_d-1.f) - 1.f);
 		*/
 
 		prevrow = thisrow;
