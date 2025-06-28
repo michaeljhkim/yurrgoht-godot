@@ -31,15 +31,13 @@ private:
 	//Mesh::BlendShapeMode blend_shape_mode = Mesh::BlendShapeMode::BLEND_SHAPE_MODE_RELATIVE;
 	//Vector<StringName> blend_shapes;
     Ref<StandardMaterial3D> material;
-
+    
 	Array p_arr;
-
     Ref<FastNoiseLite> noise;
-	Vector3 center_offset;
 
 protected:
 
-    //Copied from SurfaceTool
+    // Copied from SurfaceTool
     struct Vertex {
 		// Trivial data for which the hash is computed using hash_buffer.
 		// ----------------------------------------------------------------
@@ -151,13 +149,17 @@ protected:
 	static void mikktSetTSpaceDefault(const SMikkTSpaceContext *pContext, const float fvTangent[], const float fvBiTangent[], const float fMagS, const float fMagT,
 			const tbool bIsOrientationPreserving, const int iFace, const int iVert);
 
+
+    /*
+    ----- CHUNK SPECIFIC MEMBER VALUES -----
+    */
+    
 	static void _bind_methods();
 
 	LocalVector<Vertex> vertex_array;
 	LocalVector<int> index_array;
 
     Vector3 chunk_position = Vector3(0, 0, 0);
-    Vector3 player_position = Vector3(0, 0, 0);
     int chunk_LOD = 1;
     
     // for storing neighboring lod chunks
@@ -183,20 +185,13 @@ public:
     void _set_chunk_LOD(int new_LOD) { chunk_LOD = new_LOD; }
     int _get_chunk_LOD() { return chunk_LOD; }
 
-    bool distance_check(Vector3 new_position) {
-        return player_position.distance_to(chunk_position) != new_position.distance_to(chunk_position);
-    }
-
     void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
     Vector3 _get_chunk_position() { return chunk_position; }
-
-    void _set_player_position(Vector3 new_position) { player_position = new_position; }
 
 
     // can probably remove this, but keeping for now
     //void _generate_chunk_collider();
     //RID _get_mesh_rid() { return mesh_rid; }
-
     //void _generate_lods(Vector2 size);
 
     void _generate_chunk_mesh();
@@ -217,7 +212,6 @@ public:
     static constexpr float TEXTURE_TILE_SIZE = 1.0 / TEXTURE_SHEET_WIDTH;
     
     // scenario input is the return value of 'get_world_3d()->get_scenario()' from any node within the active main scene tree
-    //Chunk(RID scenario, Vector3 new_c_position, Vector3 new_p_position);
     Chunk(RID scenario, Vector3 new_c_position, int new_lod);
     ~Chunk();
 

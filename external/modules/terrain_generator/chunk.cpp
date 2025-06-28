@@ -16,13 +16,13 @@ Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 	mesh_rid = RS::get_singleton()->mesh_create();
 
 	/*
-	- instantiate and create a new material for the mesh - imitates default material
+	- instantiate and create a new material for the mesh -> imitates default material
 	- we imitate the default material is because it allows the geometry of a mesh to be very visible
 
 	- real godot default material cannot be used due to less testing options
 	*/
 	material = memnew(StandardMaterial3D);
-	material->set_albedo(Color(0.7, 0.7, 0.7));  // Slightly darker gray
+	material->set_albedo(Color(0.7, 0.7, 0.7));   // slightly darker gray
 	material->set_metallic(0.f);
 	material->set_roughness(1.f);
 	//material->set_depth_test();
@@ -66,11 +66,11 @@ void Chunk::_clear_mesh_data() {
 
 - The way to solve this issue is to generate the MESH as if the chunk had one extra row/column of vertices on all 4 sides
 - then remove those extra MESH values.
-	- e.g: chunk of size 4x4 
-	- 1 row/column of vertices is added to each side, making it 6x6
-	- the entire MESH is calculated as 6x6
-	- afterwards, the extra vertices are removed, making it 4x4 again
-	- boom, now the chunks connect as if there are no seams
+	-> e.g: chunk of size 4x4 
+	-> 1 row/column of vertices is added to each side, making it 6x6
+	-> the entire MESH is calculated as 6x6
+	-> afterwards, the extra vertices are removed, making it 4x4 again
+	-> boom, now the chunks connect as if there are no seams
 
 - However, SurfaceTool provides no internal function that would do anything remotely similar to this.
 - That is why all calculations had to be done manually - but significant portions of it was copied from PlaneMesh and SurfaceTool
@@ -92,8 +92,10 @@ void Chunk::_clear_mesh_data() {
 - and that can be done on another thread, so even more chances for optimization
 */
 void Chunk::_generate_chunk_mesh() {
-	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);
-	//int lod = CLAMP(pow(2, chunk_LOD-1), 1, 16);
+	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	// size should most likely be established elsewhere, but do not need to currently
+
+	//int lod = 1;
+	//int lod = CLAMP(pow(2, chunk_LOD-1), 1, 16);	// makes it so that lower LODS start 1 above the chunks surrounding the center square
 	int lod = CLAMP(pow(2, chunk_LOD), 1, 16);
 
 	// number of vertices
@@ -133,10 +135,10 @@ void Chunk::_generate_chunk_mesh() {
 
 			// UVs
 			vert.uv = Vector2(1.0 - u, 1.0 - v); 	/* 1.0 - uv to match orientation with Quad */
-			vertex_array.push_back(vert);
+
+			vertex_array.push_back(vert);	// done adding required values, add to array
 
 			point++;
-
 			if (i > 0 && j > 0) {
 				index_array.push_back(prevrow + i - 1);
 				index_array.push_back(prevrow + i);
@@ -147,25 +149,20 @@ void Chunk::_generate_chunk_mesh() {
 				index_array.push_back(thisrow + i - 1);
 			}
 
-			/*
-			Step size for x and z
-
-			- distance between this vertice and the next
-			- but we -1.f here because the step size should be based on the original size
-			*/
-
+			// increment by step_size
 			x += step_size_x;
 			/*
 			x += (x==start_pos.x || x==start_pos.x+subdivide_w) ?
-				size.x / ((subdivide_w-1.f) * 2 - 1.f):
-				size.x / ((subdivide_w-1.f) - 1.f);
+				step_size_x :
+				step_size_x;
 			*/
 		}
+		// increment by step_size
 		z += step_size_z;
 		/*
 		z += (z==start_pos.y || z==start_pos.y+subdivide_d) ?
-			size.y / ((subdivide_d-1.f) * 2 - 1.f):
-			size.y / ((subdivide_d-1.f) - 1.f);
+			step_size_z :
+			step_size_z;
 		*/
 
 		prevrow = thisrow;
