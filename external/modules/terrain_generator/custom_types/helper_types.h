@@ -23,8 +23,9 @@ struct TaskBufferManager {
     std::atomic_bool PROCESSING = false;
     std::array<std::unique_ptr<CircularBuffer<Callable>>, 2> TASK_BUFFERS;
     //std::array<std::unique_ptr<LRUQueue<String, Callable>>, 2> TASK_BUFFERS;
-    //std::array<std::unique_ptr<Vector<String>>, 2> TASK_NAMES;
-	Ref<CoreBind::Mutex> _buffer_mutex;
+    std::array<std::unique_ptr<Vector<String>>, 2> TASK_NAMES;
+	Ref<CoreBind::Mutex> _task_mutex;
+	Ref<CoreBind::Mutex> _name_mutex;
     
     const int MAX_BUFFER_SIZE = 100;
 
@@ -34,6 +35,9 @@ struct TaskBufferManager {
             for (; !TASK_BUFFERS[0]->empty(); TASK_BUFFERS[0]->pop_front()) {
                 TASK_BUFFERS[0]->front().call();
             }
+            _name_mutex->lock();
+            TASK_NAMES[0]->clear();
+            _name_mutex->unlock();
             PROCESSING.store(false, std::memory_order_acquire);
         }
     }
@@ -42,23 +46,33 @@ struct TaskBufferManager {
     - multiple tasks might be being pushed back at a time, so mutexes are needed
     */
     void tasks_push_back(String task_name, Callable task) {
-        _buffer_mutex->lock();
+        // Task name is added first so that it is available for existance checks ASAP
+        _name_mutex->lock();
+        TASK_NAMES[1]->push_back(task_name);
+        _name_mutex->unlock();
+
+        _task_mutex->lock();
         TASK_BUFFERS[1]->push_back(task);
 
         if (!PROCESSING.load() && TASK_BUFFERS[0]->empty() && !TASK_BUFFERS[1]->empty()) {
             TASK_BUFFERS[0].swap(TASK_BUFFERS[1]);      // buffers being pointers makes efficient/clean swapping possible
+            
+            _name_mutex->lock();
+            TASK_NAMES[0].swap(TASK_NAMES[1]);
+            _name_mutex->unlock();
+
             PROCESSING.store(true, std::memory_order_acquire);
         }
-        _buffer_mutex->unlock();
+        _task_mutex->unlock();
     }
 
-    /*
-    void priority_task_push_back(String task_name, Callable task) {
-        if (TASK_NAMES[0]->has(task_name)) {
+    bool task_exists(String task_name) {
+        _name_mutex->lock();
+        bool exists = TASK_NAMES[0]->has(task_name) || TASK_NAMES[1]->has(task_name);
+        _name_mutex->unlock();
 
-        }
+        return exists;
     }
-    */
 
     void erase_all_tasks() {
         for (int i = 0; i < TASK_BUFFERS.size(); ++i) {
@@ -69,8 +83,11 @@ struct TaskBufferManager {
     TaskBufferManager() {
         TASK_BUFFERS[0] = std::make_unique<CircularBuffer<Callable>>(32);
         TASK_BUFFERS[1] = std::make_unique<CircularBuffer<Callable>>(32);
+        TASK_NAMES[0] = std::make_unique<Vector<String>>();
+        TASK_NAMES[1] = std::make_unique<Vector<String>>();
 
-        _buffer_mutex.instantiate();
+        _task_mutex.instantiate();
+        _name_mutex.instantiate();
     }
 };
 

@@ -144,8 +144,10 @@ void TerrainGenerator::_process(double delta) {
 			_mutex->unlock();
 
 			if (_chunks.has(chunk_position) && 
+				!task_exists &&
 				!_chunks[chunk_position]->get_flag(Chunk::FLAG::DELETE) &&
 				!_chunks[chunk_position]->get_flag(Chunk::FLAG::UPDATE) &&
+				!task_buffer_manager.task_exists(task_name) &&
 				std::abs(distance - _chunks[chunk_position]->_get_chunk_LOD()) >= 1
 			) {
 				_chunks[chunk_position]->set_flag(Chunk::FLAG::UPDATE, true);
@@ -157,10 +159,15 @@ void TerrainGenerator::_process(double delta) {
 				_mutex->unlock();
 				continue;
 			}
+			// TODO FIRST THING TOMORROW:
+
 			// WE NEED TO CHECK IF THE MAIN THREAD TASK QUEUE HAS THE CHUNK AS A TASK, OTHERWISE, DUPLICATES GAURENTEED
 			// THATS WHY THERE ARE OVERLAPPING CHUNKS
+			// THE REASON WHY I ONLY SEE THEM NOW IS BECAUSE UPDATES ARE HEAVY AND CAUSE A LONG ENOUGH PAUSE WHERE THERE IS A GAP IN THE CHECK
+			// ALSO I DIDNT USE LODS BEFORE
 			if (task_exists ||
 				_chunks.has(chunk_position) ||
+				task_buffer_manager.task_exists(task_name) ||
 				distance > render_distance
 			) {
 				continue;
