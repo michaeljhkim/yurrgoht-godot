@@ -143,28 +143,22 @@ void TerrainGenerator::_process(double delta) {
 			bool task_exists = callable_queue.has(task_name);
 			_mutex->unlock();
 
+			// check if we should update the chunk if it exists
 			if (_chunks.has(chunk_position) && 
 				!task_exists &&
 				!_chunks[chunk_position]->get_flag(Chunk::FLAG::DELETE) &&
 				!_chunks[chunk_position]->get_flag(Chunk::FLAG::UPDATE) &&
-				!task_buffer_manager.task_exists(task_name) &&
 				std::abs(distance - _chunks[chunk_position]->_get_chunk_LOD()) >= 1
 			) {
 				_chunks[chunk_position]->set_flag(Chunk::FLAG::UPDATE, true);
-
-				print_line("UPDATE chunk: ", chunk_position);
-				
+				//print_line("UPDATE chunk: ", chunk_position);
 				_mutex->lock();
 				callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_update_chunk_mesh).bind(_chunks[chunk_position], distance));
 				_mutex->unlock();
 				continue;
 			}
-			// TODO FIRST THING TOMORROW:
 
-			// WE NEED TO CHECK IF THE MAIN THREAD TASK QUEUE HAS THE CHUNK AS A TASK, OTHERWISE, DUPLICATES GAURENTEED
-			// THATS WHY THERE ARE OVERLAPPING CHUNKS
-			// THE REASON WHY I ONLY SEE THEM NOW IS BECAUSE UPDATES ARE HEAVY AND CAUSE A LONG ENOUGH PAUSE WHERE THERE IS A GAP IN THE CHECK
-			// ALSO I DIDNT USE LODS BEFORE
+			// checks if chunk exists 
 			if (task_exists ||
 				_chunks.has(chunk_position) ||
 				task_buffer_manager.task_exists(task_name) ||
@@ -173,7 +167,7 @@ void TerrainGenerator::_process(double delta) {
 				continue;
 			}
 
-			print_line("ADD chunk: ", chunk_position);
+			//print_line("ADD chunk: ", chunk_position);
 
 			// direct callable instantiation
 			_mutex->lock();
@@ -297,42 +291,28 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 		float new_distance = player_chunk.distance_to(chunk.key);
 		String task_name = String(chunk.key);
 
-		// flag check - we do not want to tag the same chunk again, and we do not want to update a chunk marked for deletion 
-		if (!chunk.value->get_flag(Chunk::FLAG::DELETE)) {
-
-			if (new_distance > _delete_distance) {
-				// if an update chunk process is in the thread task queue, and is not at the front, we remove it
-				// first process in deletion to attempt to 'catch up' to the update task quicker
-				_mutex->lock();
-				if (callable_queue.has(task_name) && !callable_queue.is_front(task_name)) {
-					callable_queue.erase(task_name);
-				}
-				_mutex->unlock();
-
-				// we do not delete right now because it is possible that there is an update task occuring
-				// however, we can queue delete in the main thead task queue so that once update is finished, we can immediately delete 
-				chunk.value->set_flag(Chunk::FLAG::DELETE, true);
-				task_buffer_manager.tasks_push_back(String(chunk.key), callable_mp(this, &TerrainGenerator::_delete_chunk).bind(chunk.key));
-				
-				deleted_this_frame += 1;
-
-				// Limit the amount of deletions per frame to avoid lag spikes.
-				if (deleted_this_frame > max_deletions) {
-					_deleting = true;	// Continue deleting next frame.
-					return;
-				}
+		// flag check - we do not want to tag the same chunk again
+		if (!chunk.value->get_flag(Chunk::FLAG::DELETE) && new_distance > _delete_distance) {
+			// if an update chunk process is in the thread task queue, and is not at the front, we remove it
+			// first process in deletion to attempt to 'catch up' to the update task quicker
+			_mutex->lock();
+			if (callable_queue.has(task_name) && !callable_queue.is_front(task_name)) {
+				callable_queue.erase(task_name);
 			}
+			_mutex->unlock();
+
+			// we do not delete right now because it is possible that there is an update task occuring
+			// however, we can queue delete in the main thead task queue so that once update is finished, we can immediately delete 
+			chunk.value->set_flag(Chunk::FLAG::DELETE, true);
+			task_buffer_manager.tasks_push_back(String(chunk.key), callable_mp(this, &TerrainGenerator::_delete_chunk).bind(chunk.key));
 			
-			// ELSE IF: possible that chunk can be marked to be deleted, so we do not want to update
-			// if relative grid distance (aka LOD) is not the same, then update is needed
-			/*
-			else if (!chunk.value->get_flag(Chunk::FLAG::UPDATE) && std::abs(new_distance - chunk.value->_get_chunk_LOD()) >= 1) {
-				chunk.value->set_flag(Chunk::FLAG::UPDATE, true);
-				_mutex->lock();
-				callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_update_chunk_mesh).bind(chunk.value, new_distance));
-				_mutex->unlock();
+			deleted_this_frame += 1;
+
+			// Limit the amount of deletions per frame to avoid lag spikes.
+			if (deleted_this_frame > max_deletions) {
+				_deleting = true;	// Continue deleting next frame.
+				return;
 			}
-			*/
 		}
 	}
 

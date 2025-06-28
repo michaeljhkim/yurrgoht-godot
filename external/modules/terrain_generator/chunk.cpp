@@ -149,15 +149,14 @@ void Chunk::_generate_chunk_mesh() {
 	for (j = 0; j <= (subdivide_d + 1); j++) {
 		x = start_pos.x;
 		for (i = 0; i <= (subdivide_w + 1); i++) {
-			float u = i;
-			float v = j;
-			u /= subdivide_d;
-			v /= subdivide_w;
+			float u = i / subdivide_d;
+			float v = j / subdivide_w;
 
 			// Point orientation Y
 			Vertex vert;
 			float height = noise->get_noise_2d(-x, -z) * AMPLITUDE;
-			vert.vertex = Vector3(-x, height, -z) + center_offset;
+			//vert.vertex = Vector3(-x, height, -z) + center_offset;
+			vert.vertex = Vector3(-x, height, -z);
 
 			// UVs
 			vert.uv = Vector2(1.0 - u, 1.0 - v); /* 1.0 - uv to match orientation with Quad */
@@ -182,14 +181,14 @@ void Chunk::_generate_chunk_mesh() {
 			- but we -1.f here because the step size should be based on the original size
 			*/
 
-			x += size.x / (subdivide_w-1.f);
+			x += size.x / ((subdivide_w-1.f) - 1.f);
 			/*
 			x += (x==start_pos.x || x==start_pos.x+subdivide_w) ?
 				size.x / ((subdivide_w-1.f) * 2 - 1.f):
 				size.x / (subdivide_w-1.f);
 			*/
 		}
-		z += size.y / (subdivide_d-1.f);
+		z += size.y / ((subdivide_d-1.f) - 1.f);
 		/*
 		z += (z==start_pos.y || z==start_pos.y+subdivide_d) ?
 			size.y / ((subdivide_d-1.f) * 2 - 1.f):
