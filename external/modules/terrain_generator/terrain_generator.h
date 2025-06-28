@@ -46,7 +46,7 @@ class TerrainGenerator : public Node3D {
 	HashMap<Vector3, Ref<Chunk>> _chunks;
 
 	// lookup table for all LODs for all chunks
-	HashMap<String, int> _LOD_table;
+	HashMap<String, float> _LOD_table;
 
 protected:
 	AHashMap<StringName, Callable> _thread_task_queue;	// NOT USED, ONLY FOR TESTING CURRENTLY
@@ -59,10 +59,10 @@ protected:
 
 	// Only for the worker thread
 	void _thread_process();
-	void _instantiate_chunk(Vector3 chunk_position, int chunk_distance);
+	void _instantiate_chunk(Vector3 chunk_position, int chunk_lod);
 	void _add_chunk(Vector3 chunk_position, Ref<Chunk> chunk);
 
-	void _update_chunk_mesh(Ref<Chunk> chunk, int new_lod);
+	void _update_chunk_mesh(Ref<Chunk> chunk, int chunk_lod);
 	void _delete_chunk(Vector3 chunk_key);
 
 	static void _bind_methods();

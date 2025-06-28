@@ -1,12 +1,14 @@
 #include "chunk.h"
 #include "thirdparty/embree/kernels/bvh/bvh_statistics.h"
 
-Chunk::Chunk(RID scenario, Vector3 new_position, int _new_lod) {
+Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 	RS_instance_rid = RS::get_singleton()->instance_create();
 
 	RenderingServer::get_singleton()->instance_set_scenario(RS_instance_rid, scenario);
-	chunk_position = new_position;
-	chunk_LOD = _new_lod;
+	chunk_position = new_c_position;
+	//player_position = new_p_position;
+	//chunk_LOD = _new_lod;
+	chunk_LOD = new_lod;
 
 	p_arr.resize(Mesh::ARRAY_MAX);
 	noise.instantiate();
@@ -26,13 +28,12 @@ Chunk::Chunk(RID scenario, Vector3 new_position, int _new_lod) {
 	//material->set_depth_test();
 
 	RS::get_singleton()->instance_set_base(RS_instance_rid, mesh_rid);
-	RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
+	//RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 }
 
 Chunk::~Chunk() {
 	_clear_mesh_data();	// check if the clear is valid
-	noise.unref();
-	//RS::get_singleton()->mesh_clear(mesh_rid);
+	RS::get_singleton()->mesh_clear(mesh_rid);
 	
 	if (mesh_rid.is_valid())
 		RS::get_singleton()->free(mesh_rid);
@@ -40,6 +41,7 @@ Chunk::~Chunk() {
 	if (RS_instance_rid.is_valid())
 		RS::get_singleton()->free(RS_instance_rid);
 
+	noise.unref();
 	material.unref();
 }
 
@@ -49,13 +51,41 @@ void Chunk::_clear_mesh_data() {
 
 	vertex_array.clear();
 	index_array.clear();
-	//RS::get_singleton()->mesh_clear(mesh_rid);
 }
 
+void Chunk::_generate_lods(Vector2 size) {
+	float distance = player_position.distance_to(chunk_position);
+	//chunk_LOD = CLAMP(pow(2, distance-1),1,16);
+	chunk_LOD = distance;
+	return;
 
-/*
-- Figure out a way to make it so that I do not need to create a new temporary array to extract vertices/normals
-*/
+	float lod;
+
+	distance = player_position.distance_to(chunk_position + Vector3(1, 0, 0));
+	lod = CLAMP(pow(2, distance-1),1,16);
+	if (distance <= render_distance && lod < chunk_LOD) {
+		adjacent_LOD_steps[ADJACENT::LEFT_RIGHT] = size.x / (CHUNK_SIZE / lod);
+	}
+
+	distance = player_position.distance_to(chunk_position + Vector3(-1, 0, 0));
+	lod = CLAMP(pow(2, distance-1),1,16);
+	if (distance <= render_distance && lod < chunk_LOD) {
+		adjacent_LOD_steps[ADJACENT::LEFT_RIGHT] = size.x / (CHUNK_SIZE / lod);
+	}
+
+	distance = player_position.distance_to(chunk_position + Vector3(-1, 0, 0));
+	lod = CLAMP(pow(2, distance-1),1,16);
+	if (distance <= render_distance && lod < chunk_LOD) {
+		adjacent_LOD_steps[ADJACENT::UP_DOWN] = size.y / (CHUNK_SIZE / lod);
+	}
+
+	distance = player_position.distance_to(chunk_position + Vector3( 0, 0,-1));
+	lod = CLAMP(pow(2, distance-1),1,16);
+	if (distance <= render_distance && lod < chunk_LOD) {
+		adjacent_LOD_steps[ADJACENT::UP_DOWN] = size.y / (CHUNK_SIZE / lod);
+	}
+	
+}
 
 /*
 - MESH = {vertices, normals, uvs, tangents, indices}
@@ -98,15 +128,17 @@ void Chunk::_clear_mesh_data() {
 void Chunk::_generate_chunk_mesh() {
 
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	
-	int lod = CLAMP(pow(2, chunk_LOD-1), 1, 16);
+	//float lod = player_position.distance_to(chunk_position);
+	int lod = CLAMP(pow(2, chunk_LOD-1),1,16);
 	
 	int subdivide_w = (CHUNK_SIZE / lod) + 1;
 	int subdivide_d = (CHUNK_SIZE / lod) + 1;
 
 	int i, j, prevrow, thisrow, point;
-	float x, z;
+	float x = 0.f;
+	float z = 0.f;
 
-	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE;
+	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * (CHUNK_SIZE);
 	point = 0;
 
 	/* top + bottom */
@@ -149,9 +181,20 @@ void Chunk::_generate_chunk_mesh() {
 			- distance between this vertice and the next
 			- but we -1.f here because the step size should be based on the original size
 			*/
-			x += size.x / (subdivide_w - 1.f);	
+
+			x += size.x / (subdivide_w-1.f);
+			/*
+			x += (x==start_pos.x || x==start_pos.x+subdivide_w) ?
+				size.x / ((subdivide_w-1.f) * 2 - 1.f):
+				size.x / (subdivide_w-1.f);
+			*/
 		}
-		z += size.y / (subdivide_d - 1.f);
+		z += size.y / (subdivide_d-1.f);
+		/*
+		z += (z==start_pos.y || z==start_pos.y+subdivide_d) ?
+			size.y / ((subdivide_d-1.f) * 2 - 1.f):
+			size.y / (subdivide_d-1.f);
+		*/
 
 		prevrow = thisrow;
 		thisrow = point;
@@ -280,8 +323,8 @@ void Chunk::_draw_mesh() {
 	ERR_FAIL_COND(err != OK);	// makes sure the surface is valid
 
 	RS::get_singleton()->mesh_clear(mesh_rid);
-	//RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 	RS::get_singleton()->mesh_add_surface(mesh_rid, surface);
+	//RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 }
 
 

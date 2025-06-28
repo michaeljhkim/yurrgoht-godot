@@ -156,23 +156,23 @@ protected:
 	LocalVector<Vertex> vertex_array;
 	LocalVector<int> index_array;
 
-    Vector3 chunk_position = Vector3(0.f, 0.f, 0.f);  // default values
-    int chunk_LOD = 0;
+    Vector3 chunk_position = Vector3(0, 0, 0);
+    Vector3 player_position = Vector3(0, 0, 0);
+    int chunk_LOD = 1;
     
     // for storing neighboring lod chunks
     enum ADJACENT {
-        UP,
-        DOWN,
-        LEFT,
-        RIGHT
+        UP_DOWN,
+        LEFT_RIGHT
     };
-    bool adjacent_LODs[4] = {false};    // array only used to check if lod should be calculated
+    int adjacent_LOD_steps[4] = {0};    // array only used to check if lod should be calculated
 
-    std::atomic_bool CHUNK_FLAGS[1] = {false};
+    std::atomic_bool CHUNK_FLAGS[2] = {false};
 
 public:
     enum FLAG {
-        DELETE
+        DELETE,
+        UPDATE
     };
 
     void set_flag(FLAG flag, bool set_value) { CHUNK_FLAGS[flag].store(set_value, std::memory_order_acquire); }
@@ -181,13 +181,21 @@ public:
     void _set_chunk_LOD(int new_LOD) { chunk_LOD = new_LOD; }
     int _get_chunk_LOD() { return chunk_LOD; }
 
+    bool distance_check(Vector3 new_position) {
+        return player_position.distance_to(chunk_position) != new_position.distance_to(chunk_position);
+    }
+
     void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
     Vector3 _get_chunk_position() { return chunk_position; }
+
+    void _set_player_position(Vector3 new_position) { player_position = new_position; }
 
 
     // can probably remove this, but keeping for now
     //void _generate_chunk_collider();
     //RID _get_mesh_rid() { return mesh_rid; }
+
+    void _generate_lods(Vector2 size);
 
     void _generate_chunk_mesh();
     void _draw_mesh();
@@ -197,6 +205,7 @@ public:
     void _generate_chunk_tangents();
 
 
+	static constexpr float render_distance = 4;
     static constexpr float CHUNK_SIZE = 128;    // chunk_size of 64 is pretty fast - 128 and above for testing
     static constexpr float AMPLITUDE = 16.0f;
 
@@ -206,7 +215,8 @@ public:
     static constexpr float TEXTURE_TILE_SIZE = 1.0 / TEXTURE_SHEET_WIDTH;
     
     // scenario input is the return value of 'get_world_3d()->get_scenario()' from any node within the active main scene tree
-    Chunk(RID scenario, Vector3 new_position, int _new_lod = 0);
+    //Chunk(RID scenario, Vector3 new_c_position, Vector3 new_p_position);
+    Chunk(RID scenario, Vector3 new_c_position, int new_lod);
     ~Chunk();
 
     void _clear_mesh_data();

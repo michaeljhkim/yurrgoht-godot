@@ -22,6 +22,8 @@
 struct TaskBufferManager {
     std::atomic_bool PROCESSING = false;
     std::array<std::unique_ptr<CircularBuffer<Callable>>, 2> TASK_BUFFERS;
+    //std::array<std::unique_ptr<LRUQueue<String, Callable>>, 2> TASK_BUFFERS;
+    //std::array<std::unique_ptr<Vector<String>>, 2> TASK_NAMES;
 	Ref<CoreBind::Mutex> _buffer_mutex;
     
     const int MAX_BUFFER_SIZE = 100;
@@ -32,7 +34,6 @@ struct TaskBufferManager {
             for (; !TASK_BUFFERS[0]->empty(); TASK_BUFFERS[0]->pop_front()) {
                 TASK_BUFFERS[0]->front().call();
             }
-
             PROCESSING.store(false, std::memory_order_acquire);
         }
     }
@@ -40,21 +41,24 @@ struct TaskBufferManager {
     /*
     - multiple tasks might be being pushed back at a time, so mutexes are needed
     */
-    void tasks_push_back(Callable task) {
-		_buffer_mutex->lock();
+    void tasks_push_back(String task_name, Callable task) {
+        _buffer_mutex->lock();
         TASK_BUFFERS[1]->push_back(task);
-        bool size_check = TASK_BUFFERS[0]->size() < TASK_BUFFERS[1]->size();
-		_buffer_mutex->unlock();
 
-        if (!PROCESSING.load() && size_check) {
+        if (!PROCESSING.load() && TASK_BUFFERS[0]->empty() && !TASK_BUFFERS[1]->empty()) {
             TASK_BUFFERS[0].swap(TASK_BUFFERS[1]);      // buffers being pointers makes efficient/clean swapping possible
             PROCESSING.store(true, std::memory_order_acquire);
         }
+        _buffer_mutex->unlock();
     }
 
-    void priority_task_push_back(Callable task) {
-        
+    /*
+    void priority_task_push_back(String task_name, Callable task) {
+        if (TASK_NAMES[0]->has(task_name)) {
+
+        }
     }
+    */
 
     void erase_all_tasks() {
         for (int i = 0; i < TASK_BUFFERS.size(); ++i) {
