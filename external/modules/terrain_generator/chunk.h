@@ -44,53 +44,26 @@ protected:
 		// ----------------------------------------------------------------
 		uint32_t smooth_group = 0; // Must be first.
 
-		Color color;
 		Vector3 normal; // normal, binormal, tangent.
 		Vector3 binormal;
 		Vector3 tangent;
 		Vector2 uv;
 		Vector2 uv2;
-		Color custom[RS::ARRAY_CUSTOM_COUNT];
 
 		Vector3 vertex; // Must be last.
 		// ----------------------------------------------------------------
 
-		Vector<int> bones;
-		Vector<float> weights;
-
+        // return only if none of the conditions are true
 		bool operator==(const Vertex &p_vertex) const {
-            if ((vertex != p_vertex.vertex) ||
-                (uv != p_vertex.uv) ||
-                (uv2 != p_vertex.uv2) ||
-                (normal != p_vertex.normal) ||
-                (binormal != p_vertex.binormal) ||
-                (tangent != p_vertex.tangent) ||
-                (color != p_vertex.color) ||
-                (bones.size() != p_vertex.bones.size()) 
-            ) {
-                return false;
-            }
-
-            for (int i = 0; i < bones.size(); i++) {
-                if (bones[i] != p_vertex.bones[i])
-                    return false;
-            }
-
-            for (int i = 0; i < weights.size(); i++) {
-                if (weights[i] != p_vertex.weights[i])
-                    return false;
-            }
-
-            for (int i = 0; i < RS::ARRAY_CUSTOM_COUNT; i++) {
-                if (custom[i] != p_vertex.custom[i])
-                    return false;
-            }
-
-            if (smooth_group != p_vertex.smooth_group) {
-                return false;
-            }
-
-            return true;
+            return (
+                (vertex == p_vertex.vertex) &&
+                (uv == p_vertex.uv) &&
+                (uv2 == p_vertex.uv2) &&
+                (normal == p_vertex.normal) &&
+                (binormal == p_vertex.binormal) &&
+                (tangent == p_vertex.tangent) &&
+                (smooth_group == p_vertex.smooth_group) 
+            );
         }
 
 		Vertex() {}
@@ -98,12 +71,9 @@ protected:
 
     struct VertexHasher {
 		static _FORCE_INLINE_ uint32_t hash(const Vertex &p_vtx) {
-            uint32_t h = hash_djb2_buffer((const uint8_t *)p_vtx.bones.ptr(), p_vtx.bones.size() * sizeof(int));
-            h = hash_djb2_buffer((const uint8_t *)p_vtx.weights.ptr(), p_vtx.weights.size() * sizeof(float), h);
-
             const int64_t length = (int64_t)&p_vtx.vertex - (int64_t)&p_vtx.smooth_group + sizeof(p_vtx.vertex);
             const void *key = &p_vtx.smooth_group;
-            h = hash_murmur3_buffer(key, length, h);
+            uint32_t h = hash_murmur3_buffer(key, length);
             return h;
         }
 	};
@@ -112,18 +82,10 @@ protected:
 		Vector3 vertex;
 		uint32_t smooth_group = 0;
 		bool operator==(const SmoothGroupVertex &p_vertex) const {
-            if (vertex != p_vertex.vertex) 
-                return false;
-            if (smooth_group != p_vertex.smooth_group) 
-                return false;
-                
-            return true;
+            return (vertex == p_vertex.vertex) && (smooth_group == p_vertex.smooth_group); 
         }
 
-		SmoothGroupVertex(const Vertex &p_vertex) {
-			vertex = p_vertex.vertex;
-			smooth_group = p_vertex.smooth_group;
-		}
+		SmoothGroupVertex(const Vertex &p_vertex) : vertex(p_vertex.vertex), smooth_group(p_vertex.smooth_group) {}
 	};
 
     struct SmoothGroupVertexHasher {
