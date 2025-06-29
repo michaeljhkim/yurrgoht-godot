@@ -48,7 +48,7 @@ protected:
 		Vector3 binormal;
 		Vector3 tangent;
 		Vector2 uv;
-		Vector2 uv2;
+		//Vector2 uv2;
 
 		Vector3 vertex; // Must be last.
 		// ----------------------------------------------------------------
@@ -58,11 +58,11 @@ protected:
             return (
                 (vertex == p_vertex.vertex) &&
                 (uv == p_vertex.uv) &&
-                (uv2 == p_vertex.uv2) &&
+                //(uv2 == p_vertex.uv2) &&
                 (normal == p_vertex.normal) &&
                 (binormal == p_vertex.binormal) &&
                 (tangent == p_vertex.tangent) &&
-                (smooth_group == p_vertex.smooth_group) 
+                (smooth_group == p_vertex.smooth_group)
             );
         }
 

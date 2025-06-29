@@ -145,18 +145,18 @@ void Chunk::_generate_chunk_mesh() {
 	for (j = 0; j <= (subdivide_d + 1); j++) {
 		x = start_pos.x;
 		for (i = 0; i <= (subdivide_w + 1); i++) {
-			float u = i / (subdivide_w - 1.0);
-			float v = j / (subdivide_d - 1.0);
-
 			// Point orientation Y
 			Vertex vert;
-			float height = noise->get_noise_2d(-x, -z) * AMPLITUDE;
-			vert.vertex = Vector3(-x, height, -z);
+			vert.vertex = Vector3(-x, noise->get_noise_2d(-x, -z)*AMPLITUDE, -z);
 
-			// UVs
-			vert.uv = Vector2(1.0 - u, 1.0 - v); 	/* 1.0 - uv to match orientation with Quad */
+			// UVs -> 	1.0 - uv to match orientation with Quad
+			vert.uv = Vector2(
+				1.0 - (i / (subdivide_w - 1.0)), 
+				1.0 - (j / (subdivide_d - 1.0))
+			);
 
-			vertex_array.push_back(vert);	// done adding required values, add to array
+			// done adding required values, add to array
+			vertex_array.push_back(vert);	
 
 			point++;
 			if (i > 0 && j > 0) {
@@ -251,7 +251,7 @@ void Chunk::_generate_chunk_mesh() {
 	PackedFloat32Array sub_tangent_array;
 	Vector<int> sub_index_array;
 
-	// resize Vectors because the size for each Vector is known
+	// Resize Vectors -> size for each Vector is known
 	sub_vertex_array.resize(vertex_array.size());
 	sub_normal_array.resize(vertex_array.size());
 	sub_uv_array.resize(vertex_array.size());
@@ -261,7 +261,7 @@ void Chunk::_generate_chunk_mesh() {
 	// Tangents are a little special, they have a 4th value called handedness -> determines visibility direction
 	float *w = sub_tangent_array.ptrw();
 
-	// vertices, normals, uvs, tangents unpack
+	// Unpack -> vertices, normals, uvs, tangents
 	for (int idx = 0; idx < vertex_array.size(); idx++) {
 		const Vertex &v = vertex_array[idx];
 		sub_vertex_array.set(idx, v.vertex);
@@ -276,7 +276,7 @@ void Chunk::_generate_chunk_mesh() {
 		w[idx * 4 + 3] = d < 0 ? -1 : 1;
 	}
 
-	// indices unpack
+	// Unpack -> indices 
 	for (int idx = 0; idx < index_array.size(); idx++) {
 		sub_index_array.set(idx, index_array[idx]);
 	}
@@ -287,12 +287,14 @@ void Chunk::_generate_chunk_mesh() {
 	p_arr[RS::ARRAY_TEX_UV] = sub_uv_array;
 	p_arr[RS::ARRAY_INDEX] = sub_index_array;
 
-	// draw mesh
+	// Draw mesh
 	_draw_mesh();
 }
 
 // seperated for future flexibility
 void Chunk::_draw_mesh() {
+	
+	// surface_data -> class member
 	Error err = RS::get_singleton()->mesh_create_surface_data_from_arrays(
 		&surface_data,
 		(RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES,
@@ -346,30 +348,28 @@ void Chunk::_generate_chunk_normals(bool p_flip) {
 
 		Vector3 normal;
 		!p_flip ?
-			normal = Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal:
+			normal = Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal :
 			normal = Plane(v[2].vertex, v[1].vertex, v[0].vertex).normal;
 
 		// Add face normal to smooth vertex influence if vertex is member of a smoothing group
 		for (int i = 0; i < 3; i++) {
 			if (v[i].smooth_group != UINT32_MAX) {
 				Vector3 *lv = smooth_hash.getptr(v[i]);
-				if (!lv) {
+				if (!lv)
 					smooth_hash.insert_new(v[i], normal);
-				} else {
+				else
 					(*lv) += normal;
-				}
-			} else {
+			} else
 				v[i].normal = normal;
-			}
 		}
 	}
 
 	for (Vertex &vertex : vertex_array) {
 		if (vertex.smooth_group != UINT32_MAX) {
 			Vector3 *lv = smooth_hash.getptr(vertex);
-			!lv ?
-				vertex.normal = Vector3():
-				vertex.normal = lv->normalized(); 
+			lv ? 
+				vertex.normal = lv->normalized() :
+				vertex.normal = Vector3(); 
 		}
 	}
 }
@@ -411,15 +411,13 @@ void Chunk::_generate_chunk_tangents() {
 int Chunk::mikktGetNumFaces(const SMikkTSpaceContext *pContext) {
 	TangentGenerationContextUserData &triangle_data = *reinterpret_cast<TangentGenerationContextUserData *>(pContext->m_pUserData);
 
-	if (triangle_data.indices->size() > 0) {
-		return triangle_data.indices->size() / 3;
-	} else {
-		return triangle_data.vertices->size() / 3;
-	}
+	return (triangle_data.indices->size() > 0) ?
+		triangle_data.indices->size() / 3 :
+		triangle_data.vertices->size() / 3;
 }
 
 int Chunk::mikktGetNumVerticesOfFace(const SMikkTSpaceContext *pContext, const int iFace) {
-	return 3; //always 3
+	return 3; 	// always 3
 }
 
 void Chunk::mikktGetPosition(const SMikkTSpaceContext *pContext, float fvPosOut[], const int iFace, const int iVert) {
@@ -494,72 +492,3 @@ void Chunk::mikktSetTSpaceDefault(const SMikkTSpaceContext *pContext, const floa
 
 void Chunk::_bind_methods() {
 }
-
-/*
-Old code for generate_chunk_mesh() - keeping here for reference
-*/
-/*
-    set_position(Vector3(chunk_position * CHUNK_SIZE));
-
-	noise.set_noise_type(FastNoiseLite::TYPE_SIMPLEX);
-	noise.set_frequency(0.008);
-	noise.set_fractal_type(FastNoiseLite::FRACTAL_PING_PONG);
-	noise.set_fractal_octaves(10);
-	noise.set_fractal_gain(0.27);
-	noise.set_fractal_ping_pong_strength(0.86);
-	noise.set_cellular_distance_function(FastNoiseLite::DISTANCE_EUCLIDEAN_SQUARED);
-
-	Ref<PlaneMesh> plane_mesh;
-	plane_mesh.instantiate();
-	plane_mesh->set_size(Vector2(CHUNK_SIZE, CHUNK_SIZE));
-	plane_mesh->set_subdivide_width(CHUNK_SIZE);
-	plane_mesh->set_subdivide_depth(CHUNK_SIZE);
-	set_mesh(plane_mesh);
-
-	//noise.set_offset(get_global_position());
-	noise.set_offset(get_position());
-
-	Ref<SurfaceTool> surface_tool;
-	surface_tool.instantiate();
-	surface_tool->clear();
-	surface_tool->create_from(get_mesh(), 0);
-
-	Ref<ArrayMesh> array_mesh;
-	array_mesh.instantiate();
-	array_mesh = surface_tool->commit();
-
-	Ref<MeshDataTool> data_tool;
-	data_tool.instantiate();
-	data_tool->clear();
-	data_tool->create_from_surface(array_mesh, 0);
-
-	float vertex_count = data_tool->get_vertex_count();
-
-	// due to how godots arrays work, the modified vertex must be applied in this manner
-	for (int i = 0; i < vertex_count; i++) {
-		Vector3 vertex = data_tool->get_vertex(i);
-		//vertex.y = noise.get_noise_3d(vertex.x, vertex.y, vertex.z) * AMPLITUDE;
-		float value = noise.get_noise_3d(vertex.x, vertex.y, vertex.z);
-		vertex.y =  value * AMPLITUDE;
-		data_tool->set_vertex(i, vertex);
-	}
-	array_mesh->clear_surfaces();
-	data_tool->commit_to_surface(array_mesh);
-
-	surface_tool->clear();
-	surface_tool->begin(Mesh::PRIMITIVE_TRIANGLES);
-	surface_tool->create_from(array_mesh, 0);
-	surface_tool->generate_normals();
-
-	// Set the material to the mesh
-	set_mesh(surface_tool->commit());
-	
-	//print_line("success");
-
-	plane_mesh.unref();
-	surface_tool.unref();
-	data_tool.unref();
-	array_mesh.unref();
-
-	return;
-*/
