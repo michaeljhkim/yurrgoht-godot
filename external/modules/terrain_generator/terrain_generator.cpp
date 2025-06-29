@@ -18,8 +18,10 @@ TerrainGenerator::TerrainGenerator() {
 
 	// reserve now instead of later
 	callable_queue.set_capacity(64);
-	//reuse_pool.set_capacity(64);
 	reuse_pool.resize(6);
+
+	// maximum number of chunks -> gaurentees that infinite chunks are not being instantiated
+	MAX_CHUNKS_NUM = pow((render_distance*2)+1, 2);
 }
 
 // destructor - make sure to clean up anything that the main scene tree might not
@@ -160,14 +162,13 @@ void TerrainGenerator::_process(double delta) {
 				std::abs(distance - _chunks[chunk_position]->_get_chunk_LOD()) >= 1
 			) {
 				_chunks[chunk_position]->set_flag(Chunk::FLAG::UPDATE, true);
-				//print_line("UPDATE chunk: ", chunk_position);
 				_task_mutex->lock();
 				callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_update_chunk_mesh).bind(_chunks[chunk_position], distance));
 				_task_mutex->unlock();
 				continue;
 			}
 
-			// checks if chunk exists 
+			// checks if chunk exists anywhere
 			if (task_exists ||
 				_chunks.has(chunk_position) ||
 				task_buffer_manager.task_exists(task_name) ||
@@ -175,7 +176,6 @@ void TerrainGenerator::_process(double delta) {
 			) {
 				continue;
 			}
-			//print_line("ADD chunk: ", chunk_position);
 
 			// direct callable instantiation
 			_task_mutex->lock();
@@ -258,48 +258,60 @@ void TerrainGenerator::_instantiate_chunk(Vector3 chunk_position, int chunk_lod)
 	bool data_check = reuse_pool.data_left() > 0;
 	_reuse_mutex->unlock();
 
-	if (data_check) {		// there is a chunk we can reuse, so use that instead
+	// check if the reuse pool has chunks we can recycle
+	if (data_check) {
 		_reuse_mutex->lock();
 		chunk = reuse_pool.read();
-		if (reuse_pool.data_left() <= 0) reuse_pool.clear();
 		_reuse_mutex->unlock();
 
-		print_line("WE ARE RECYCLING");
-		chunk->_reset_chunk_data();		// we reset just in case it didnt take the first time for some reason
+		// reset data again -> in case it didnt take the first time
+		chunk->_reset_chunk_data();
 
 		chunk->_set_chunk_position(chunk_position);
 		chunk->_set_chunk_LOD(chunk_lod);
 	}
-	else {
-		//pow(render_distance+2, 2)
+	else if (chunk_count < MAX_CHUNKS_NUM) {
+		++chunk_count;
 		chunk.instantiate(world_scenario, chunk_position, chunk_lod);		// this is the only other time world_scenario is used, so it's thread safe
 	}
+	else return;		// neither generation conditions activated -> exit function (does not normally activate, but added for safety gaurentees)
+		
 	chunk->_generate_chunk_mesh();
-
 	task_buffer_manager.tasks_push_back(String(chunk_position), callable_mp(this, &TerrainGenerator::_add_chunk).bind(chunk_position, chunk));
 }
 
+/*
+* add chunk reference to master chunk list
+*/
 void TerrainGenerator::_add_chunk(Vector3 chunk_position, Ref<Chunk> chunk) {
 	_chunks[chunk_position] = chunk;
 }
 
+/*
+* add chunk reference to master chunk list
+*/
 void TerrainGenerator::_update_chunk_mesh(Ref<Chunk> chunk, int chunk_lod) {
-	chunk->_clear_chunk_data();		// reset chunk mesh before anything else
+	// reset chunk mesh before anything else
+	chunk->_clear_chunk_data();
+
 	chunk->_set_chunk_LOD(chunk_lod);
 	chunk->_generate_chunk_mesh();
-
-	chunk->set_flag(Chunk::FLAG::UPDATE, false);
+	chunk->set_flag(Chunk::FLAG::UPDATE, false);	// done updating
 }
 
-// called on main thread
+/*
+- reset chunk data to remove rendered instance
+- if there is space left in reuse_pool, add chunk for reuse, and replace with empty Ref in master chunk list
+- erase from master chunk list -> calls for class destructors, which is why empty Ref is set if chunk can be reused
+*/
 void TerrainGenerator::_delete_chunk(Vector3 chunk_key) {
-	_chunks[chunk_key]->_reset_chunk_data();
+	_chunks[chunk_key]->_reset_chunk_data();	// deletes mesh from rendering -> done first due to render thread priorities
 
-	// add to reuse_pool if we have space, otherwise delete
 	_reuse_mutex->lock();
 	bool space_check = reuse_pool.space_left() > 0;
 	_reuse_mutex->unlock();
 
+	// add to reuse_pool if there is space left, otherwise delete
 	if (space_check) {
 		_reuse_mutex->lock();
 		reuse_pool.write(_chunks[chunk_key]);
@@ -319,7 +331,7 @@ void TerrainGenerator::_delete_chunk(Vector3 chunk_key) {
 void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	_old_player_chunk = player_chunk;
 	// If we need to delete chunks, give the new chunk system a chance to catch up.
-	effective_render_distance = std::max(1, effective_render_distance - 1);
+	effective_render_distance = std::max(1, effective_render_distance-1);
 
 	int deleted_this_frame = 0;
 	// We should delete old chunks more aggressively if moving fast.
@@ -338,7 +350,7 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 		String task_name = String(chunk.key);
 
 		// flag check - we do not want to tag the same chunk again
-		if (player_chunk.distance_to(chunk.key) > _delete_distance && !chunk.value->get_flag(Chunk::FLAG::DELETE)) {
+		if (player_chunk.distance_to(chunk.key) >= _delete_distance && !chunk.value->get_flag(Chunk::FLAG::DELETE)) {
 			// if an update chunk process is in the thread task queue, and is not at the front, we remove it
 			// first process in deletion to attempt to 'catch up' to the update task quicker
 			_task_mutex->lock();
@@ -347,8 +359,8 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 			}
 			_task_mutex->unlock();
 
-			// we do not delete right now because it is possible that there is an update task occuring
-			// however, we can queue delete in the main thead task queue so that once update is finished, we can immediately delete 
+			// we do not delete right now because chunk might be updating
+			// queue delete in main thead task queue so delete process can continue after update process 
 			chunk.value->set_flag(Chunk::FLAG::DELETE, true);
 			task_buffer_manager.tasks_push_back(String(chunk.key), callable_mp(this, &TerrainGenerator::_delete_chunk).bind(chunk.key));
 			

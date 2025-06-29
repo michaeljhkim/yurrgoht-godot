@@ -44,6 +44,9 @@ Chunk::~Chunk() {
 	material.unref();
 }
 
+/*
+clears bare minimum for re-generation
+*/
 void Chunk::_clear_chunk_data() {
 	p_arr.clear();
 	p_arr.resize(Mesh::ARRAY_MAX);
@@ -53,10 +56,11 @@ void Chunk::_clear_chunk_data() {
 
 	set_flag(FLAG::DELETE, false);
 	set_flag(FLAG::UPDATE, false);
-	// figure out a clean way to activate this
-	//RS::get_singleton()->mesh_clear(mesh_rid);
 }
 
+/*
+complete data wipe
+*/
 void Chunk::_reset_chunk_data() {
 	_clear_chunk_data();
 	_set_chunk_position(Vector3(0, 0, 0));

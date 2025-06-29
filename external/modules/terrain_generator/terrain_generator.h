@@ -17,17 +17,22 @@ class TerrainGenerator : public Node3D {
 	int count = 0;
 	int frames = 0;
 
+
 	// export these values - to be defined in editor
 	int seed_input;
 	std::chrono::_V2::system_clock::time_point start;
 	
 	RID world_scenario;
 	std::atomic_bool THREAD_RUNNING{true};
+	std::atomic<uint> CHUNKS_INSTANTIATED;
 
 	/*
-	- maximum possible number of chunks being rendered is ((render_distance + 2) * 2)^2
-	- e.g, ((4 + 2) * 2)^2 = 144 chunks possible (but is unlikely)
+	- maximum possible number of chunks being rendered is ((render_distance * 2) + 1) ^ 2
+	- e.g, ((4 * 2) + 1) ^ 2 = 81 chunks possible (but is unlikely)
 	*/
+	int MAX_CHUNKS_NUM;
+	int chunk_count = 0;
+
 	static const int render_distance = 4;
 	static constexpr int _delete_distance = render_distance + 2;
 	int effective_render_distance = 0;
@@ -58,6 +63,7 @@ protected:
 	// Only for the worker thread
 	void _thread_process();
 	void _instantiate_chunk(Vector3 chunk_position, int chunk_lod);
+	void _reuse_chunk(Vector3 chunk_position, int chunk_lod);
 	void _add_chunk(Vector3 chunk_position, Ref<Chunk> chunk);
 
 	void _update_chunk_mesh(Ref<Chunk> chunk, int chunk_lod);
