@@ -38,7 +38,8 @@ class TerrainGenerator : public Node3D {
 	bool _generating = true;
 	bool _deleting = false;
 
-	Ref<CoreBind::Mutex> _mutex;	// mutex for adding to task queue
+	Ref<CoreBind::Mutex> _task_mutex;	// mutex for adding to task queue
+	Ref<CoreBind::Mutex> _reuse_mutex;	// mutex for adding to task queue
 	Ref<CoreBind::Thread> _thread;		// worker thread - only need one worker thread currently
 
 	// the master list that contains a reference to each chunk
@@ -46,14 +47,11 @@ class TerrainGenerator : public Node3D {
 	HashMap<Vector3, Ref<Chunk>> _chunks;
 
 	// lookup table for all LODs for all chunks
-	HashMap<String, float> _LOD_table;
+	//HashMap<String, float> _LOD_table;
 
 protected:
-	AHashMap<StringName, Callable> _thread_task_queue;	// NOT USED, ONLY FOR TESTING CURRENTLY
-
-	// Using anything but AHashMap, makes it so that the chunks are loaded in order
-	// have NO idea why
 	LRUQueue<StringName, Callable> callable_queue;
+	RingBuffer<Ref<Chunk>> reuse_pool;
 	TaskBufferManager task_buffer_manager;
     std::atomic_bool QUEUE_EMPTY = true;
 

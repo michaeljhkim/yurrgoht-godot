@@ -31,7 +31,7 @@ Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 }
 
 Chunk::~Chunk() {
-	_clear_mesh_data();	// check if the clear is valid
+	_clear_chunk_data();	// check if the clear is valid
 	RS::get_singleton()->mesh_clear(mesh_rid);
 	
 	if (mesh_rid.is_valid())
@@ -44,13 +44,29 @@ Chunk::~Chunk() {
 	material.unref();
 }
 
-void Chunk::_clear_mesh_data() {
+void Chunk::_clear_chunk_data() {
 	p_arr.clear();
 	p_arr.resize(Mesh::ARRAY_MAX);
 
-	vertex_array.clear();
-	index_array.clear();
+	vertex_array.reset();
+	index_array.reset();
+
+	set_flag(FLAG::DELETE, false);
+	set_flag(FLAG::UPDATE, false);
+	// figure out a clean way to activate this
+	//RS::get_singleton()->mesh_clear(mesh_rid);
 }
+
+void Chunk::_reset_chunk_data() {
+	_clear_chunk_data();
+	_set_chunk_position(Vector3(0, 0, 0));
+	
+	RS::get_singleton()->mesh_clear(mesh_rid);
+}
+
+
+
+
 
 
 /*
@@ -90,6 +106,10 @@ void Chunk::_clear_mesh_data() {
 - These 2 issues made optimization very difficult, so I had to scrap it
 - Luckily, adding meshes directly to the RenderingServer was pretty easy
 - and that can be done on another thread, so even more chances for optimization
+*/
+
+/*
+I should consider generating the heightmap on GPU
 */
 void Chunk::_generate_chunk_mesh() {
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	// size should most likely be established elsewhere, but do not need to currently

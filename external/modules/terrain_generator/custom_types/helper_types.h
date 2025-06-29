@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/object/ref_counted.h"
-#include "circular_buffer.h"
+#include "core/templates/ring_buffer.h"
 #include <atomic>
 #include <deque>
 #include <array>
@@ -12,7 +12,7 @@
 
 
 /*
-- CircularBuffers were used because I wanted efficient, fixed sized queues
+- RingBuffer were used because I wanted efficient, fixed sized queues
 
 - buffer 0 will always be the buffer to be processed
 - if there is no proccessing going on, and buffer 0 has less tasks than buffer 1, we swap buffers, and raise the processing flag
@@ -21,8 +21,7 @@
 */
 struct TaskBufferManager {
     std::atomic_bool PROCESSING = false;
-    std::array<std::unique_ptr<CircularBuffer<Callable>>, 2> TASK_BUFFERS;
-    //std::array<std::unique_ptr<LRUQueue<String, Callable>>, 2> TASK_BUFFERS;
+    std::array<std::unique_ptr<RingBuffer<Callable>>, 2> TASK_BUFFERS;
     std::array<std::unique_ptr<LocalVector<String>>, 2> TASK_NAMES;
 	Ref<CoreBind::Mutex> _task_mutex;
 	Ref<CoreBind::Mutex> _name_mutex;
@@ -32,12 +31,15 @@ struct TaskBufferManager {
     // mostly for keeping the cpp code clean
     void main_thread_process() {
         if (PROCESSING.load()) {
-            for (; !TASK_BUFFERS[0]->empty(); TASK_BUFFERS[0]->pop_front()) {
-                TASK_BUFFERS[0]->front().call();
+            while (TASK_BUFFERS[0]->data_left() > 0) {
+                TASK_BUFFERS[0]->read().call();
             }
+            TASK_BUFFERS[0]->clear();
+
             _name_mutex->lock();
             TASK_NAMES[0]->clear();
             _name_mutex->unlock();
+
             PROCESSING.store(false, std::memory_order_acquire);
         }
     }
@@ -52,9 +54,11 @@ struct TaskBufferManager {
         _name_mutex->unlock();
 
         _task_mutex->lock();
-        TASK_BUFFERS[1]->push_back(task);
+        if (TASK_BUFFERS[1]->space_left() > 0) {
+            TASK_BUFFERS[1]->write(task);
+        }
 
-        if (!PROCESSING.load() && TASK_BUFFERS[0]->empty() && !TASK_BUFFERS[1]->empty()) {
+        if (!PROCESSING.load() && (TASK_BUFFERS[0]->data_left() <= 0) && (TASK_BUFFERS[1]->data_left() > 0)) {
             TASK_BUFFERS[0].swap(TASK_BUFFERS[1]);      // buffers being pointers makes efficient/clean swapping possible
             
             _name_mutex->lock();
@@ -82,7 +86,7 @@ struct TaskBufferManager {
 
     TaskBufferManager() {
         for (int i = 0; i < 2; ++i) {
-            TASK_BUFFERS[i] = std::make_unique<CircularBuffer<Callable>>(64);
+            TASK_BUFFERS[i] = std::make_unique<RingBuffer<Callable>>(6);    // 2**6 = 64 
             TASK_NAMES[i] = std::make_unique<LocalVector<String>>();
             TASK_NAMES[i]->reserve(64);
         }

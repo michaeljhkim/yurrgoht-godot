@@ -78,3 +78,11 @@ PRIORITY:
 	-> it can just be re-assigned new chunk values
 	-> the key value in the master list changed
 	-> then the mesh would be regenerated 
+
+- OH I can create a 'recycling bin', where it just stores the chunk Refs ready for recycling
+- it would have to be Refs since they wouldve been removed from the master list
+- at the chunk intialization, I can check if the recycling bin is not empty, then just update the mesh
+- less memory allocations and de-allocations
+
+- I should also consider breaking up chunks recursively. So if a chunk has like a large amount of vertices, I break it up into quarters
+- and if that quarter is too large, I break it up again

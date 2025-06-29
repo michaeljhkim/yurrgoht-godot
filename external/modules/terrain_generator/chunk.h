@@ -215,5 +215,6 @@ public:
     Chunk(RID scenario, Vector3 new_c_position, int new_lod);
     ~Chunk();
 
-    void _clear_mesh_data();
+    void _clear_chunk_data();
+    void _reset_chunk_data();
 };
