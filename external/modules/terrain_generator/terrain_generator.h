@@ -14,9 +14,9 @@
 class TerrainGenerator : public Node3D {
 	GDCLASS(TerrainGenerator, Node3D);
 	
+	// DEBUG VALUES
 	int count = 0;
 	int frames = 0;
-
 
 	// export these values - to be defined in editor
 	int seed_input;
@@ -26,10 +26,7 @@ class TerrainGenerator : public Node3D {
 	std::atomic_bool THREAD_RUNNING{true};
 	std::atomic<uint> CHUNKS_INSTANTIATED;
 
-	/*
-	- maximum possible number of chunks being rendered is ((render_distance * 2) + 1) ^ 2
-	- e.g, ((4 * 2) + 1) ^ 2 = 81 chunks possible (but is unlikely)
-	*/
+	// maximum number of chunks -> gaurentees that infinite chunks are not being instantiated
 	int MAX_CHUNKS_NUM;
 	int chunk_count = 0;
 
@@ -43,27 +40,24 @@ class TerrainGenerator : public Node3D {
 	bool _generating = true;
 	bool _deleting = false;
 
-	Ref<CoreBind::Mutex> _task_mutex;	// mutex for adding to task queue
-	Ref<CoreBind::Mutex> _reuse_mutex;	// mutex for adding to task queue
-	Ref<CoreBind::Thread> _thread;		// worker thread - only need one worker thread currently
+	Ref<CoreBind::Mutex> _task_mutex;	// mutex for task queue
+	Ref<CoreBind::Mutex> _reuse_mutex;	// mutex for reuse buffer
+	Ref<CoreBind::Thread> _thread;		// worker thread
 
 	// the master list that contains a reference to each chunk
 	// allows for value deletion while iterating
 	HashMap<Vector3, Ref<Chunk>> _chunks;
 
-	// lookup table for all LODs for all chunks
-	//HashMap<String, float> _LOD_table;
-
 protected:
-	LRUQueue<StringName, Callable> callable_queue;
+	LRUQueue<String, Callable> callable_queue;		// would normally be a regular queue, or ring buffer, but existance checks are required
+    std::atomic_bool QUEUE_EMPTY = true;
+
 	RingBuffer<Ref<Chunk>> reuse_pool;
 	TaskBufferManager task_buffer_manager;
-    std::atomic_bool QUEUE_EMPTY = true;
 
 	// Only for the worker thread
 	void _thread_process();
 	void _instantiate_chunk(Vector3 chunk_position, int chunk_lod);
-	void _reuse_chunk(Vector3 chunk_position, int chunk_lod);
 	void _add_chunk(Vector3 chunk_position, Ref<Chunk> chunk);
 
 	void _update_chunk_mesh(Ref<Chunk> chunk, int chunk_lod);

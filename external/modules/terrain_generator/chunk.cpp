@@ -59,12 +59,13 @@ void Chunk::_clear_chunk_data() {
 }
 
 /*
-complete data wipe
+complete data reset
 */
 void Chunk::_reset_chunk_data() {
 	_clear_chunk_data();
 	_set_chunk_position(Vector3(0, 0, 0));
 	
+	//RS::get_singleton()->call_on_render_thread(callable_mp(RS::get_singleton(), &RS::mesh_clear).bind(mesh_rid));
 	RS::get_singleton()->mesh_clear(mesh_rid);
 }
 
@@ -74,42 +75,33 @@ void Chunk::_reset_chunk_data() {
 
 
 /*
-- MESH = {vertices, normals, uvs, tangents, indices}
- 
-- This function is used to generate the mesh of the chunk
-- had to calculate MESH manually
-- then pushed directly to the rendering server
+MESH = {vertices, normals, uvs, tangents, indices}
+- Used to generate the mesh of a chunk
+- MESH was calculated manually and pushed directly to the RenderingServer
 
-- Why not use PlaneMesh with SurfaceTool?
-- becauase by default, only the normals within that mesh is calculated
-- this causes major issues with seaming, where there are texture and lighting inconsistencies
+Why not use PlaneMesh with SurfaceTool?
+    - Only calculates internal normals by default
+	- Causes seaming issues even between chunks with the same LOD (texture/lighting inconsistencies)
 
-- The way to solve this issue is to generate the MESH as if the chunk had one extra row/column of vertices on all 4 sides
-- then remove those extra MESH values.
-	-> e.g: chunk of size 4x4 
-	-> 1 row/column of vertices is added to each side, making it 6x6
-	-> the entire MESH is calculated as 6x6
-	-> afterwards, the extra vertices are removed, making it 4x4 again
-	-> boom, now the chunks connect as if there are no seams
+Solution:
+    Generate MESH with an extra row/column on all 4 sides
+	- e.g. for 4x4 chunk → generate 6x6 → then remove outer rows/columns
+    - fixes seams between chunks
 
-- However, SurfaceTool provides no internal function that would do anything remotely similar to this.
-- That is why all calculations had to be done manually - but significant portions of it was copied from PlaneMesh and SurfaceTool
-- mostly copied: 
-	PlaneMesh::_create_mesh_array(), 
-	SurfaceTool::index(), 
-	SurfaceTool::deindex(), 
-	SurfaceTool::generate_normals(),
-	SurfaceTool::generate_tangents()
-- a few structs also had to be copied.
+SurfaceTool doesn’t support this method internally
+	- All calculations done manually
+	- Reused most of:
+		-> PlaneMesh::_create_mesh_array()
+		-> SurfaceTool::index(), deindex(), generate_normals(), generate_tangents()
+    - a few structs
 
-- Now, the system did not need to push directly to the rendering server
-- The calculated array could have been added to an ArrayMesh, then added to a meshinstance3d
-- But there are 2 problems with that: unnesscary overhead, and no multi-threading is allowed
-- Once something becomes apart of the scene tree, it MUST only be modified on the main thread
+Why not use ArrayMesh + MeshInstance3D?
+    -> Adds too much overhead
+    -> No multi-threading once in the scene tree -> must run on main thread
 
-- These 2 issues made optimization very difficult, so I had to scrap it
-- Luckily, adding meshes directly to the RenderingServer was pretty easy
-- and that can be done on another thread, so even more chances for optimization
+- These issues made it too unoptimized -> had to scrap that path
+- Pushing directly to RenderingServer worked well
+- Can be done off the main thread -> more optimization possible
 */
 
 /*
@@ -121,6 +113,10 @@ void Chunk::_generate_chunk_mesh() {
 	//int lod = 1;
 	//int lod = CLAMP(pow(2, chunk_LOD-1), 1, 16);	// makes it so that lower LODS start 1 above the chunks surrounding the center square
 	int lod = CLAMP(pow(2, chunk_LOD), 1, 16);
+
+	noise->set_frequency(0.01 / 2);
+	noise->set_fractal_octaves(4 + (chunk_LOD / lod));
+	//noise->set_fractal_gain(0.5 / lod);
 
 	// number of vertices
 	int subdivide_w = (CHUNK_SIZE / lod) + 1.0;
@@ -175,19 +171,9 @@ void Chunk::_generate_chunk_mesh() {
 
 			// increment by step_size
 			x += step_size_x;
-			/*
-			x += (x==start_pos.x || x==start_pos.x+subdivide_w) ?
-				step_size_x :
-				step_size_x;
-			*/
 		}
 		// increment by step_size
 		z += step_size_z;
-		/*
-		z += (z==start_pos.y || z==start_pos.y+subdivide_d) ?
-			step_size_z :
-			step_size_z;
-		*/
 
 		prevrow = thisrow;
 		thisrow = point;
@@ -302,15 +288,13 @@ void Chunk::_generate_chunk_mesh() {
 	p_arr[RS::ARRAY_INDEX] = sub_index_array;
 
 	// draw mesh
-	//RS::get_singleton()->call_on_render_thread( callable_mp(this, &Chunk::_draw_mesh) );
 	_draw_mesh();
 }
 
 // seperated for future flexibility
 void Chunk::_draw_mesh() {
-	RS::SurfaceData surface;
 	Error err = RS::get_singleton()->mesh_create_surface_data_from_arrays(
-		&surface,
+		&surface_data,
 		(RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES,
 		p_arr, 
 		TypedArray<Array>(),	// empty
@@ -320,7 +304,7 @@ void Chunk::_draw_mesh() {
 	ERR_FAIL_COND(err != OK);	// makes sure the surface is valid
 
 	RS::get_singleton()->mesh_clear(mesh_rid);
-	RS::get_singleton()->mesh_add_surface(mesh_rid, surface);
+	RS::get_singleton()->mesh_add_surface(mesh_rid, surface_data);
 
 	// for some reason, issues arise when used in constructor, use here
 	// i think its caused by mesh_clear()

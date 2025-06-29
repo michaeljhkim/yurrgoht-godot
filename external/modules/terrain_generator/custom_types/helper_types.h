@@ -12,12 +12,13 @@
 
 
 /*
-- RingBuffer were used because I wanted efficient, fixed sized queues
+- RingBuffer is used because efficient fixed-sized queues are needed
 
-- buffer 0 will always be the buffer to be processed
-- if there is no proccessing going on, and buffer 0 has less tasks than buffer 1, we swap buffers, and raise the processing flag
+- buffer 0 -> process buffer
+- buffer 1 -> storage buffer 
+- if no proccessing is occurring, swap buffer data, and raise processing flag
 
-- in the future, I might consider using more buffers, but for now, 2 is fine
+- in the future, consider using more buffers, but 2 is fine for now
 */
 struct TaskBufferManager {
     std::atomic_bool PROCESSING = false;
@@ -28,13 +29,12 @@ struct TaskBufferManager {
     
     const int MAX_BUFFER_SIZE = 100;
 
-    // mostly for keeping the cpp code clean
+    // called on main thread
     void main_thread_process() {
         if (PROCESSING.load()) {
             while (TASK_BUFFERS[0]->data_left() > 0) {
                 TASK_BUFFERS[0]->read().call();
             }
-            TASK_BUFFERS[0]->clear();
 
             _name_mutex->lock();
             TASK_NAMES[0]->clear();
@@ -44,19 +44,16 @@ struct TaskBufferManager {
         }
     }
     
-    /*
-    - multiple tasks might be being pushed back at a time, so mutexes are needed
-    */
+    // called on main or worker threads
     void tasks_push_back(String task_name, Callable task) {
-        // Task name is added first so that it is available for existance checks ASAP
+        // Task name added first to prepare for existance checks ASAP
         _name_mutex->lock();
         TASK_NAMES[1]->push_back(task_name);
         _name_mutex->unlock();
 
         _task_mutex->lock();
-        if (TASK_BUFFERS[1]->space_left() > 0) {
+        if (TASK_BUFFERS[1]->space_left() > 0)
             TASK_BUFFERS[1]->write(task);
-        }
 
         if (!PROCESSING.load() && (TASK_BUFFERS[0]->data_left() <= 0) && (TASK_BUFFERS[1]->data_left() > 0)) {
             TASK_BUFFERS[0].swap(TASK_BUFFERS[1]);      // buffers being pointers makes efficient/clean swapping possible
@@ -78,12 +75,6 @@ struct TaskBufferManager {
         return exists;
     }
 
-    void erase_all_tasks() {
-        for (int i = 0; i < TASK_BUFFERS.size(); ++i) {
-            TASK_BUFFERS[i]->clear();
-        }
-    }
-
     TaskBufferManager() {
         for (int i = 0; i < 2; ++i) {
             TASK_BUFFERS[i] = std::make_unique<RingBuffer<Callable>>(6);    // 2**6 = 64 
@@ -93,6 +84,16 @@ struct TaskBufferManager {
 
         _task_mutex.instantiate();
         _name_mutex.instantiate();
+    }
+
+    ~TaskBufferManager() {
+        for (int i = 0; i < 2; ++i) {
+            TASK_BUFFERS[i]->clear();
+            TASK_NAMES[i]->clear();
+        }
+
+        _name_mutex.unref();
+        _task_mutex.unref();
     }
 };
 

@@ -4,6 +4,7 @@
 // I AM WILLING TO GO AS FAR AS POSSIBLE!!!!
 // https://docs.godotengine.org/en/stable/tutorials/performance/using_servers.html
 #include "servers/rendering_server.h"
+#include "servers/rendering/rendering_server_globals.h"
 
 #include "core/object/ref_counted.h"
 #include "core/variant/variant_utility.h"
@@ -158,6 +159,7 @@ protected:
 
 	LocalVector<Vertex> vertex_array;
 	LocalVector<int> index_array;
+	RS::SurfaceData surface_data;
 
     Vector3 chunk_position = Vector3(0, 0, 0);
     int chunk_LOD = 1;
@@ -204,7 +206,7 @@ public:
 
 	static constexpr float render_distance = 4;
     static constexpr float CHUNK_SIZE = 256;    // chunk_size of 64 is pretty fast - 128 and above for testing
-    static constexpr float AMPLITUDE = 16.0f;
+    static constexpr float AMPLITUDE = 32.0f;
 
     //currently not using these:
     static constexpr float TEXTURE_SHEET_WIDTH = 8;

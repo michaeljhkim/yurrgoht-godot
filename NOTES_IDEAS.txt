@@ -73,16 +73,9 @@ TODO LIST:
 
 
 PRIORITY: 
-- thinking about it now, deletion system can be replaced with a recycling system
-- if a chunk is marked for deletion:
-	-> it can just be re-assigned new chunk values
-	-> the key value in the master list changed
-	-> then the mesh would be regenerated 
-
-- OH I can create a 'recycling bin', where it just stores the chunk Refs ready for recycling
-- it would have to be Refs since they wouldve been removed from the master list
-- at the chunk intialization, I can check if the recycling bin is not empty, then just update the mesh
-- less memory allocations and de-allocations
-
-- I should also consider breaking up chunks recursively. So if a chunk has like a large amount of vertices, I break it up into quarters
+- I should consider breaking up chunks recursively. So if a chunk has like a large amount of vertices, I break it up into quarters
 - and if that quarter is too large, I break it up again
+
+- Each chunk can stand to benefit from a LOD vertices,indices,e.t.c cache
+- it could be possible that a player moves back and forth within a range, so storing the vertices,indices,e.t.c would be useful
+- all that extra data would be removed in the total reset
