@@ -97,10 +97,14 @@ void TerrainGenerator::_process(double delta) {
 
 	// main thread process tasks - setup by worker thread
 	task_buffer_manager.main_thread_process();
+	// finished tasks, continue
 	
 	Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 	player_chunk.y = 0.f;
+	
+	// goes from PI to -PI
 	//player_character->get_global_rotation();	// reference for being able to render chunks according to the direction that the player is facing
+	//print_line("PLAYER VIEW DIRECTION: ", player_character->get_global_rotation());
 
 	if (_deleting || (player_chunk != _old_player_chunk)) {
 		_delete_far_away_chunks(player_chunk);
@@ -264,6 +268,7 @@ void TerrainGenerator::_instantiate_chunk(Vector3 chunk_position, int chunk_lod)
 
 /*
 * add chunk reference to master chunk list
+* done in main thread to avoid worker thread accessing master chunk list
 */
 void TerrainGenerator::_add_chunk(Vector3 chunk_position, Ref<Chunk> chunk) {
 	_chunks[chunk_position] = chunk;

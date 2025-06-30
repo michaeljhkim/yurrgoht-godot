@@ -127,14 +127,14 @@ void Chunk::_generate_chunk_mesh() {
 	int step_size_z = size.y / (subdivide_d - 1.0);
 
 	// exact amount of vertices and indices is known
-	vertex_array.reserve((subdivide_d + 2) * (subdivide_w + 2));
+	vertex_array.reserve((subdivide_d + 2) * (subdivide_w + 2) * 6);
 	index_array.reserve((subdivide_d + 1) * (subdivide_w + 1) * 6);
 
 	int i, j, prevrow, thisrow, point;
 	float x, z;
 
 	// subtract step size since we are calculating a chunk of size 1 larger on each side
-	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * (CHUNK_SIZE) - Vector2(step_size_x, step_size_z); 
+	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE - Vector2(step_size_x, step_size_z); 
 	
 	/* top + bottom */
 	z = start_pos.y;	
@@ -147,7 +147,8 @@ void Chunk::_generate_chunk_mesh() {
 		for (i = 0; i <= (subdivide_w + 1); i++) {
 			// Point orientation Y
 			Vertex vert;
-			vert.vertex = Vector3(-x, (noise->get_noise_2d(-x, -z)*AMPLITUDE), -z);
+			//vert.vertex = Vector3(-x, (noise->get_noise_2d(-x, -z)*AMPLITUDE), -z);
+			vert.vertex = Vector3(-x, 0, -z);
 
 			// UVs -> 	'1.0 - uv' to match orientation with Quad
 			vert.uv = Vector2(
@@ -156,7 +157,7 @@ void Chunk::_generate_chunk_mesh() {
 			);
 
 			// done adding required values, add to array
-			vertex_array.push_back(vert);	
+			vertex_array.push_back(vert);
 
 			point++;
 			if (i > 0 && j > 0) {
@@ -303,6 +304,7 @@ void Chunk::_draw_mesh() {
 
 	RS::get_singleton()->mesh_clear(mesh_rid);
 	RS::get_singleton()->mesh_add_surface(mesh_rid, surface_data);
+	print_line("TIME TEST", chunk_LOD);
 
 	// for some reason, issues arise when used in constructor, use here
 	// i think its caused by mesh_clear()
@@ -324,6 +326,8 @@ void Chunk::_generate_chunk_normals(bool p_flip) {
 	/*
 	  ---------- DE-INDEX START ----------
 	*/
+
+	// attempt was made to de-index on creation, but not possible through greedy algorithms
 	LocalVector<Vertex> old_vertex_array = vertex_array;
 	vertex_array.clear();
 	// There are 6 indices per vertex
@@ -332,11 +336,12 @@ void Chunk::_generate_chunk_normals(bool p_flip) {
 		vertex_array.push_back(old_vertex_array[index]);
 	}
 	index_array.clear();
+
 	/*
 	  ---------- DE-INDEX END ----------
 	*/
 
-	// Normal Calculations
+	// Normal Calculations -> Highly unlikely that a mesh will reach UINT32_MAX
 	AHashMap<SmoothGroupVertex, Vector3, SmoothGroupVertexHasher> smooth_hash = vertex_array.size();
 
 	for (uint32_t vi = 0; vi < vertex_array.size(); vi += 3) {
@@ -354,7 +359,8 @@ void Chunk::_generate_chunk_normals(bool p_flip) {
 					smooth_hash.insert_new(v[i], normal);
 				else
 					(*lv) += normal;
-			} else
+			} 
+			else 
 				v[i].normal = normal;
 		}
 	}

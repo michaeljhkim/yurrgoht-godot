@@ -60,22 +60,23 @@ NOISE RELATED:
 
 
 
-TODO LIST:
-- when instantiating a chunk, make sure to also give it the distance from the player
-- this distance determines LOD
-- at the same time, make sure to check if the chunk has neighbours (just check if any +1 chunk exists on top, bottom, left, or right)
-- if chunk does find neighbours, get the LOD of each neighbour
-- the chunk will adapt from either lower mesh count to higher mesh count, or higher mesh count to lower
-- the actual generation should be easy enough, the only part of the code that would require changing would be vertices
-
-- now I need to figure out how to connect the seams properly
-- either skirts or real vertice connections
-
-
-PRIORITY: 
+IDEAS: 
 - I should consider breaking up chunks recursively. So if a chunk has like a large amount of vertices, I break it up into quarters
 - and if that quarter is too large, I break it up again
 
 - Each chunk can stand to benefit from a LOD vertices,indices,e.t.c cache
 - it could be possible that a player moves back and forth within a range, so storing the vertices,indices,e.t.c would be useful
 - all that extra data would be removed in the total reset
+
+
+- GPU generation might be viable for calculations that might happen in the future
+- calculating all other possible LODs for a given chunk
+- 
+
+
+TODO LIST:
+- Connect chunk LODS -> either skirts or real vertice connections
+- figure out chunk instantiaition according to player view direction
+- LOD cache for chunks
+
+- 
