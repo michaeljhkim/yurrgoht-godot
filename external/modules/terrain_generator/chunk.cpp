@@ -9,7 +9,7 @@ Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 
 	RenderingServer::get_singleton()->instance_set_scenario(RS_instance_rid, scenario);
 	chunk_position = new_c_position;
-	chunk_LOD = new_lod;
+	chunk_LOD = MAX(new_lod, 1.0);
 
 	p_arr.resize(Mesh::ARRAY_MAX);
 	noise.instantiate();
@@ -105,21 +105,22 @@ Why not use ArrayMesh + MeshInstance3D?
 */
 
 /*
-I should consider generating the heightmap on GPU
+- the lower the chunk detail (higher lod), the higher the octaves
+- creates the illusion that vertex count remains continuous
 */
 void Chunk::_generate_chunk_mesh() {
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	// size should most likely be established elsewhere, but do not need to currently
 
-	//int lod = 1;
-	//int lod = CLAMP(pow(2, chunk_LOD-1), 1, 16);	// makes it so that lower LODS start 1 above the chunks surrounding the center square
-	int lod = CLAMP(pow(2, chunk_LOD), 1, 16);
+	//float lod = MAX(pow(2, chunk_LOD-1), 1.f);
+	float lod = pow(2, chunk_LOD);
+	//float octave_total = 2.0 + (1.0 - (1.0 / lod));		// Partial Sum Formula (Geometric Series)
 
-	noise->set_frequency(0.01 / 2);
-	noise->set_fractal_octaves(4 + (chunk_LOD / lod));
+	noise->set_frequency(0.01 / 4.0);
+	noise->set_fractal_octaves(2.0);	// high octaves not reccomended, makes LOD seams much more noticeable
 
-	// number of vertices
-	int subdivide_w = (CHUNK_SIZE / lod) + 1.0;
-	int subdivide_d = (CHUNK_SIZE / lod) + 1.0;
+	// number of vertices (subdivide_w * subdivide_d)
+	int subdivide_w = ((CHUNK_SIZE * CHUNK_RESOLUTION) / lod) + 1.0;
+	int subdivide_d = ((CHUNK_SIZE * CHUNK_RESOLUTION) / lod) + 1.0;
 
 	// distance between vertices
 	int step_size_x = size.x / (subdivide_w - 1.0);
@@ -133,12 +134,12 @@ void Chunk::_generate_chunk_mesh() {
 	float x, z;
 
 	// subtract step size since we are calculating a chunk of size 1 larger on each side
-	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * (CHUNK_SIZE) - Vector2(step_size_x, step_size_z); 	
-	point = 0;
-
+	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * (CHUNK_SIZE) - Vector2(step_size_x, step_size_z); 
+	
 	/* top + bottom */
-	z = start_pos.y;
-	thisrow = point;
+	z = start_pos.y;	
+	point = 0;
+	thisrow = 0;
 	prevrow = 0;
 
 	for (j = 0; j <= (subdivide_d + 1); j++) {
@@ -146,11 +147,11 @@ void Chunk::_generate_chunk_mesh() {
 		for (i = 0; i <= (subdivide_w + 1); i++) {
 			// Point orientation Y
 			Vertex vert;
-			vert.vertex = Vector3(-x, noise->get_noise_2d(-x, -z)*AMPLITUDE, -z);
+			vert.vertex = Vector3(-x, (noise->get_noise_2d(-x, -z)*AMPLITUDE), -z);
 
-			// UVs -> 	1.0 - uv to match orientation with Quad
+			// UVs -> 	'1.0 - uv' to match orientation with Quad
 			vert.uv = Vector2(
-				1.0 - (i / (subdivide_w - 1.0)), 
+				1.0 - (i / (subdivide_w - 1.0)),
 				1.0 - (j / (subdivide_d - 1.0))
 			);
 
@@ -168,10 +169,8 @@ void Chunk::_generate_chunk_mesh() {
 				index_array.push_back(thisrow + i - 1);
 			}
 
-			// increment by step_size
 			x += step_size_x;
 		}
-		// increment by step_size
 		z += step_size_z;
 
 		prevrow = thisrow;
@@ -188,13 +187,15 @@ void Chunk::_generate_chunk_mesh() {
 	*
 	* start_vertex = (0,0)
 	* last_vertex = (3,3)
-	* any vertice that has a x/z value of either 0 or 3, will be removed:
+	* any vertice that has a x/z value of either 0 or 3, will be removed, resulting in:
 	*
-	* (1,1) (1,2)
-	* (2,1) (2,2)
+	*
+	* 		(1,1) (1,2)
+	* 		(2,1) (2,2)
+	*
 	*/
-	//Vector3 start_vertex = (*vertex_array.begin()).vertex;	// more elegant, but end does not actually return end
-	//Vector3 last_vertex = (*vertex_array.end()).vertex;
+	//Vector3 start_vertex = (*vertex_array.begin()).vertex;
+	//Vector3 last_vertex = (*vertex_array.end()).vertex;		// more elegant, but end does not actually return end
 	Vector3 start_vertex = vertex_array[0].vertex;
 	Vector3 last_vertex = vertex_array[vertex_array.size()-1].vertex;
 	
@@ -295,12 +296,8 @@ void Chunk::_draw_mesh() {
 	
 	// surface_data -> class member
 	Error err = RS::get_singleton()->mesh_create_surface_data_from_arrays(
-		&surface_data,
-		(RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES,
-		p_arr, 
-		TypedArray<Array>(),	// empty
-		Dictionary(),			// empty
-		0						// empty
+		&surface_data, (RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES, p_arr, 	// created data
+		TypedArray<Array>(), Dictionary(), 0	// empty data
 	);
 	ERR_FAIL_COND(err != OK);	// makes sure the surface is valid
 
@@ -345,10 +342,9 @@ void Chunk::_generate_chunk_normals(bool p_flip) {
 	for (uint32_t vi = 0; vi < vertex_array.size(); vi += 3) {
 		Vertex *v = &vertex_array[vi];
 
-		Vector3 normal;
-		!p_flip ?
-			normal = Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal :
-			normal = Plane(v[2].vertex, v[1].vertex, v[0].vertex).normal;
+		Vector3 normal = !p_flip ?
+			Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal :
+			Plane(v[2].vertex, v[1].vertex, v[0].vertex).normal;
 
 		// Add face normal to smooth vertex influence if vertex is member of a smoothing group
 		for (int i = 0; i < 3; i++) {
@@ -366,9 +362,9 @@ void Chunk::_generate_chunk_normals(bool p_flip) {
 	for (Vertex &vertex : vertex_array) {
 		if (vertex.smooth_group != UINT32_MAX) {
 			Vector3 *lv = smooth_hash.getptr(vertex);
-			lv ? 
-				vertex.normal = lv->normalized() :
-				vertex.normal = Vector3(); 
+			vertex.normal = lv ? 
+				lv->normalized() : 
+				Vector3();
 		}
 	}
 }
@@ -393,10 +389,6 @@ void Chunk::_generate_chunk_tangents() {
 
 	TangentGenerationContextUserData triangle_data;
 	triangle_data.vertices = &vertex_array;
-	for (Vertex &vertex : vertex_array) {
-		vertex.binormal = Vector3();
-		vertex.tangent = Vector3();
-	}
 	triangle_data.indices = &index_array;
 	msc.m_pUserData = &triangle_data;
 

@@ -45,8 +45,8 @@ protected:
 		uint32_t smooth_group = 0; // Must be first.
 
 		Vector3 normal; // normal, binormal, tangent.
-		Vector3 binormal;
-		Vector3 tangent;
+		Vector3 binormal = Vector3();
+		Vector3 tangent = Vector3();
 		Vector2 uv;
 		//Vector2 uv2;
 
@@ -141,14 +141,14 @@ protected:
     Vector3 chunk_position = Vector3(0, 0, 0);
     int chunk_LOD = 1;
     
-    // for storing neighboring lod chunks
+    // for storing neighboring lod chunks -> UNUSED
     enum ADJACENT {
         UP,
         DOWN,
         LEFT,
         RIGHT
     };
-    int adjacent_LOD_steps[4] = {0};    // array only used to check if lod should be calculated
+    int adjacent_LOD_steps[4] = {0};    // array only used to check if lod should be calculated -> UNUSED
 
     std::atomic_bool CHUNK_FLAGS[2] = {false};
 
@@ -161,7 +161,7 @@ public:
     void set_flag(FLAG flag, bool set_value) { CHUNK_FLAGS[flag].store(set_value, std::memory_order_acquire); }
     bool get_flag(FLAG flag) { return CHUNK_FLAGS[flag].load(); }
 
-    void _set_chunk_LOD(int new_LOD) { chunk_LOD = new_LOD; }
+    void _set_chunk_LOD(int new_LOD) { chunk_LOD = MAX(new_LOD, 1.0); }
     int _get_chunk_LOD() { return chunk_LOD; }
 
     void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
@@ -181,9 +181,18 @@ public:
     void _generate_chunk_tangents();
 
 
-	static constexpr float render_distance = 4;
-    static constexpr float CHUNK_SIZE = 256;    // chunk_size of 64 is pretty fast - 128 and above for testing
-    static constexpr float AMPLITUDE = 32.0f;
+	//static constexpr float render_distance = 4.f;
+
+    /*
+    0.5 -> vertex count = size / 2
+    1.0 -> vertex count = size
+    2.0 -> vertex count = size * 2
+    */
+    static constexpr float CHUNK_RESOLUTION = 1.f;
+
+    static constexpr float CHUNK_SIZE = 256.f;    // chunk_size of 64 is pretty fast - 128 and above for testing
+    static constexpr float AMPLITUDE = 32.f;
+
 
     //currently not using these:
     static constexpr float TEXTURE_SHEET_WIDTH = 8;

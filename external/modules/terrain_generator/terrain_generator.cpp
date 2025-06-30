@@ -70,7 +70,6 @@ void TerrainGenerator::clean_up() {
 	set_process(false);
 
 	callable_queue.clear();
-	task_buffer_manager.~TaskBufferManager();
 }
 
 
@@ -128,7 +127,7 @@ void TerrainGenerator::_process(double delta) {
 			Vector3 chunk_position = player_chunk + Vector3(x, 0, z);
 			++count;	// debug number of grid coordinates checked
 
-			String task_name = String(chunk_position);
+			StringName task_name = String(chunk_position);
 			float distance = player_chunk.distance_to(chunk_position);
 
 			// we check _thread_task_queue first, since if true, we want to unlock the mutex asap
@@ -315,23 +314,23 @@ void TerrainGenerator::_delete_chunk(Vector3 chunk_key) {
 */
 
 /*
-void FuzzySearch::set_query(const String &p_query, bool p_case_sensitive) {
+void FuzzySearch::set_query(const StringName &p_query, bool p_case_sensitive) {
 	tokens.clear();
 	case_sensitive = p_case_sensitive;
 
-	for (const String &string : p_query.split(" ", false)) {
+	for (const StringName &stringName : p_query.split(" ", false)) {
 		tokens.append({
 				static_cast<int>(tokens.size()),
-				p_case_sensitive ? string : string.to_lower(),
+				p_case_sensitive ? stringName : stringName.to_lower(),
 		});
 	}
 
 	struct TokenComparator {
 		bool operator()(const FuzzySearchToken &A, const FuzzySearchToken &B) const {
-			if (A.string.length() == B.string.length()) {
+			if (A.stringName.length() == B.stringName.length()) {
 				return A.idx < B.idx;
 			}
-			return A.string.length() > B.string.length();
+			return A.stringName.length() > B.stringName.length();
 		}
 	};
 
@@ -352,7 +351,7 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 
 	// Also take the opportunity to delete far away chunks.
 	for (KeyValue<Vector3, Ref<Chunk>> chunk : _chunks) {
-		String task_name = String(chunk.key);
+		StringName task_name = String(chunk.key);
 
 		// flag check - we do not want to tag the same chunk agains
 		if (player_chunk.distance_to(chunk.key) >= _delete_distance && !chunk.value->get_flag(Chunk::FLAG::DELETE)) {

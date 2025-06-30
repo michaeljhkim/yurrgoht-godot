@@ -37,7 +37,7 @@ class TerrainGenerator : public Node3D {
 	int MAX_CHUNKS_NUM;
 	int chunk_count = 0;
 
-	static const int render_distance = 4;
+	static const int render_distance = 5;
 	static constexpr int _delete_distance = render_distance + 1;
 	int effective_render_distance = 0;
 	
@@ -56,7 +56,7 @@ class TerrainGenerator : public Node3D {
 	HashMap<Vector3, Ref<Chunk>> _chunks;
 
 protected:
-	LRUQueue<String, Callable> callable_queue;		// would normally be a regular queue, or ring buffer, but existance checks are required
+	LRUQueue<StringName, Callable> callable_queue;		// would normally be a regular queue, or ring buffer, but existance checks are required
     std::atomic_bool QUEUE_EMPTY = true;
 
 	RingBuffer<Ref<Chunk>> reuse_pool;

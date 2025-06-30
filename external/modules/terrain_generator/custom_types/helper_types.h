@@ -3,7 +3,6 @@
 #include "core/object/ref_counted.h"
 #include "core/templates/ring_buffer.h"
 #include <atomic>
-#include <deque>
 #include <array>
 #include <memory>
 
@@ -23,7 +22,7 @@
 struct TaskBufferManager {
     std::atomic_bool PROCESSING = false;
     std::array<std::unique_ptr<RingBuffer<Callable>>, 2> TASK_BUFFERS;
-    std::array<std::unique_ptr<LocalVector<String>>, 2> TASK_NAMES;
+    std::array<std::unique_ptr<LocalVector<StringName>>, 2> TASK_NAMES;
 	Ref<CoreBind::Mutex> _task_mutex;
 	Ref<CoreBind::Mutex> _name_mutex;
     
@@ -45,7 +44,7 @@ struct TaskBufferManager {
     }
     
     // called on main or worker threads
-    void tasks_push_back(String task_name, Callable task) {
+    void tasks_push_back(StringName task_name, Callable task) {
         // Task name added first to prepare for existance checks ASAP
         _name_mutex->lock();
         TASK_NAMES[1]->push_back(task_name);
@@ -67,7 +66,7 @@ struct TaskBufferManager {
         _task_mutex->unlock();
     }
 
-    bool task_exists(String task_name) {
+    bool task_exists(StringName task_name) {
         _name_mutex->lock();
         bool exists = TASK_NAMES[0]->has(task_name) || TASK_NAMES[1]->has(task_name);
         _name_mutex->unlock();
@@ -78,7 +77,7 @@ struct TaskBufferManager {
     TaskBufferManager() {
         for (int i = 0; i < 2; ++i) {
             TASK_BUFFERS[i] = std::make_unique<RingBuffer<Callable>>(6);    // 2**6 = 64 
-            TASK_NAMES[i] = std::make_unique<LocalVector<String>>();
+            TASK_NAMES[i] = std::make_unique<LocalVector<StringName>>();
             TASK_NAMES[i]->reserve(64);
         }
 
@@ -100,10 +99,10 @@ struct TaskBufferManager {
 
 
 /*
-- LRUQueue is just a modified version of LRUCache
-- LRUCache can do O(1) existance checks, inserts, and erase, but does not allow getting/popping oldest values
-- LRUQueue just implements that
-- lru.h was copied as lru_friend.h because I needed to make the private members protected
+- LRUQueue is a slightly modified version of LRUCache
+- LRUCache can do O(1) existance checks, inserts, and erase, but does not allow getting/popping oldest values (unless they are known)
+- LRUQueue merely implements that
+- lru.h was copied as lru_friend.h -> only modifications were private members are now protected
 */
 
 template <typename TKey, typename TData>
