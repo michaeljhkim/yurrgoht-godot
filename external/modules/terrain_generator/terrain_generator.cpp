@@ -139,7 +139,7 @@ void TerrainGenerator::_process(double delta) {
 			bool task_exists = callable_queue.has(task_name);
 			_task_mutex->unlock();
 
-			// check if we should update the chunk if it exists
+			// UPDATE EXISTING CHUNK
 			if (_chunks.has(chunk_position) && 
 				!task_exists &&
 				!_chunks[chunk_position]->get_flag(Chunk::FLAG::DELETE) &&
@@ -153,7 +153,7 @@ void TerrainGenerator::_process(double delta) {
 				continue;
 			}
 
-			// checks if chunk exists anywhere
+			// CREATE NEW CHUNK -> checks if chunk exists anywhere first
 			else if (
 				task_exists ||
 				_chunks.has(chunk_position) ||
@@ -165,8 +165,7 @@ void TerrainGenerator::_process(double delta) {
 
 			// direct callable instantiation
 			_task_mutex->lock();
-			int lod_distance = MAX(abs(x), abs(z));
-			callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(chunk_position, lod_distance));
+			callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(chunk_position, MAX(abs(x), abs(z))));
 			_task_mutex->unlock();
 
 			// task queue is no longer empty -> 'wake up' task thread (thread not actually sleeping)
@@ -187,15 +186,17 @@ void TerrainGenerator::_process(double delta) {
 		/*
 		DEBUG
 		- Measure length of generation time
+			- unreliable since it counts non-generation times as well
+			- just check times while player is walking for rough estimates, should be accurate enough
 		- Measure number of chunk coordinates checked
 		- Measure number of frames the generation takes place in
 		*/
     	std::chrono::_V2::system_clock::time_point end = std::chrono::high_resolution_clock::now();
 		long duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+		start = end;
 
-		print_line("Game start to generation calculations finished in milliseconds: ", duration);
-		print_line("Cycle count: ", count);
-		print_line("Generating frames count: ", frames);
+
+		print_line("Duration (milliseconds) (unreliable), For-loop iterations, Generation Frames count: ", duration, count, frames);
 		count = 0;
 		frames = 0;
 	}

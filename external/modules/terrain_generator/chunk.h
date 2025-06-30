@@ -43,8 +43,8 @@ protected:
 		// Trivial data for which the hash is computed using hash_buffer.
 		// ----------------------------------------------------------------
 		uint32_t smooth_group = 0; // Must be first.
-
-		Vector3 normal; // normal, binormal, tangent.
+        
+		Vector3 normal;     
 		Vector3 binormal = Vector3();
 		Vector3 tangent = Vector3();
 		Vector2 uv;
@@ -178,7 +178,7 @@ public:
     
     // mostly for keeping the mesh generation code clean
     void _generate_chunk_normals(bool p_flip = false);
-    void _generate_chunk_tangents();
+    void _generate_chunk_tangents(Vector3 &first_vertex, Vector3 &last_vertex);
 
 
 	//static constexpr float render_distance = 4.f;
@@ -190,7 +190,7 @@ public:
     */
     static constexpr float CHUNK_RESOLUTION = 1.f;
 
-    static constexpr float CHUNK_SIZE = 1024.f;    // chunk_size of 64 is pretty fast - 128 and above for testing
+    static constexpr float CHUNK_SIZE = 512.f;    // chunk_size of 64 is pretty fast - 128 and above for testing
     static constexpr float AMPLITUDE = 32.f;
 
 

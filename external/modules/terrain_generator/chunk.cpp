@@ -13,6 +13,9 @@ Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 
 	p_arr.resize(Mesh::ARRAY_MAX);
 	noise.instantiate();
+	noise->set_frequency(0.01 / 4.0);
+	noise->set_fractal_octaves(2.0);	// high octaves not reccomended, makes LOD seams much more noticeable
+
 	mesh_rid = RS::get_singleton()->mesh_create();
 
 	/*
@@ -112,15 +115,12 @@ void Chunk::_generate_chunk_mesh() {
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	// size should most likely be established elsewhere, but do not need to currently
 
 	//float lod = MAX(pow(2, chunk_LOD-1), 1.f);
-	float lod = pow(2, chunk_LOD);
 	//float octave_total = 2.0 + (1.0 - (1.0 / lod));		// Partial Sum Formula (Geometric Series)
-
-	noise->set_frequency(0.01 / 4.0);
-	noise->set_fractal_octaves(2.0);	// high octaves not reccomended, makes LOD seams much more noticeable
+	float lod = pow(2, chunk_LOD);
 
 	// number of vertices (subdivide_w * subdivide_d)
-	int subdivide_w = ((CHUNK_SIZE * CHUNK_RESOLUTION) / lod) + 1.0;
-	int subdivide_d = ((CHUNK_SIZE * CHUNK_RESOLUTION) / lod) + 1.0;
+	int subdivide_w = (CHUNK_SIZE * CHUNK_RESOLUTION / lod) + 1.0;
+	int subdivide_d = (CHUNK_SIZE * CHUNK_RESOLUTION / lod) + 1.0;
 
 	// distance between vertices
 	int step_size_x = size.x / (subdivide_w - 1.0);
@@ -147,8 +147,8 @@ void Chunk::_generate_chunk_mesh() {
 		for (i = 0; i <= (subdivide_w + 1); i++) {
 			// Point orientation Y
 			Vertex vert;
-			//vert.vertex = Vector3(-x, (noise->get_noise_2d(-x, -z)*AMPLITUDE), -z);
-			vert.vertex = Vector3(-x, 0, -z);
+			//vert.vertex = Vector3(-x, 0, -z);		// test if noise calculations was the bottleneck
+			vert.vertex = Vector3(-x, (noise->get_noise_2d(-x, -z)*AMPLITUDE), -z);
 
 			// UVs -> 	'1.0 - uv' to match orientation with Quad
 			vert.uv = Vector2(
@@ -178,7 +178,7 @@ void Chunk::_generate_chunk_mesh() {
 		thisrow = point;
 	}
 	/*
-	* These are use to cut off the edges later.
+	* These are use to cut off the edges later
 	* Logic:
 	*
 	* (0,0) (0,1) (0,2) (0,3)
@@ -186,7 +186,7 @@ void Chunk::_generate_chunk_mesh() {
 	* (2,0) (2,1) (2,2) (2,3)
 	* (3,0) (3,1) (3,2) (3,3)
 	*
-	* start_vertex = (0,0)
+	* first_vertex = (0,0)
 	* last_vertex = (3,3)
 	* any vertice that has a x/z value of either 0 or 3, will be removed, resulting in:
 	*
@@ -195,55 +195,20 @@ void Chunk::_generate_chunk_mesh() {
 	* 		(2,1) (2,2)
 	*
 	*/
-	//Vector3 start_vertex = (*vertex_array.begin()).vertex;
-	//Vector3 last_vertex = (*vertex_array.end()).vertex;		// more elegant, but end does not actually return end
-	Vector3 start_vertex = vertex_array[0].vertex;
-	Vector3 last_vertex = vertex_array[vertex_array.size()-1].vertex;
+	Vector3 first_vertex = vertex_array.begin()->vertex;
+	Vector3 last_vertex = (--vertex_array.end())->vertex;	// .end() returns out of bounds -> fixed with --
 	
 	/*
+	DE-INDEX + 
 	GENERATE NORMALS
 	*/
 	_generate_chunk_normals();
 
 	/*
-	GENERATE TANGENTS
+	GENERATE TANGENTS + 
+	RE-INDEX
 	*/
-	_generate_chunk_tangents();
-	
-
-	/*
-	  ---------- RE-INDEX START ----------
-	*/
-	// use '=' here resizes the capacity -> avoids future (expensive) resize operations
-	AHashMap<Vertex &, int, VertexHasher> indices = vertex_array.size();
-
-	uint32_t new_size = 0;
-	for (Vertex &vertex : vertex_array) {
-		// removes vertices as explained from the logic above
-		if ((vertex.vertex.x == start_vertex.x) ||
-			(vertex.vertex.z == start_vertex.z) ||
-			(vertex.vertex.x == last_vertex.x) ||
-			(vertex.vertex.z == last_vertex.z)) {
-			continue;
-		}
-
-		int *idxptr = indices.getptr(vertex);
-		int idx;
-		if (!idxptr) {
-			idx = indices.size();
-			vertex_array[new_size] = vertex;
-			indices.insert_new(vertex_array[new_size], idx);
-			new_size++;
-		} else {
-			idx = *idxptr;
-		}
-
-		index_array.push_back(idx);
-	}
-	vertex_array.resize(new_size);
-	/*
-	  ---------- RE-INDEX END ----------
-	*/
+	_generate_chunk_tangents(first_vertex, last_vertex);
 
 	// Unpacking vertices, normals, uvs, and tangents into an array format that add_surface_from_arrays() accepts
 	PackedVector3Array sub_vertex_array;
@@ -259,27 +224,31 @@ void Chunk::_generate_chunk_mesh() {
 	sub_tangent_array.resize(vertex_array.size() * 4);
 	sub_index_array.resize(index_array.size());
 
-	// Tangents are a little special, they have a 4th value called handedness -> determines visibility direction
+	// Tangents have a 4th value called handedness -> determines visibility direction
 	float *w = sub_tangent_array.ptrw();
+	int *u = sub_index_array.ptrw();
 
-	// Unpack -> vertices, normals, uvs, tangents
-	for (int idx = 0; idx < vertex_array.size(); idx++) {
+	// Unpack -> vertices, normals, uvs, tangents, indices
+	for (uint32_t idx = 0; idx < vertex_array.size(); idx++) {
 		const Vertex &v = vertex_array[idx];
+
 		sub_vertex_array.set(idx, v.vertex);
 		sub_normal_array.set(idx, v.normal);
 		sub_uv_array.set(idx, v.uv);
 
-		// Tangent handedness calculations
+		// Tangents -> handedness calculations
 		w[idx * 4 + 0] = v.tangent.x;
 		w[idx * 4 + 1] = v.tangent.y;
 		w[idx * 4 + 2] = v.tangent.z;
-		float d = v.binormal.dot(v.normal.cross(v.tangent));
-		w[idx * 4 + 3] = d < 0 ? -1 : 1;
-	}
+		w[idx * 4 + 3] = v.binormal.dot(v.normal.cross(v.tangent)) < 0 ? -1 : 1;
 
-	// Unpack -> indices 
-	for (int idx = 0; idx < index_array.size(); idx++) {
-		sub_index_array.set(idx, index_array[idx]);
+		// Indices -> index_array is exactly 6 times larger than vertices array 
+		u[idx * 6 + 0] = index_array[idx * 6 + 0];
+		u[idx * 6 + 1] = index_array[idx * 6 + 1];
+		u[idx * 6 + 2] = index_array[idx * 6 + 2];
+		u[idx * 6 + 3] = index_array[idx * 6 + 3];
+		u[idx * 6 + 4] = index_array[idx * 6 + 4];
+		u[idx * 6 + 5] = index_array[idx * 6 + 5];
 	}
 
 	p_arr[RS::ARRAY_VERTEX] = sub_vertex_array;
@@ -294,23 +263,20 @@ void Chunk::_generate_chunk_mesh() {
 
 // seperated for future flexibility
 void Chunk::_draw_mesh() {
-	
-	// surface_data -> class member
+	// surface_data -> Chunk class member 
 	Error err = RS::get_singleton()->mesh_create_surface_data_from_arrays(
 		&surface_data, (RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES, p_arr, 	// created data
-		TypedArray<Array>(), Dictionary(), 0	// empty data
+		TypedArray<Array>(), Dictionary(), 0									// empty data
 	);
-	ERR_FAIL_COND(err != OK);	// makes sure the surface is valid
+	ERR_FAIL_COND(err != OK);
 
 	RS::get_singleton()->mesh_clear(mesh_rid);
 	RS::get_singleton()->mesh_add_surface(mesh_rid, surface_data);
-	print_line("TIME TEST", chunk_LOD);
 
 	// for some reason, issues arise when used in constructor, use here
 	// i think its caused by mesh_clear()
-	//RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
+	RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 }
-
 
 
 
@@ -326,10 +292,11 @@ void Chunk::_generate_chunk_normals(bool p_flip) {
 	/*
 	  ---------- DE-INDEX START ----------
 	*/
-
 	// attempt was made to de-index on creation, but not possible through greedy algorithms
+
 	LocalVector<Vertex> old_vertex_array = vertex_array;
 	vertex_array.clear();
+
 	// There are 6 indices per vertex
 	for (const int &index : index_array) {
 		ERR_FAIL_COND(uint32_t(index) >= old_vertex_array.size());
@@ -366,12 +333,13 @@ void Chunk::_generate_chunk_normals(bool p_flip) {
 	}
 
 	for (Vertex &vertex : vertex_array) {
-		if (vertex.smooth_group != UINT32_MAX) {
-			Vector3 *lv = smooth_hash.getptr(vertex);
-			vertex.normal = lv ? 
-				lv->normalized() : 
-				Vector3();
-		}
+		if (vertex.smooth_group == UINT32_MAX)
+			continue;
+
+		Vector3 *lv = smooth_hash.getptr(vertex);
+		vertex.normal = lv ? 
+			lv->normalized() : 
+			Vector3();
 	}
 }
 
@@ -380,7 +348,7 @@ void Chunk::_generate_chunk_normals(bool p_flip) {
 /*
 GENERATE CHUNK TANGENTS
 */
-void Chunk::_generate_chunk_tangents() {
+void Chunk::_generate_chunk_tangents(Vector3 &first_vertex, Vector3 &last_vertex) {
 	SMikkTSpaceInterface mkif;
 	mkif.m_getNormal = mikktGetNormal;
 	mkif.m_getNumFaces = mikktGetNumFaces;
@@ -400,6 +368,42 @@ void Chunk::_generate_chunk_tangents() {
 
 	bool res = genTangSpaceDefault(&msc);
 	ERR_FAIL_COND(!res);
+
+
+	/*
+	  ---------- RE-INDEX START ----------
+	*/
+
+	// use '=' here resizes the capacity -> avoids future (expensive) resize operations
+	AHashMap<Vertex &, int, VertexHasher> indices = vertex_array.size();
+
+	uint32_t new_size = 0;
+	for (Vertex &vertex : vertex_array) {
+		// removes vertices as explained from the logic above
+		if ((vertex.vertex.x == first_vertex.x) ||
+			(vertex.vertex.z == first_vertex.z) ||
+			(vertex.vertex.x == last_vertex.x)  ||
+			(vertex.vertex.z == last_vertex.z)) {
+			continue;
+		}
+
+		int *idxptr = indices.getptr(vertex);
+		int idx;
+		if (!idxptr) {
+			idx = indices.size();
+			vertex_array[new_size] = vertex;
+			indices.insert_new(vertex_array[new_size], idx);
+			++new_size;
+		} else {
+			idx = *idxptr;
+		}
+
+		index_array.push_back(idx);
+	}
+	vertex_array.resize(new_size);
+	/*
+	  ---------- RE-INDEX END ----------
+	*/
 }
 
 

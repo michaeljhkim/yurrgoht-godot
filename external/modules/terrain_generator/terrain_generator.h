@@ -14,12 +14,13 @@
 class TerrainGenerator : public Node3D {
 	GDCLASS(TerrainGenerator, Node3D);
 	
+	/*
 	struct Vector3Comparator {
 		bool operator()(const Vector3 &A, const Vector3 &B) const {
 			return A.length() > B.length();
 		}
 	};
-
+	*/
 
 	// DEBUG VALUES
 	int count = 0;

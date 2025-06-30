@@ -70,8 +70,7 @@ IDEAS:
 
 
 - GPU generation might be viable for calculations that might happen in the future
-- calculating all other possible LODs for a given chunk
-- 
+- calculating all other possible LODs for a given chunk 
 
 
 TODO LIST:
@@ -79,4 +78,5 @@ TODO LIST:
 - figure out chunk instantiaition according to player view direction
 - LOD cache for chunks
 
-- 
+- Create one more thread in TerrainGenerator, and pass a reference to it to each chunk
+- If a chunk has too many vertices, it splits the calculations into pieces and combine at the very end
