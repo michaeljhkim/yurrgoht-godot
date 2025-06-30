@@ -117,6 +117,21 @@ protected:
     ----- CHUNK SPECIFIC MEMBER VALUES -----
     */
     
+    // FOR CACHE
+    struct LODMeshData {
+        LocalVector<Vertex> vertex_array;
+        LocalVector<int> index_array;
+        RS::SurfaceData surface_data;
+    };
+
+    /*
+    TODO IDEA:
+    - I know for a fact that a given chunk can be updated multiple times in rapid succession because the player might move back and forth
+    - instead of removing old lod data, and then regenerating, we can just store the old data until the delete flag is raised
+    - since the chunk will be completely removed, there is no point holding all that data, and only then are we sure we can delete it
+    */
+
+
 	static void _bind_methods();
 
 	LocalVector<Vertex> vertex_array;

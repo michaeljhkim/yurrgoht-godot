@@ -14,6 +14,13 @@
 class TerrainGenerator : public Node3D {
 	GDCLASS(TerrainGenerator, Node3D);
 	
+	struct Vector3Comparator {
+		bool operator()(const Vector3 &A, const Vector3 &B) const {
+			return A.length() > B.length();
+		}
+	};
+
+
 	// DEBUG VALUES
 	int count = 0;
 	int frames = 0;
@@ -31,11 +38,11 @@ class TerrainGenerator : public Node3D {
 	int chunk_count = 0;
 
 	static const int render_distance = 4;
-	static constexpr int _delete_distance = render_distance + 2;
+	static constexpr int _delete_distance = render_distance + 1;
 	int effective_render_distance = 0;
 	
 	Vector3 _old_player_chunk;
-	CharacterBody3D* player_character = nullptr;		// This is an OBJECT
+	CharacterBody3D* player_character = nullptr;
 
 	bool _generating = true;
 	bool _deleting = false;

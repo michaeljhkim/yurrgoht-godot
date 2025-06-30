@@ -70,6 +70,7 @@ void TerrainGenerator::clean_up() {
 	set_process(false);
 
 	callable_queue.clear();
+	task_buffer_manager.~TaskBufferManager();
 }
 
 
@@ -90,7 +91,7 @@ void TerrainGenerator::_ready() {
 
 
 /*
-Currently, chunks that are old and too far get delete, but I think we can easily reuse those chunks now
+- need to implement a system to make updates/deletes aggressively based on player viewing direction 
 */
 void TerrainGenerator::_process(double delta) {
 	if (player_character == nullptr) return;
@@ -123,14 +124,12 @@ void TerrainGenerator::_process(double delta) {
 	// Check existing chunks within range. If it doesn't exist, create it.
 	for (int x = -effective_render_distance; x <= effective_render_distance; x++) {
 		for (int z = -effective_render_distance; z <= effective_render_distance; z++) {
-			Vector3 grid_position = Vector3(x, 0, z);
-			Vector3 chunk_position = player_chunk + grid_position;
+			//Vector3 grid_position = Vector3(x, 0, z);
+			Vector3 chunk_position = player_chunk + Vector3(x, 0, z);
 			++count;	// debug number of grid coordinates checked
 
 			String task_name = String(chunk_position);
-			
 			float distance = player_chunk.distance_to(chunk_position);
-			//float chunk_distance = _LOD_table[task_name];
 
 			// we check _thread_task_queue first, since if true, we want to unlock the mutex asap
 			_task_mutex->lock();
@@ -152,7 +151,8 @@ void TerrainGenerator::_process(double delta) {
 			}
 
 			// checks if chunk exists anywhere
-			if (task_exists ||
+			else if (
+				task_exists ||
 				_chunks.has(chunk_position) ||
 				task_buffer_manager.task_exists(task_name) ||
 				distance > render_distance
@@ -162,13 +162,11 @@ void TerrainGenerator::_process(double delta) {
 
 			// direct callable instantiation
 			_task_mutex->lock();
-			callable_queue.insert(
-				task_name, 
-				callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(chunk_position, MAX(abs(x), abs(z))) 
-			);
+			int lod_distance = MAX(abs(x), abs(z));
+			callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(chunk_position, lod_distance));
 			_task_mutex->unlock();
 
-			// task queue is no longer empty -> wake up task thread
+			// task queue is no longer empty -> 'wake up' task thread (thread not actually sleeping)
 			QUEUE_EMPTY.store(false, std::memory_order_acquire);
 
 			return;
@@ -315,6 +313,32 @@ void TerrainGenerator::_delete_chunk(Vector3 chunk_key) {
 - can probably delegate this to another thread
 - TODO later
 */
+
+/*
+void FuzzySearch::set_query(const String &p_query, bool p_case_sensitive) {
+	tokens.clear();
+	case_sensitive = p_case_sensitive;
+
+	for (const String &string : p_query.split(" ", false)) {
+		tokens.append({
+				static_cast<int>(tokens.size()),
+				p_case_sensitive ? string : string.to_lower(),
+		});
+	}
+
+	struct TokenComparator {
+		bool operator()(const FuzzySearchToken &A, const FuzzySearchToken &B) const {
+			if (A.string.length() == B.string.length()) {
+				return A.idx < B.idx;
+			}
+			return A.string.length() > B.string.length();
+		}
+	};
+
+	// Prioritize matching longer tokens before shorter ones since match overlaps are not accepted.
+	tokens.sort_custom<TokenComparator>();
+}
+*/
 void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	_old_player_chunk = player_chunk;
 	// If we need to delete chunks, give the new chunk system a chance to catch up.
@@ -325,12 +349,6 @@ void TerrainGenerator::_delete_far_away_chunks(Vector3 player_chunk) {
 	// An easy way to calculate this is by using the effective render distance.
 	// The specific values in this formula are arbitrary and from experimentation.
 	int max_deletions = CLAMP(2 * (render_distance - effective_render_distance), 2, 16);
-
-	/*
-	IDEA: 
-	- add the chunks to delete to a SORTED list first, the furthest chunk being priority
-	- consider making this sorted list apart of another thread
-	*/
 
 	// Also take the opportunity to delete far away chunks.
 	for (KeyValue<Vector3, Ref<Chunk>> chunk : _chunks) {

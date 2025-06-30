@@ -116,7 +116,6 @@ void Chunk::_generate_chunk_mesh() {
 
 	noise->set_frequency(0.01 / 2);
 	noise->set_fractal_octaves(4 + (chunk_LOD / lod));
-	//noise->set_fractal_gain(0.5 / lod);
 
 	// number of vertices
 	int subdivide_w = (CHUNK_SIZE / lod) + 1.0;
