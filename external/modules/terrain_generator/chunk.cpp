@@ -9,7 +9,7 @@ Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 
 	RenderingServer::get_singleton()->instance_set_scenario(RS_instance_rid, scenario);
 	chunk_position = new_c_position;
-	chunk_LOD = MAX(new_lod, 1.0);
+	chunk_LOD = new_lod;
 
 	noise.instantiate();
 	noise->set_frequency(0.01 / 4.0);
@@ -50,8 +50,6 @@ Chunk::~Chunk() {
 clears bare minimum for re-generation
 */
 void Chunk::_clear_chunk_data() {
-	print_line("CLEAR CHUNK DATA: ", _get_chunk_position());
-
 	vertex_array.clear();
 	index_array.clear();
 }
@@ -60,10 +58,13 @@ void Chunk::_clear_chunk_data() {
 complete data reset
 */
 void Chunk::_reset_chunk_data() {
-	RS::get_singleton()->mesh_clear(mesh_rid);
-
 	_clear_chunk_data();
+
 	//RS::get_singleton()->call_on_render_thread(callable_mp(RS::get_singleton(), &RS::mesh_clear).bind(mesh_rid));
+	RS::get_singleton()->mesh_clear(mesh_rid);
+	
+	set_flag(Chunk::FLAG::UPDATE, false);
+	set_flag(Chunk::FLAG::DELETE, false);
 }
 
 
@@ -110,7 +111,7 @@ void Chunk::_generate_chunk_mesh() {
 
 	//float lod = MAX(pow(2, chunk_LOD-1), 1.f);
 	//float octave_total = 2.0 + (1.0 - (1.0 / lod));		// Partial Sum Formula (Geometric Series)
-	float lod = pow(2, chunk_LOD);
+	float lod = CLAMP(pow(2, chunk_LOD), 1, 128);
 
 	// number of vertices (subdivide_w * subdivide_d)
 	int subdivide_w = (CHUNK_SIZE * CHUNK_RESOLUTION / lod) + 1.0;

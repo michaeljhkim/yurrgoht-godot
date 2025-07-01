@@ -19,6 +19,8 @@
 #include <atomic>
 
 #include "core/math/aabb.h"
+//#define TRUE 1
+//#define FALSE 0
 
 class Chunk : public RefCounted {
 	GDCLASS(Chunk, RefCounted);
@@ -134,7 +136,8 @@ protected:
 	RS::SurfaceData surface_data;
 
     Vector3 chunk_position = Vector3(0, 0, 0);
-    int chunk_LOD = 1;
+    Vector3 grid_position = Vector3(0, 0, 0);
+    int chunk_LOD = 0;
     
     // for storing neighboring lod chunks -> UNUSED
     enum ADJACENT {
@@ -145,22 +148,37 @@ protected:
     };
     int adjacent_LOD_steps[4] = {0};    // array only used to check if lod should be calculated -> UNUSED
 
-    std::atomic_bool CHUNK_FLAGS[2] = {false};
 
 public:
-    enum FLAG {
+    enum FLAG : uint8_t {
         DELETE,
         UPDATE
     };
+    std::atomic<bool> CHUNK_FLAGS[2] = {false};
 
-    void set_flag(FLAG flag, bool set_value) { CHUNK_FLAGS[flag].store(set_value, std::memory_order_acquire); }
-    bool get_flag(FLAG flag) { return CHUNK_FLAGS[flag].load(); }
+    // unless the flag is the value that we want, set it
+    /*
+    if ((flags.load(std::memory_order_acquire) & (FlagA | FlagB)) == (FlagA | FlagB)) {
+        // Both FlagA and FlagB are set
+    }
+    */
+    void set_flag(FLAG flag, bool value) { CHUNK_FLAGS[flag].store(value, std::memory_order_acquire); }
+    bool get_flag(FLAG flag) { return CHUNK_FLAGS[flag].load(std::memory_order_acquire); }
+
+    /*
+    void flip_flag(FLAG flag) { 
+        CHUNK_FLAGS[flag].fetch_xor(TRUE);
+    }
+    */
 
     void _set_chunk_LOD(int new_LOD) { chunk_LOD = MAX(new_LOD, 1.0); }
     int _get_chunk_LOD() { return chunk_LOD; }
 
     void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
     Vector3 _get_chunk_position() { return chunk_position; }
+
+    void _set_grid_position(Vector3 new_position) { grid_position = new_position; }
+    Vector3 _get_grid_position() { return grid_position; }
 
 
     // can probably remove this, but keeping for now
@@ -185,7 +203,7 @@ public:
     */
     static constexpr float CHUNK_RESOLUTION = 1.f;
 
-    static constexpr float CHUNK_SIZE = 256.f;    // chunk_size of 64 is pretty fast - 128 and above for testing
+    static constexpr float CHUNK_SIZE = 512.f;    // chunk_size of 64 is pretty fast - 128 and above for testing
     static constexpr float AMPLITUDE = 32.f;
 
 

@@ -61,14 +61,15 @@ protected:
     std::atomic_bool QUEUE_EMPTY = true;
 
 	RingBuffer<Ref<Chunk>> reuse_pool;
+	RingBuffer<Ref<Chunk>> delete_queue;
 	TaskBufferManager task_buffer_manager;
 
 	// Only for the worker thread
 	void _thread_process();
-	void _instantiate_chunk(Vector3 chunk_position, int chunk_lod);
+	void _instantiate_chunk(Vector3 chunk_position, int chunk_lod, Vector3 grid_position);
 	void _add_chunk(Vector3 chunk_position, Ref<Chunk> chunk);
 
-	void _update_chunk_mesh(Ref<Chunk> chunk, int chunk_lod);
+	void _update_chunk_mesh(Ref<Chunk> chunk, int chunk_lod, Vector3 grid_position);
 	void _delete_chunk(Vector3 chunk_key);
 
 	static void _bind_methods();
