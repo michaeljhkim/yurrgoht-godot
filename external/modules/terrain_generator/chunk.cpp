@@ -11,7 +11,6 @@ Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 	chunk_position = new_c_position;
 	chunk_LOD = MAX(new_lod, 1.0);
 
-	p_arr.resize(Mesh::ARRAY_MAX);
 	noise.instantiate();
 	noise->set_frequency(0.01 / 4.0);
 	noise->set_fractal_octaves(2.0);	// high octaves not reccomended, makes LOD seams much more noticeable
@@ -51,25 +50,20 @@ Chunk::~Chunk() {
 clears bare minimum for re-generation
 */
 void Chunk::_clear_chunk_data() {
-	p_arr.clear();
-	p_arr.resize(Mesh::ARRAY_MAX);
+	print_line("CLEAR CHUNK DATA: ", _get_chunk_position());
 
-	vertex_array.reset();
-	index_array.reset();
-
-	set_flag(FLAG::DELETE, false);
-	set_flag(FLAG::UPDATE, false);
+	vertex_array.clear();
+	index_array.clear();
 }
 
 /*
 complete data reset
 */
 void Chunk::_reset_chunk_data() {
-	_clear_chunk_data();
-	_set_chunk_position(Vector3(0, 0, 0));
-	
-	//RS::get_singleton()->call_on_render_thread(callable_mp(RS::get_singleton(), &RS::mesh_clear).bind(mesh_rid));
 	RS::get_singleton()->mesh_clear(mesh_rid);
+
+	_clear_chunk_data();
+	//RS::get_singleton()->call_on_render_thread(callable_mp(RS::get_singleton(), &RS::mesh_clear).bind(mesh_rid));
 }
 
 
@@ -126,37 +120,32 @@ void Chunk::_generate_chunk_mesh() {
 	int step_size_x = size.x / (subdivide_w - 1.0);
 	int step_size_z = size.y / (subdivide_d - 1.0);
 
-	// exact amount of vertices and indices is known
+	// reserve known amount of vertices and indices
 	vertex_array.reserve((subdivide_d + 2) * (subdivide_w + 2) * 6);
 	index_array.reserve((subdivide_d + 1) * (subdivide_w + 1) * 6);
 
-	int i, j, prevrow, thisrow, point;
-	float x, z;
+	// start position shifted by half chunk size and one step for padding
+	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE - Vector2(step_size_x, step_size_z);
 
-	// subtract step size since we are calculating a chunk of size 1 larger on each side
-	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE - Vector2(step_size_x, step_size_z); 
-	
-	/* top + bottom */
-	z = start_pos.y;
-	point = 0;
-	thisrow = point;
-	prevrow = 0;
+	float z = start_pos.y;
+	int point = 0;
+	int prevrow = 0;
+	int thisrow = 0;
 
-	for (j = 0; j <= (subdivide_d + 1); j++) {
-		x = start_pos.x;
-		for (i = 0; i <= (subdivide_w + 1); i++) {
-			// Point orientation Y
+	for (int j = 0; j <= (subdivide_d + 1); j++) {
+		float x = start_pos.x;
+		prevrow = thisrow;
+		thisrow = point;
+
+		for (int i = 0; i <= (subdivide_w + 1); i++) {
 			Vertex vert;
-			//vert.vertex = Vector3(-x, 0, -z);		// test if noise calculations was the bottleneck
-			vert.vertex = Vector3(-x, (noise->get_noise_2d(-x, -z)*AMPLITUDE), -z);
+			vert.vertex = Vector3(-x, noise->get_noise_2d(-x, -z) * AMPLITUDE, -z);
 
-			// UVs -> 	'1.0 - uv' to match orientation with Quad
 			vert.uv = Vector2(
 				1.0 - (i / (subdivide_w - 1.0)),
 				1.0 - (j / (subdivide_d - 1.0))
 			);
 
-			// done adding required values, add to array
 			vertex_array.push_back(vert);
 			point++;
 
@@ -173,9 +162,6 @@ void Chunk::_generate_chunk_mesh() {
 			x += step_size_x;
 		}
 		z += step_size_z;
-
-		prevrow = thisrow;
-		thisrow = point;
 	}
 	/*
 	* These are use to cut off the edges later
@@ -210,56 +196,24 @@ void Chunk::_generate_chunk_mesh() {
 	*/
 	_generate_chunk_tangents(first_vertex, last_vertex);
 
-	// Unpacking vertices, normals, uvs, and tangents into an array format that add_surface_from_arrays() accepts
-	// Prepare sub arrays
-	PackedVector3Array sub_vertex_array;
-	PackedVector3Array sub_normal_array;
-	PackedVector2Array sub_uv_array;
-	PackedFloat64Array sub_tangent_array;
-	Vector<int> sub_index_array;
-
+	
+	/*
+	GENERATE SURFACE DATA
+	*/
 	const int array_len = vertex_array.size();
 	const int index_array_len = index_array.size();
 
-	sub_vertex_array.resize(array_len);
-	sub_normal_array.resize(array_len);
-	sub_uv_array.resize(array_len);
-	sub_tangent_array.resize(array_len * 4);
-	sub_index_array.resize(index_array_len);
-
-	double *tangent_write = sub_tangent_array.ptrw();
-	int *index_write = sub_index_array.ptrw();
-
-	// Unpack vertex and index data
-	for (int i = 0; i < array_len; ++i) {
-		const Vertex &v = vertex_array[i];
-
-		sub_vertex_array.set(i, v.vertex);
-		sub_normal_array.set(i, v.normal);
-		sub_uv_array.set(i, v.uv);
-
-		tangent_write[i * 4 + 0] = v.tangent.x;
-		tangent_write[i * 4 + 1] = v.tangent.y;
-		tangent_write[i * 4 + 2] = v.tangent.z;
-		tangent_write[i * 4 + 3] = v.binormal.dot(v.normal.cross(v.tangent)) < 0 ? -1.0 : 1.0;
-
-		// Each vertex has 6 indices
-		for (int j = 0; j < 6; ++j) {
-			index_write[i * 6 + j] = index_array[i * 6 + j];
-		}
-	}
-
-	// Surface format setup
-	uint64_t format = 0;
-	format |= (1ULL << RS::ARRAY_VERTEX) |
-			(1ULL << RS::ARRAY_INDEX) |
-			(1ULL << RS::ARRAY_TEX_UV) |
-			(1ULL << RS::ARRAY_NORMAL) |
-			(1ULL << RS::ARRAY_TANGENT);
+	// Build format
+	uint64_t format = (1ULL << RS::ARRAY_VERTEX) |
+					(1ULL << RS::ARRAY_INDEX) |
+					(1ULL << RS::ARRAY_TEX_UV) |
+					(1ULL << RS::ARRAY_NORMAL) |
+					(1ULL << RS::ARRAY_TANGENT);
 
 	format &= ~(RS::ARRAY_FLAG_FORMAT_VERSION_MASK << RS::ARRAY_FLAG_FORMAT_VERSION_SHIFT);
 	format |= RS::ARRAY_FLAG_FORMAT_CURRENT_VERSION & (RS::ARRAY_FLAG_FORMAT_VERSION_MASK << RS::ARRAY_FLAG_FORMAT_VERSION_SHIFT);
 
+	// Offsets and sizes
 	uint32_t offsets[RS::ARRAY_MAX];
 	uint32_t vertex_element_size, normal_element_size, attrib_element_size, skin_element_size;
 
@@ -268,11 +222,11 @@ void Chunk::_generate_chunk_mesh() {
 		vertex_element_size, normal_element_size, attrib_element_size, skin_element_size
 	);
 
-	// Index stride
+	// Index config
 	const bool use_16bit = array_len > 0 && array_len <= (1 << 16);
 	const int index_stride = use_16bit ? 2 : 4;
 
-	// Allocate surface arrays
+	// Allocate buffers
 	Vector<uint8_t> surface_vertex_array;
 	surface_vertex_array.resize((vertex_element_size + normal_element_size) * array_len);
 
@@ -282,72 +236,75 @@ void Chunk::_generate_chunk_mesh() {
 	Vector<uint8_t> surface_index_array;
 	surface_index_array.resize(index_stride * index_array_len);
 
-	// Raw data pointers
-	uint8_t *vw = surface_vertex_array.ptrw();
-	uint8_t *aw = surface_attrib_array.ptrw();
+	// Pointers
+	uint8_t *vw_base = surface_vertex_array.ptrw();
+	uint8_t *aw_base = surface_attrib_array.ptrw();
 	uint8_t *iw = surface_index_array.ptrw();
 
-	const Vector3 *vertex_src = sub_vertex_array.ptr();
-	const Vector3 *normal_src = sub_normal_array.ptr();
-	const Vector2 *uv_src = sub_uv_array.ptr();
-	const double *tangent_src = sub_tangent_array.ptr();
-	const int *index_src = sub_index_array.ptr();
+	// Precompute base offset pointers
+	uint8_t *vtx_ptr   = vw_base + offsets[RS::ARRAY_VERTEX];
+	uint8_t *norm_ptr  = vw_base + offsets[RS::ARRAY_NORMAL];
+	uint8_t *tang_ptr  = vw_base + offsets[RS::ARRAY_TANGENT];
+	uint8_t *uv_ptr    = aw_base + offsets[RS::ARRAY_TEX_UV];
 
-	// AABB calculation
-	AABB aabb;
-	{
-		Vector3 min = vertex_src[0];
-		Vector3 max = vertex_src[0];
-		for (int i = 1; i < array_len; ++i) {
-			min = min.min(vertex_src[i]);
-			max = max.max(vertex_src[i]);
-		}
-		aabb = AABB(min, max - min);
-		aabb.size = aabb.size.max(SMALL_VEC3);
-	}
+	// AABB min/max
+	Vector3 min = vertex_array[0].vertex;
+	Vector3 max = vertex_array[0].vertex;
 
-	// Write vertex and attribute data
+	// Pack all vertex attributes in one loop
 	for (int i = 0; i < array_len; ++i) {
-		memcpy(&vw[offsets[RS::ARRAY_VERTEX] + i * vertex_element_size], &vertex_src[i], sizeof(Vector3));
+		const Vertex &v = vertex_array[i];
 
-		Vector2 normal_res = normal_src[i].octahedron_encode();
-		uint16_t packed_normal[2] = {
-			(uint16_t)CLAMP(normal_res.x * 65535.0, 0, 65535),
-			(uint16_t)CLAMP(normal_res.y * 65535.0, 0, 65535)
+		// AABB
+		min = min.min(v.vertex);
+		max = max.max(v.vertex);
+
+		// Position
+		memcpy(&vtx_ptr[i * vertex_element_size], &v.vertex, sizeof(Vector3));
+
+		// Normal (oct16 packed)
+		Vector2 norm_enc = v.normal.octahedron_encode();
+		uint16_t norm_packed[2] = {
+			(uint16_t)CLAMP(norm_enc.x * 65535.0, 0, 65535),
+			(uint16_t)CLAMP(norm_enc.y * 65535.0, 0, 65535)
 		};
-		memcpy(&vw[offsets[RS::ARRAY_NORMAL] + i * normal_element_size], packed_normal, sizeof(packed_normal));
+		memcpy(&norm_ptr[i * normal_element_size], norm_packed, sizeof(norm_packed));
 
-		Vector3 tangent_vec(
-			tangent_src[i * 4 + 0],
-			tangent_src[i * 4 + 1],
-			tangent_src[i * 4 + 2]
-		);
-		Vector2 tangent_res = tangent_vec.octahedron_tangent_encode(tangent_src[i * 4 + 3]);
-		uint16_t packed_tangent[2] = {
-			(uint16_t)CLAMP(tangent_res.x * 65535.0, 0, 65535),
-			(uint16_t)CLAMP(tangent_res.y * 65535.0, 0, 65535)
+		// Tangent (oct16 + handedness)
+		const double h = v.binormal.dot(v.normal.cross(v.tangent)) < 0.0 ? -1.0 : 1.0;
+		Vector2 tang_enc = v.tangent.octahedron_tangent_encode(h);
+		uint16_t tang_packed[2] = {
+			(uint16_t)CLAMP(tang_enc.x * 65535.0, 0, 65535),
+			(uint16_t)CLAMP(tang_enc.y * 65535.0, 0, 65535)
 		};
-		if (packed_tangent[0] == 0 && packed_tangent[1] == 65535)
-			packed_tangent[0] = 65535;
-		memcpy(&vw[offsets[RS::ARRAY_TANGENT] + i * normal_element_size], packed_tangent, sizeof(packed_tangent));
+		if (tang_packed[0] == 0 && tang_packed[1] == 65535)
+			tang_packed[0] = 65535;
+		memcpy(&tang_ptr[i * normal_element_size], tang_packed, sizeof(tang_packed));
 
-		memcpy(&aw[offsets[RS::ARRAY_TEX_UV] + i * attrib_element_size], &uv_src[i], sizeof(Vector2));
+		// UV
+		memcpy(&uv_ptr[i * attrib_element_size], &v.uv, sizeof(Vector2));
 	}
 
-	// Write index data
-	for (int i = 0; i < index_array_len; ++i) {
-		if (use_16bit) {
-			uint16_t idx = (uint16_t)index_src[i];
-			memcpy(&iw[i * index_stride], &idx, sizeof(idx));
-		} else {
-			uint32_t idx = (uint32_t)index_src[i];
-			memcpy(&iw[i * index_stride], &idx, sizeof(idx));
-		}
+	// Final AABB
+	AABB aabb(min, max - min);
+	aabb.size = aabb.size.max(
+		Vector3(CMP_EPSILON, CMP_EPSILON, CMP_EPSILON)
+	);
+
+	// Index packing loop -> conditional checks are done once
+	if (use_16bit) {
+		uint16_t *iw16 = reinterpret_cast<uint16_t *>(iw);
+		for (int i = 0; i < index_array_len; ++i)
+			iw16[i] = (uint16_t)index_array[i];
+	} else {
+		uint32_t *iw32 = reinterpret_cast<uint32_t *>(iw);
+		for (int i = 0; i < index_array_len; ++i)
+			iw32[i] = (uint32_t)index_array[i];
 	}
 
-	// Final surface data setup
+	// Populate surface_data
 	surface_data.format = format;
-	surface_data.primitive = (RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES;
+	surface_data.primitive = RS::PRIMITIVE_TRIANGLES;
 	surface_data.aabb = aabb;
 	surface_data.vertex_data = surface_vertex_array;
 	surface_data.attribute_data = surface_attrib_array;
@@ -359,8 +316,11 @@ void Chunk::_generate_chunk_mesh() {
 	surface_data.lods = Vector<RenderingServer::SurfaceData::LOD>();
 	surface_data.uv_scale = Vector4(0, 0, 0, 0);
 
+	// DRAW MESH
+	_draw_mesh();
+}
 
-
+void Chunk::_draw_mesh() {
 	RS::get_singleton()->mesh_clear(mesh_rid);
 	RS::get_singleton()->mesh_add_surface(mesh_rid, surface_data);
 

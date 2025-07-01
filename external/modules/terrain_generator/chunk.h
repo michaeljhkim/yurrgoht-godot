@@ -34,8 +34,6 @@ private:
 	//Mesh::BlendShapeMode blend_shape_mode = Mesh::BlendShapeMode::BLEND_SHAPE_MODE_RELATIVE;
 	//Vector<StringName> blend_shapes;
     Ref<StandardMaterial3D> material;
-    
-	Array p_arr;
     Ref<FastNoiseLite> noise;
 
 protected:
@@ -120,11 +118,7 @@ protected:
     */
     
     // FOR CACHE
-    struct LODMeshData {
-        LocalVector<Vertex> vertex_array;
-        LocalVector<int> index_array;
-        RS::SurfaceData surface_data;
-    };
+    RS::SurfaceData LODMeshData;
 
     /*
     TODO IDEA:
@@ -132,7 +126,6 @@ protected:
     - instead of removing old lod data, and then regenerating, we can just store the old data until the delete flag is raised
     - since the chunk will be completely removed, there is no point holding all that data, and only then are we sure we can delete it
     */
-
 
 	static void _bind_methods();
 
@@ -153,8 +146,6 @@ protected:
     int adjacent_LOD_steps[4] = {0};    // array only used to check if lod should be calculated -> UNUSED
 
     std::atomic_bool CHUNK_FLAGS[2] = {false};
-
-	const Vector3 SMALL_VEC3 = Vector3(CMP_EPSILON, CMP_EPSILON, CMP_EPSILON);
 
 public:
     enum FLAG {
@@ -178,24 +169,7 @@ public:
     //void _generate_lods(Vector2 size);
 
     void _generate_chunk_mesh();
-    /*
     void _draw_mesh();
-    Error _surface_set_data(
-        MESH_ARRAYS p_arrays,
-        uint64_t p_format, 
-        uint32_t *p_offsets, 
-        uint32_t p_vertex_stride, 
-        uint32_t p_normal_stride, 
-        uint32_t p_attrib_stride,
-        Vector<uint8_t> &r_vertex_array, 
-        Vector<uint8_t> &r_attrib_array, 
-        int p_vertex_array_len, 
-        Vector<uint8_t> &r_index_array, 
-        int p_index_array_len, 
-        AABB &r_aabb,
-        Vector4 &r_uv_scale
-    );
-    */
     
     // mostly for keeping the mesh generation code clean
     void _generate_chunk_normals(bool p_flip = false);
@@ -211,7 +185,7 @@ public:
     */
     static constexpr float CHUNK_RESOLUTION = 1.f;
 
-    static constexpr float CHUNK_SIZE = 512.f;    // chunk_size of 64 is pretty fast - 128 and above for testing
+    static constexpr float CHUNK_SIZE = 256.f;    // chunk_size of 64 is pretty fast - 128 and above for testing
     static constexpr float AMPLITUDE = 32.f;
 
 
