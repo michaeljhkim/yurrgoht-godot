@@ -137,9 +137,9 @@ void Chunk::_generate_chunk_mesh() {
 	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE - Vector2(step_size_x, step_size_z); 
 	
 	/* top + bottom */
-	z = start_pos.y;	
+	z = start_pos.y;
 	point = 0;
-	thisrow = 0;
+	thisrow = point;
 	prevrow = 0;
 
 	for (j = 0; j <= (subdivide_d + 1); j++) {
@@ -158,8 +158,8 @@ void Chunk::_generate_chunk_mesh() {
 
 			// done adding required values, add to array
 			vertex_array.push_back(vert);
-
 			point++;
+
 			if (i > 0 && j > 0) {
 				index_array.push_back(prevrow + i - 1);
 				index_array.push_back(prevrow + i);
@@ -211,57 +211,167 @@ void Chunk::_generate_chunk_mesh() {
 	_generate_chunk_tangents(first_vertex, last_vertex);
 
 	// Unpacking vertices, normals, uvs, and tangents into an array format that add_surface_from_arrays() accepts
+	// Prepare sub arrays
 	PackedVector3Array sub_vertex_array;
 	PackedVector3Array sub_normal_array;
 	PackedVector2Array sub_uv_array;
-	PackedFloat32Array sub_tangent_array;
+	PackedFloat64Array sub_tangent_array;
 	Vector<int> sub_index_array;
 
-	// Resize Vectors -> size for each Vector is known
-	sub_vertex_array.resize(vertex_array.size());
-	sub_normal_array.resize(vertex_array.size());
-	sub_uv_array.resize(vertex_array.size());
-	sub_tangent_array.resize(vertex_array.size() * 4);
-	sub_index_array.resize(index_array.size());
+	const int array_len = vertex_array.size();
+	const int index_array_len = index_array.size();
 
-	// Tangents have a 4th value called handedness -> determines visibility direction
-	float *w = sub_tangent_array.ptrw();
-	int *u = sub_index_array.ptrw();
+	sub_vertex_array.resize(array_len);
+	sub_normal_array.resize(array_len);
+	sub_uv_array.resize(array_len);
+	sub_tangent_array.resize(array_len * 4);
+	sub_index_array.resize(index_array_len);
 
-	// Unpack -> vertices, normals, uvs, tangents, indices
-	for (uint32_t idx = 0; idx < vertex_array.size(); idx++) {
-		const Vertex &v = vertex_array[idx];
+	double *tangent_write = sub_tangent_array.ptrw();
+	int *index_write = sub_index_array.ptrw();
 
-		sub_vertex_array.set(idx, v.vertex);
-		sub_normal_array.set(idx, v.normal);
-		sub_uv_array.set(idx, v.uv);
+	// Unpack vertex and index data
+	for (int i = 0; i < array_len; ++i) {
+		const Vertex &v = vertex_array[i];
 
-		// Tangents -> handedness calculations
-		w[idx * 4 + 0] = v.tangent.x;
-		w[idx * 4 + 1] = v.tangent.y;
-		w[idx * 4 + 2] = v.tangent.z;
-		w[idx * 4 + 3] = v.binormal.dot(v.normal.cross(v.tangent)) < 0 ? -1 : 1;
+		sub_vertex_array.set(i, v.vertex);
+		sub_normal_array.set(i, v.normal);
+		sub_uv_array.set(i, v.uv);
 
-		// Indices -> index_array is exactly 6 times larger than vertices array 
-		u[idx * 6 + 0] = index_array[idx * 6 + 0];
-		u[idx * 6 + 1] = index_array[idx * 6 + 1];
-		u[idx * 6 + 2] = index_array[idx * 6 + 2];
-		u[idx * 6 + 3] = index_array[idx * 6 + 3];
-		u[idx * 6 + 4] = index_array[idx * 6 + 4];
-		u[idx * 6 + 5] = index_array[idx * 6 + 5];
+		tangent_write[i * 4 + 0] = v.tangent.x;
+		tangent_write[i * 4 + 1] = v.tangent.y;
+		tangent_write[i * 4 + 2] = v.tangent.z;
+		tangent_write[i * 4 + 3] = v.binormal.dot(v.normal.cross(v.tangent)) < 0 ? -1.0 : 1.0;
+
+		// Each vertex has 6 indices
+		for (int j = 0; j < 6; ++j) {
+			index_write[i * 6 + j] = index_array[i * 6 + j];
+		}
 	}
 
-	p_arr[RS::ARRAY_VERTEX] = sub_vertex_array;
-	p_arr[RS::ARRAY_NORMAL] = sub_normal_array;
-	p_arr[RS::ARRAY_TANGENT] = sub_tangent_array;
-	p_arr[RS::ARRAY_TEX_UV] = sub_uv_array;
-	p_arr[RS::ARRAY_INDEX] = sub_index_array;
+	// Surface format setup
+	uint64_t format = 0;
+	format |= (1ULL << RS::ARRAY_VERTEX) |
+			(1ULL << RS::ARRAY_INDEX) |
+			(1ULL << RS::ARRAY_TEX_UV) |
+			(1ULL << RS::ARRAY_NORMAL) |
+			(1ULL << RS::ARRAY_TANGENT);
 
-	// Draw mesh
-	_draw_mesh();
+	format &= ~(RS::ARRAY_FLAG_FORMAT_VERSION_MASK << RS::ARRAY_FLAG_FORMAT_VERSION_SHIFT);
+	format |= RS::ARRAY_FLAG_FORMAT_CURRENT_VERSION & (RS::ARRAY_FLAG_FORMAT_VERSION_MASK << RS::ARRAY_FLAG_FORMAT_VERSION_SHIFT);
+
+	uint32_t offsets[RS::ARRAY_MAX];
+	uint32_t vertex_element_size, normal_element_size, attrib_element_size, skin_element_size;
+
+	RS::get_singleton()->mesh_surface_make_offsets_from_format(
+		format, array_len, index_array_len, offsets,
+		vertex_element_size, normal_element_size, attrib_element_size, skin_element_size
+	);
+
+	// Index stride
+	const bool use_16bit = array_len > 0 && array_len <= (1 << 16);
+	const int index_stride = use_16bit ? 2 : 4;
+
+	// Allocate surface arrays
+	Vector<uint8_t> surface_vertex_array;
+	surface_vertex_array.resize((vertex_element_size + normal_element_size) * array_len);
+
+	Vector<uint8_t> surface_attrib_array;
+	surface_attrib_array.resize(attrib_element_size * array_len);
+
+	Vector<uint8_t> surface_index_array;
+	surface_index_array.resize(index_stride * index_array_len);
+
+	// Raw data pointers
+	uint8_t *vw = surface_vertex_array.ptrw();
+	uint8_t *aw = surface_attrib_array.ptrw();
+	uint8_t *iw = surface_index_array.ptrw();
+
+	const Vector3 *vertex_src = sub_vertex_array.ptr();
+	const Vector3 *normal_src = sub_normal_array.ptr();
+	const Vector2 *uv_src = sub_uv_array.ptr();
+	const double *tangent_src = sub_tangent_array.ptr();
+	const int *index_src = sub_index_array.ptr();
+
+	// AABB calculation
+	AABB aabb;
+	{
+		Vector3 min = vertex_src[0];
+		Vector3 max = vertex_src[0];
+		for (int i = 1; i < array_len; ++i) {
+			min = min.min(vertex_src[i]);
+			max = max.max(vertex_src[i]);
+		}
+		aabb = AABB(min, max - min);
+		aabb.size = aabb.size.max(SMALL_VEC3);
+	}
+
+	// Write vertex and attribute data
+	for (int i = 0; i < array_len; ++i) {
+		memcpy(&vw[offsets[RS::ARRAY_VERTEX] + i * vertex_element_size], &vertex_src[i], sizeof(Vector3));
+
+		Vector2 normal_res = normal_src[i].octahedron_encode();
+		uint16_t packed_normal[2] = {
+			(uint16_t)CLAMP(normal_res.x * 65535.0, 0, 65535),
+			(uint16_t)CLAMP(normal_res.y * 65535.0, 0, 65535)
+		};
+		memcpy(&vw[offsets[RS::ARRAY_NORMAL] + i * normal_element_size], packed_normal, sizeof(packed_normal));
+
+		Vector3 tangent_vec(
+			tangent_src[i * 4 + 0],
+			tangent_src[i * 4 + 1],
+			tangent_src[i * 4 + 2]
+		);
+		Vector2 tangent_res = tangent_vec.octahedron_tangent_encode(tangent_src[i * 4 + 3]);
+		uint16_t packed_tangent[2] = {
+			(uint16_t)CLAMP(tangent_res.x * 65535.0, 0, 65535),
+			(uint16_t)CLAMP(tangent_res.y * 65535.0, 0, 65535)
+		};
+		if (packed_tangent[0] == 0 && packed_tangent[1] == 65535)
+			packed_tangent[0] = 65535;
+		memcpy(&vw[offsets[RS::ARRAY_TANGENT] + i * normal_element_size], packed_tangent, sizeof(packed_tangent));
+
+		memcpy(&aw[offsets[RS::ARRAY_TEX_UV] + i * attrib_element_size], &uv_src[i], sizeof(Vector2));
+	}
+
+	// Write index data
+	for (int i = 0; i < index_array_len; ++i) {
+		if (use_16bit) {
+			uint16_t idx = (uint16_t)index_src[i];
+			memcpy(&iw[i * index_stride], &idx, sizeof(idx));
+		} else {
+			uint32_t idx = (uint32_t)index_src[i];
+			memcpy(&iw[i * index_stride], &idx, sizeof(idx));
+		}
+	}
+
+	// Final surface data setup
+	surface_data.format = format;
+	surface_data.primitive = (RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES;
+	surface_data.aabb = aabb;
+	surface_data.vertex_data = surface_vertex_array;
+	surface_data.attribute_data = surface_attrib_array;
+	surface_data.vertex_count = array_len;
+	surface_data.index_data = surface_index_array;
+	surface_data.index_count = index_array_len;
+	surface_data.blend_shape_data = PackedByteArray();
+	surface_data.bone_aabbs = Vector<AABB>();
+	surface_data.lods = Vector<RenderingServer::SurfaceData::LOD>();
+	surface_data.uv_scale = Vector4(0, 0, 0, 0);
+
+
+
+	RS::get_singleton()->mesh_clear(mesh_rid);
+	RS::get_singleton()->mesh_add_surface(mesh_rid, surface_data);
+
+	// for some reason, issues arise when used in constructor, use here
+	// i think its caused by mesh_clear()
+	RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 }
 
+
 // seperated for future flexibility
+/*
 void Chunk::_draw_mesh() {
 	// surface_data -> Chunk class member 
 	Error err = RS::get_singleton()->mesh_create_surface_data_from_arrays(
@@ -277,8 +387,7 @@ void Chunk::_draw_mesh() {
 	// i think its caused by mesh_clear()
 	RS::get_singleton()->instance_set_surface_override_material(RS_instance_rid, 0, material->get_rid());
 }
-
-
+*/
 
 
 
@@ -490,6 +599,9 @@ void Chunk::mikktSetTSpaceDefault(const SMikkTSpaceContext *pContext, const floa
 	}
 }
 
-
 void Chunk::_bind_methods() {
 }
+
+
+
+

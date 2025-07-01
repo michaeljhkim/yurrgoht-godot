@@ -18,6 +18,8 @@
 
 #include <atomic>
 
+#include "core/math/aabb.h"
+
 class Chunk : public RefCounted {
 	GDCLASS(Chunk, RefCounted);
 
@@ -152,6 +154,8 @@ protected:
 
     std::atomic_bool CHUNK_FLAGS[2] = {false};
 
+	const Vector3 SMALL_VEC3 = Vector3(CMP_EPSILON, CMP_EPSILON, CMP_EPSILON);
+
 public:
     enum FLAG {
         DELETE,
@@ -174,7 +178,24 @@ public:
     //void _generate_lods(Vector2 size);
 
     void _generate_chunk_mesh();
+    /*
     void _draw_mesh();
+    Error _surface_set_data(
+        MESH_ARRAYS p_arrays,
+        uint64_t p_format, 
+        uint32_t *p_offsets, 
+        uint32_t p_vertex_stride, 
+        uint32_t p_normal_stride, 
+        uint32_t p_attrib_stride,
+        Vector<uint8_t> &r_vertex_array, 
+        Vector<uint8_t> &r_attrib_array, 
+        int p_vertex_array_len, 
+        Vector<uint8_t> &r_index_array, 
+        int p_index_array_len, 
+        AABB &r_aabb,
+        Vector4 &r_uv_scale
+    );
+    */
     
     // mostly for keeping the mesh generation code clean
     void _generate_chunk_normals(bool p_flip = false);
