@@ -26,7 +26,7 @@ light_bake_mode = 0
 
 [node name="PlayerCharacter" parent="." instance=ExtResource("1_ig7tw")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 24.8023, 0)
-speed = 200
+speed = 400
 jump_velocity = 8.0
 
 [node name="TerrainGenerator" type="TerrainGenerator" parent="." node_paths=PackedStringArray("player_character")]

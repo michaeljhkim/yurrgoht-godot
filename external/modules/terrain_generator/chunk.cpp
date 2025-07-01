@@ -47,7 +47,7 @@ Chunk::~Chunk() {
 }
 
 /*
-clears bare minimum for re-generation
+* clears bare minimum for re-generation
 */
 void Chunk::_clear_chunk_data() {
 	vertex_array.clear();
@@ -55,11 +55,12 @@ void Chunk::_clear_chunk_data() {
 }
 
 /*
-complete data reset
+* complete data reset
 */
 void Chunk::_reset_chunk_data() {
 	_clear_chunk_data();
 
+	// ADD A ADD SURFACE CANCELLATION FLAG IF DELETING 
 	//RS::get_singleton()->call_on_render_thread(callable_mp(RS::get_singleton(), &RS::mesh_clear).bind(mesh_rid));
 	RS::get_singleton()->mesh_clear(mesh_rid);
 	
@@ -83,8 +84,8 @@ Why not use PlaneMesh with SurfaceTool?
 
 Solution:
     Generate MESH with an extra row/column on all 4 sides
-	- e.g. for 4x4 chunk → generate 6x6 → then remove outer rows/columns
-    - fixes seams between chunks
+	- e.g. for 4x4 chunk -> generate 6x6 -> then remove outer rows/columns
+    - fixes seams between chunks (with the same LOD)
 
 SurfaceTool doesn’t support this method internally
 	- All calculations done manually
@@ -102,11 +103,9 @@ Why not use ArrayMesh + MeshInstance3D?
 - Can be done off the main thread -> more optimization possible
 */
 
-/*
-- the lower the chunk detail (higher lod), the higher the octaves
-- creates the illusion that vertex count remains continuous
-*/
 void Chunk::_generate_chunk_mesh() {
+	//set_flag(FLAG::GENERATING, true);
+
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	// size should most likely be established elsewhere, but do not need to currently
 
 	//float lod = MAX(pow(2, chunk_LOD-1), 1.f);
@@ -316,6 +315,8 @@ void Chunk::_generate_chunk_mesh() {
 	surface_data.bone_aabbs = Vector<AABB>();
 	surface_data.lods = Vector<RenderingServer::SurfaceData::LOD>();
 	surface_data.uv_scale = Vector4(0, 0, 0, 0);
+
+	//set_flag(FLAG::GENERATING, false);
 
 	// DRAW MESH
 	_draw_mesh();

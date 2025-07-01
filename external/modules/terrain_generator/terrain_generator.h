@@ -61,7 +61,7 @@ protected:
     std::atomic_bool QUEUE_EMPTY = true;
 
 	RingBuffer<Ref<Chunk>> reuse_pool;
-	RingBuffer<Ref<Chunk>> delete_queue;
+	//RingBuffer<Ref<Chunk>> delete_queue;
 	TaskBufferManager task_buffer_manager;
 
 	// Only for the worker thread

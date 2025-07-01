@@ -153,23 +153,12 @@ public:
     enum FLAG : uint8_t {
         DELETE,
         UPDATE
+        //,GENERATING
     };
     std::atomic<bool> CHUNK_FLAGS[2] = {false};
 
-    // unless the flag is the value that we want, set it
-    /*
-    if ((flags.load(std::memory_order_acquire) & (FlagA | FlagB)) == (FlagA | FlagB)) {
-        // Both FlagA and FlagB are set
-    }
-    */
     void set_flag(FLAG flag, bool value) { CHUNK_FLAGS[flag].store(value, std::memory_order_acquire); }
     bool get_flag(FLAG flag) { return CHUNK_FLAGS[flag].load(std::memory_order_acquire); }
-
-    /*
-    void flip_flag(FLAG flag) { 
-        CHUNK_FLAGS[flag].fetch_xor(TRUE);
-    }
-    */
 
     void _set_chunk_LOD(int new_LOD) { chunk_LOD = MAX(new_LOD, 1.0); }
     int _get_chunk_LOD() { return chunk_LOD; }
@@ -177,6 +166,7 @@ public:
     void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
     Vector3 _get_chunk_position() { return chunk_position; }
 
+    // for update checks
     void _set_grid_position(Vector3 new_position) { grid_position = new_position; }
     Vector3 _get_grid_position() { return grid_position; }
 
