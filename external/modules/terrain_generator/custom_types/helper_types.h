@@ -21,23 +21,23 @@
 */
 struct MainThreadManager {
     std::atomic_bool PROCESSING = false;
-    std::array<std::unique_ptr<RingBuffer<Callable>>, 2> TASK_BUFFERS;
-    std::array<std::unique_ptr<LocalVector<StringName>>, 2> TASK_NAMES;
-	Ref<CoreBind::Mutex> _task_mutex;
-	Ref<CoreBind::Mutex> _name_mutex;
+    std::array<std::unique_ptr<RingBuffer<Callable>>, 2> BUFFER;
+    std::array<std::unique_ptr<LocalVector<StringName>>, 2> ID;
+	Ref<CoreBind::Mutex> task_mutex;
+	Ref<CoreBind::Mutex> id_mutex;
     
     const int MAX_BUFFER_SIZE = 100;
 
     // called on main thread
     void main_thread_process() {
         if (PROCESSING.load()) {
-            while (TASK_BUFFERS[0]->data_left() > 0) {
-                TASK_BUFFERS[0]->read().call();
+            while (BUFFER[0]->data_left() > 0) {
+                BUFFER[0]->read().call();
             }
 
-            _name_mutex->lock();
-            TASK_NAMES[0]->clear();
-            _name_mutex->unlock();
+            id_mutex->lock();
+            ID[0]->clear();
+            id_mutex->unlock();
 
             PROCESSING.store(false, std::memory_order_acquire);
         }
@@ -46,53 +46,53 @@ struct MainThreadManager {
     // called on main or worker threads
     void tasks_push_back(StringName task_name, Callable task) {
         // Task name added first to prepare for existance checks ASAP
-        _name_mutex->lock();
-        TASK_NAMES[1]->push_back(task_name);
-        _name_mutex->unlock();
+        id_mutex->lock();
+        ID[1]->push_back(task_name);
+        id_mutex->unlock();
 
-        _task_mutex->lock();
-        if (TASK_BUFFERS[1]->space_left() > 0)
-            TASK_BUFFERS[1]->write(task);
+        task_mutex->lock();
+        if (BUFFER[1]->space_left() > 0)
+            BUFFER[1]->write(task);
 
-        if (!PROCESSING.load() && (TASK_BUFFERS[0]->data_left() <= 0) && (TASK_BUFFERS[1]->data_left() > 0)) {
-            TASK_BUFFERS[0].swap(TASK_BUFFERS[1]);      // buffers being pointers makes efficient/clean swapping possible
+        if (!PROCESSING.load() && (BUFFER[0]->data_left() <= 0) && (BUFFER[1]->data_left() > 0)) {
+            BUFFER[0].swap(BUFFER[1]);      // buffer being pointers makes efficient/clean swapping possible
             
-            _name_mutex->lock();
-            TASK_NAMES[0].swap(TASK_NAMES[1]);
-            _name_mutex->unlock();
+            id_mutex->lock();
+            ID[0].swap(ID[1]);
+            id_mutex->unlock();
 
             PROCESSING.store(true, std::memory_order_acquire);
         }
-        _task_mutex->unlock();
+        task_mutex->unlock();
     }
 
     bool task_exists(StringName task_name) {
-        _name_mutex->lock();
-        bool exists = TASK_NAMES[0]->has(task_name) || TASK_NAMES[1]->has(task_name);
-        _name_mutex->unlock();
+        id_mutex->lock();
+        bool exists = ID[0]->has(task_name) || ID[1]->has(task_name);
+        id_mutex->unlock();
 
         return exists;
     }
 
     MainThreadManager() {
         for (int i = 0; i < 2; ++i) {
-            TASK_BUFFERS[i] = std::make_unique<RingBuffer<Callable>>(6);    // 2**6 = 64 
-            TASK_NAMES[i] = std::make_unique<LocalVector<StringName>>();
-            TASK_NAMES[i]->reserve(64);
+            BUFFER[i] = std::make_unique<RingBuffer<Callable>>(6);    // 2**6 = 64 
+            ID[i] = std::make_unique<LocalVector<StringName>>();
+            ID[i]->reserve(64);
         }
 
-        _task_mutex.instantiate();
-        _name_mutex.instantiate();
+        task_mutex.instantiate();
+        id_mutex.instantiate();
     }
 
     ~MainThreadManager() {
         for (int i = 0; i < 2; ++i) {
-            TASK_BUFFERS[i]->clear();
-            TASK_NAMES[i]->clear();
+            BUFFER[i]->clear();
+            ID[i]->clear();
         }
 
-        _name_mutex.unref();
-        _task_mutex.unref();
+        id_mutex.unref();
+        task_mutex.unref();
     }
 };
 
@@ -143,25 +143,25 @@ class ThreadTaskQueue : public RefCounted {
 	GDCLASS(ThreadTaskQueue, RefCounted);
 
 public:
-    LRUQueue<StringName, Callable> _queue;
-    Ref<CoreBind::Mutex> _mutex;
-    Ref<CoreBind::Thread> _thread;
+    LRUQueue<StringName, Callable> queue;
+    Ref<CoreBind::Mutex> mutex;
+    Ref<CoreBind::Thread> thread;
 
     std::atomic_bool RUNNING = {true};
     std::atomic_bool EMPTY = {true};
     std::atomic_bool PROCESSING = {false};
     std::atomic<uint> SIZE = 0;
 
-    void _thread_process() {
+    void thread_process() {
         Callable CURRENT_TASK;
 
         while (RUNNING) {
             if (EMPTY.load()) {
                 continue;
             }
-            _mutex->lock();
-            CURRENT_TASK = _queue.front();			// tasks do exist, copy the front of the queue
-            _mutex->unlock();
+            mutex->lock();
+            CURRENT_TASK = queue.front();			// tasks do exist, copy the front of the queue
+            mutex->unlock();
 
             // all arguements are bound BEFORE being added to task queue -> no arguements needed here
             PROCESSING.store(true, std::memory_order_acquire);
@@ -169,13 +169,13 @@ public:
             PROCESSING.store(false, std::memory_order_acquire);
                 
             // only safe to remove AFTER call(), due to main thread checking task queue
-            _mutex->lock();
-            _queue.pop_front();
+            mutex->lock();
+            queue.pop_front();
             SIZE--;
-            if (_queue.empty()) {    // .empty() check could be moved directly into .store(), but would require atomics to activate when not needed
+            if (queue.empty()) {    // .empty() check could be moved directly into .store(), but would require atomics to activate when not needed
                 EMPTY.store(true, std::memory_order_acquire);
             }
-            _mutex->unlock();
+            mutex->unlock();
         }
     }
 };
@@ -185,36 +185,38 @@ struct TaskThreadManager {
     real_t MAX_QUEUE_SIZE = 64;
 
     /*
+    - If a task queue is not processing, add to that queue
     - If all task queues are processing, add the task to the smallest queue
-    - If one of the task queues is not processing, add to that queue
+        - size determined by number of tasks (should probably add weights)
     */
     void insert_task(StringName task_name, Callable task_callable) {
         int min = 0;
         for (int i = 1; i < TASKS.size(); ++i) {
-            if (TASKS[i].PROCESSING && TASKS[i].SIZE < TASKS[min].SIZE) {
-                min = i;
-                continue;
-            }
-            else if (!TASKS[i].PROCESSING) {
+            if (!TASKS[i].PROCESSING.load()) {
                 min = i;
                 break;
             }
+            else if (TASKS[i].PROCESSING.load() && TASKS[i].SIZE < TASKS[min].SIZE) {
+                min = i;
+                continue;
+            }
         }
+        print_line("INSERT INTO THREAD: ", min);
 
-        TASKS[min]._mutex->lock();
-        TASKS[min]._queue.insert(task_name, task_callable);
+        TASKS[min].mutex->lock();
+        TASKS[min].queue.insert(task_name, task_callable);
         TASKS[min].SIZE++;
 
         // task queue is no longer empty -> 'wake up' task thread (thread not actually sleeping)
         TASKS[min].EMPTY.store(false, std::memory_order_acquire);
-        TASKS[min]._mutex->unlock();
+        TASKS[min].mutex->unlock();
     }
 
     bool has_task(StringName task_name) {
         for (int i = 0; i < TASKS.size(); ++i) {
-            TASKS[i]._mutex->lock();
-            bool exists = TASKS[i]._queue.has(task_name);
-            TASKS[i]._mutex->unlock();
+            TASKS[i].mutex->lock();
+            bool exists = TASKS[i].queue.has(task_name);
+            TASKS[i].mutex->unlock();
 
             if (exists) { return true; }
         }
@@ -223,19 +225,19 @@ struct TaskThreadManager {
 
     TaskThreadManager() {
         for (int i = 0; i < TASKS.size(); ++i) {
-            TASKS[i]._queue.set_capacity(64);
-            TASKS[i]._mutex.instantiate();
-            TASKS[i]._thread.instantiate();
-            TASKS[i]._thread->start(callable_mp(&TASKS[i], &ThreadTaskQueue::_thread_process), CoreBind::Thread::PRIORITY_NORMAL);
+            TASKS[i].queue.set_capacity(MAX_QUEUE_SIZE);
+            TASKS[i].mutex.instantiate();
+            TASKS[i].thread.instantiate();
+            TASKS[i].thread->start(callable_mp(&TASKS[i], &ThreadTaskQueue::thread_process), CoreBind::Thread::PRIORITY_NORMAL);
         }
     }
 
     ~TaskThreadManager() {
         for (int i = 0; i < TASKS.size(); ++i) {
             TASKS[i].RUNNING.store(false, std::memory_order_acquire);
-            TASKS[i]._thread->wait_to_finish();
-            TASKS[i]._mutex.unref();
-            TASKS[i]._thread.unref();
+            TASKS[i].thread->wait_to_finish();
+            TASKS[i].mutex.unref();
+            TASKS[i].thread.unref();
         }
     }
 };

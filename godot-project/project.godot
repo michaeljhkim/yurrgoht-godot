@@ -16,19 +16,10 @@ config/features=PackedStringArray("4.5", "Forward Plus")
 run/max_fps=120
 config/icon="res://icon.svg"
 
-[autoload]
-
-Heightmap="res://heightmap/Heightmap.gd"
-
-[debug]
-
-settings/stdout/print_fps=true
-
 [display]
 
 window/size/viewport_width=1920
 window/size/viewport_height=1080
-window/size/mode=2
 window/vsync/vsync_mode=0
 
 [input]
@@ -70,37 +61,4 @@ look_sensitivity=0.01
 
 [rendering]
 
-rendering_device/staging_buffer/block_size_kb=512
 rendering_device/staging_buffer/max_size_mb=256
-rendering_device/vulkan/max_descriptors_per_pool=128
-
-[shader_globals]
-
-normalmap={
-"type": "sampler2D",
-"value": "res://heightmap/normalmap.png"
-}
-amplitude={
-"type": "float",
-"value": 32.0
-}
-clipmap_position={
-"type": "vec3",
-"value": Vector3(0, 0, 0)
-}
-lod_step={
-"type": "float",
-"value": 2.0
-}
-clipmap_partition_length={
-"type": "float",
-"value": 64.0
-}
-mesh_quality={
-"type": "float",
-"value": 2.0
-}
-default_heightmap={
-"type": "sampler2D",
-"value": "res://heightmap/heightmap.png"
-}

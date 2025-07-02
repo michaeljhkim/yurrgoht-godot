@@ -1,40 +1,27 @@
 #pragma once
 
-// GODOT DARED ME TO OPTIMIZE! HAHAHHAHAH
-// I AM WILLING TO GO AS FAR AS POSSIBLE!!!!
-// https://docs.godotengine.org/en/stable/tutorials/performance/using_servers.html
 #include "servers/rendering_server.h"
-#include "servers/rendering/rendering_server_globals.h"
-
 #include "core/object/ref_counted.h"
-#include "core/variant/variant_utility.h"
-#include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h
+#include "core/math/aabb.h"
 
+#include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h
 #include "scene/resources/mesh.h"
 
 // For multi-threading
 #include "core/core_bind.h"
 #include "thirdparty/misc/mikktspace.h"
-
 #include <atomic>
 
-#include "core/math/aabb.h"
-//#define TRUE 1
-//#define FALSE 0
 
 class Chunk : public RefCounted {
 	GDCLASS(Chunk, RefCounted);
 
 private:
     // render server pointers
-    RID RS_instance_rid;
-    mutable RID mesh_rid;
+    RID render_instance_rid;
+    RID mesh_rid;
     //RID world_scenario;
 
-    // possibly need in the future
-	//Vector<Surface> surfaces;
-	//Mesh::BlendShapeMode blend_shape_mode = Mesh::BlendShapeMode::BLEND_SHAPE_MODE_RELATIVE;
-	//Vector<StringName> blend_shapes;
     Ref<StandardMaterial3D> material;
     Ref<FastNoiseLite> noise;
 
@@ -131,13 +118,13 @@ protected:
 
 	static void _bind_methods();
 
-	LocalVector<Vertex> _vertex_array;
-	LocalVector<int> _index_array;
-	RS::SurfaceData _surface_data;
+	LocalVector<Vertex> vertex_array;
+	LocalVector<int> index_array;
+	RS::SurfaceData surface_data;
 
-    Vector3 _position = Vector3(0, 0, 0);
-    Vector3 _grid_position = Vector3(0, 0, 0);
-    int _LOD_factor = 0;
+    Vector3 position = Vector3(0, 0, 0);
+    Vector3 grid_position = Vector3(0, 0, 0);
+    int LOD_factor = 0;
     
     // for storing neighboring lod chunks -> UNUSED
     enum ADJACENT {
@@ -148,11 +135,11 @@ protected:
     };
     int adjacent_LOD_steps[4] = {0};    // array only used to check if lod should be calculated -> UNUSED
 
-    // mostly for keeping the mesh generation code clean
-    void _generate_normals(bool p_flip = false);
-    void _generate_tangents(Vector3 &first_vertex, Vector3 &last_vertex);
-
     std::atomic<bool> CHUNK_FLAGS[2] = {false};
+
+    // mostly for keeping the mesh generation code clean
+    void generate_normals(bool p_flip = false);
+    void generate_tangents(Vector3 &first_vertex, Vector3 &last_vertex);
 
 public:
     enum FLAG : uint8_t {
@@ -163,15 +150,15 @@ public:
     void set_flag(FLAG flag, bool value) { CHUNK_FLAGS[flag].store(value, std::memory_order_acquire); }
     bool get_flag(FLAG flag) { return CHUNK_FLAGS[flag].load(std::memory_order_acquire); }
 
-    void set_LOD_factor(int new_LOD) { _LOD_factor = MAX(new_LOD, 1.0); }
-    int get_LOD_factor() { return _LOD_factor; }
+    void set_LOD_factor(int new_LOD) { LOD_factor = MAX(new_LOD, 1.0); }
+    int get_LOD_factor() { return LOD_factor; }
 
-    void set_position(Vector3 new_position) { _position = new_position; }
-    Vector3 get_position() { return _position; }
+    void set_position(Vector3 new_position) { position = new_position; }
+    Vector3 get_position() { return position; }
 
     // for update checks
-    void set_grid_position(Vector3 new_position) { _grid_position = new_position; }
-    Vector3 get_grid_position() { return _grid_position; }
+    void set_grid_position(Vector3 new_position) { grid_position = new_position; }
+    Vector3 get_grid_position() { return grid_position; }
 
 
     // can probably remove this, but keeping for now
@@ -179,8 +166,8 @@ public:
     //RID _get_mesh_rid() { return mesh_rid; }
     //void _generate_lods(Vector2 size);
 
-    void _generate_mesh();
-    void _draw_mesh();
+    void generate_mesh();
+    void draw_mesh();
     
 	//static constexpr float render_distance = 4.f;
 
@@ -191,7 +178,7 @@ public:
     */
     static constexpr float CHUNK_RESOLUTION = 1.f;
 
-    static constexpr float CHUNK_SIZE = 2048.f;    // chunk_size of 64 is pretty fast - 128 and above for testing
+    static constexpr float CHUNK_SIZE = 1024.f;    // chunk_size of 512 is pretty fast - 1024 and above for testing
     static constexpr float AMPLITUDE = 32.f;
 
 
