@@ -193,14 +193,14 @@ void TerrainGenerator::_process(double delta) {
 * should only be called inside _thread_process -> purely because it can be slow
 */
 void TerrainGenerator::instantiate_chunk(Vector3 chunk_pos, int lod_factor, Vector3 grid_pos) {
-	Ref<Chunk> chunk;
 	reuse_mutex->lock();
 	bool data_check = reuse_pool.data_left() > 0;
 	reuse_mutex->unlock();
 
 	// check if the reuse pool has chunks we can recycle
+	Ref<Chunk> chunk;
 	if (data_check) {
-		print_line("REUSE INSTANTIATED CHUNK: ", chunk_pos);
+		print_line("REUSE CHUNK: ", chunk_pos);
 
 		reuse_mutex->lock();
 		chunk = reuse_pool.read();
@@ -212,7 +212,7 @@ void TerrainGenerator::instantiate_chunk(Vector3 chunk_pos, int lod_factor, Vect
 		chunk->set_LOD_factor(lod_factor);
 	}
 	else if (chunk_count < MAX_CHUNKS_NUM) {
-		print_line("INSTANTIATE NEW CHUNK: ", chunk_pos);
+		print_line("NEW CHUNK: ", chunk_pos);
 		++chunk_count;
 		chunk.instantiate(world_scenario, chunk_pos, lod_factor);		// this is the only other time world_scenario is used, so it's thread safe
 	}
@@ -262,7 +262,7 @@ void TerrainGenerator::delete_chunk(Vector3 chunk_key) {
 
 	// delete if theres no space left in reuse pool, or too many chunks spawned
 	if (!space_check || (chunk_count >= MAX_CHUNKS_NUM)) {
-		print_line("TRUE DELETE -> DESTRUCTOR: ", chunk_key);
+		print_line("DELETE CHUNK: ", chunk_key);
 		chunks.erase(chunk_key);
 		--chunk_count;
 		return;

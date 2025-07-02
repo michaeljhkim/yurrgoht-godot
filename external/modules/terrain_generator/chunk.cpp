@@ -50,6 +50,7 @@ Chunk::~Chunk() {
 * clears bare minimum for re-generation
 */
 void Chunk::clear_data() {
+	flat_vertex_array.reset();
 	vertex_array.reset();
 	index_array.reset();
 }
@@ -80,7 +81,7 @@ MESH = {vertices, normals, uvs, tangents, indices}
 
 Why not use PlaneMesh with SurfaceTool?
     - Only calculates internal normals by default
-	- Causes seaming issues even between chunks with the same LOD (texture/lighting inconsistencies)
+	- Causes seaming issues, even between chunks with the same LOD (texture/lighting inconsistencies)
 
 Solution:
     Generate MESH with an extra row/column on all 4 sides
@@ -119,8 +120,9 @@ void Chunk::generate_mesh() {
 	int step_size_z = size.y / (subdivide_d - 1.0);
 
 	// reserve known amount of vertices and indices
-	vertex_array.reserve((subdivide_d + 2) * (subdivide_w + 2) * 6);
+	vertex_array.reserve((subdivide_d + 2) * (subdivide_w + 2));
 	index_array.reserve((subdivide_d + 1) * (subdivide_w + 1) * 6);
+	flat_vertex_array.reserve(index_array.size());
 
 	// start position shifted by half chunk size and one step for padding
 	Size2 start_pos = size * -0.5 - Vector2(position.x, position.z) * CHUNK_SIZE - Vector2(step_size_x, step_size_z);
@@ -138,7 +140,6 @@ void Chunk::generate_mesh() {
 		for (int i = 0; i <= (subdivide_w + 1); i++) {
 			Vertex vert;
 			vert.vertex = Vector3(-x, noise->get_noise_2d(-x,-z) * AMPLITUDE, -z);
-
 			vert.uv = Vector2(
 				1.0 - (i / (subdivide_w - 1.0)),
 				1.0 - (j / (subdivide_d - 1.0))
@@ -155,8 +156,16 @@ void Chunk::generate_mesh() {
 				index_array.push_back(prevrow + i);
 				index_array.push_back(thisrow + i);
 				index_array.push_back(thisrow + i - 1);
-			}
 
+				// de-index/flatten vertices -> avoids deindexing later
+				flat_vertex_array.push_back(vertex_array[prevrow + i - 1]);
+				flat_vertex_array.push_back(vertex_array[prevrow + i]);
+				flat_vertex_array.push_back(vertex_array[thisrow + i - 1]);
+
+				flat_vertex_array.push_back(vertex_array[prevrow + i]);
+				flat_vertex_array.push_back(vertex_array[thisrow + i]);
+				flat_vertex_array.push_back(vertex_array[thisrow + i - 1]);
+			}
 			x += step_size_x;
 		}
 		z += step_size_z;
@@ -183,7 +192,6 @@ void Chunk::generate_mesh() {
 	Vector3 last_vertex = (--vertex_array.end())->vertex;	// .end() returns out of bounds -> fixed with --
 	
 	/*
-	DE-INDEX + 
 	GENERATE NORMALS
 	*/
 	generate_normals();
@@ -328,30 +336,10 @@ void Chunk::draw_mesh() {
 	RS::get_singleton()->instance_set_surface_override_material(render_instance_rid, 0, material->get_rid());
 
 	// free memory space for more chunks
-	//vertex_array.reset();
-	//index_array.reset();
+	vertex_array.reset();
+	index_array.reset();
+	flat_vertex_array.reset();
 }
-
-
-// seperated for future flexibility
-/*
-void Chunk::draw_mesh() {
-	// surface_data -> Chunk class member 
-	Error err = RS::get_singleton()->mesh_createsurface_data_from_arrays(
-		&surface_data, (RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES, p_arr, 	// created data
-		TypedArray<Array>(), Dictionary(), 0									// empty data
-	);
-	ERR_FAIL_COND(err != OK);
-
-	RS::get_singleton()->mesh_clear(mesh_rid);
-	RS::get_singleton()->mesh_add_surface(mesh_rid, surface_data);
-
-	// for some reason, issues arise when used in constructor, use here
-	// i think its caused by mesh_clear()
-	RS::get_singleton()->instance_set_surface_override_material(render_instance_rid, 0, material->get_rid());
-}
-*/
-
 
 
 
@@ -361,30 +349,15 @@ void Chunk::draw_mesh() {
 GENERATE CHUNK NORMALS
 */
 void Chunk::generate_normals(bool p_flip) {
-	/*
-	  ---------- DE-INDEX START ----------
-	*/
-	// attempt was made to de-index on creation, but not possible through greedy algorithms
-
-	LocalVector<Vertex> old_vertex_array = vertex_array;
-	vertex_array.clear();
-
-	// There are 6 indices per vertex
-	for (const int &index : index_array) {
-		ERR_FAIL_COND(uint32_t(index) >= old_vertex_array.size());
-		vertex_array.push_back(old_vertex_array[index]);
-	}
-	index_array.clear();
-
-	/*
-	  ---------- DE-INDEX END ----------
-	*/
+	// de-indexed vertex array already created alongside vertex array -> only need to reset arrays
+	vertex_array.reset();
+	index_array.reset();
 
 	// Normal Calculations -> Highly unlikely that a mesh will reach UINT32_MAX
-	AHashMap<SmoothGroupVertex, Vector3, SmoothGroupVertexHasher> smooth_hash = vertex_array.size();
+	AHashMap<SmoothGroupVertex, Vector3, SmoothGroupVertexHasher> smooth_hash = flat_vertex_array.size();
 
-	for (uint32_t vi = 0; vi < vertex_array.size(); vi += 3) {
-		Vertex *v = &vertex_array[vi];
+	for (uint32_t vi = 0; vi < flat_vertex_array.size(); vi += 3) {
+		Vertex *v = &flat_vertex_array[vi];
 
 		Vector3 normal = !p_flip ?
 			Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal :
@@ -404,7 +377,7 @@ void Chunk::generate_normals(bool p_flip) {
 		}
 	}
 
-	for (Vertex &vertex : vertex_array) {
+	for (Vertex &vertex : flat_vertex_array) {
 		if (vertex.smooth_group == UINT32_MAX)
 			continue;
 
@@ -434,7 +407,7 @@ void Chunk::generate_tangents(Vector3 &first_vertex, Vector3 &last_vertex) {
 	msc.m_pInterface = &mkif;
 
 	TangentGenerationContextUserData triangle_data;
-	triangle_data.vertices = &vertex_array;
+	triangle_data.vertices = &flat_vertex_array;
 	triangle_data.indices = &index_array;
 	msc.m_pUserData = &triangle_data;
 
@@ -447,10 +420,11 @@ void Chunk::generate_tangents(Vector3 &first_vertex, Vector3 &last_vertex) {
 	*/
 
 	// use '=' here resizes the capacity -> avoids future (expensive) resize operations
-	AHashMap<Vertex &, int, VertexHasher> indices = vertex_array.size();
+	AHashMap<Vertex &, int, VertexHasher> indices = flat_vertex_array.size();
+	vertex_array.resize(flat_vertex_array.size());
 
 	uint32_t new_size = 0;
-	for (Vertex &vertex : vertex_array) {
+	for (Vertex &vertex : flat_vertex_array) {
 		// removes vertices as explained from the logic above
 		if ((vertex.vertex.x == first_vertex.x) ||
 			(vertex.vertex.z == first_vertex.z) ||
@@ -472,6 +446,7 @@ void Chunk::generate_tangents(Vector3 &first_vertex, Vector3 &last_vertex) {
 
 		index_array.push_back(idx);
 	}
+	flat_vertex_array.reset();		// finished with flattened vertex array
 	vertex_array.resize(new_size);
 	/*
 	  ---------- RE-INDEX END ----------

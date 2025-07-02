@@ -117,7 +117,9 @@ protected:
     */
 
 	static void _bind_methods();
-
+    
+    // flattened vertices -> de-indexed vertices
+    LocalVector<Vertex> flat_vertex_array;
 	LocalVector<Vertex> vertex_array;
 	LocalVector<int> index_array;
 	RS::SurfaceData surface_data;
@@ -178,7 +180,7 @@ public:
     */
     static constexpr float CHUNK_RESOLUTION = 1.f;
 
-    static constexpr float CHUNK_SIZE = 1024.f;    // chunk_size of 512 is pretty fast - 1024 and above for testing
+    static constexpr float CHUNK_SIZE = 2048.f;    // chunk_size of 512 is pretty fast - 1024 and above for testing
     static constexpr float AMPLITUDE = 32.f;
 
 
