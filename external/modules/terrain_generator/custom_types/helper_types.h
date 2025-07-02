@@ -135,3 +135,107 @@ public:
         return this->get_size() <= 0;
     }
 };
+
+
+
+
+class ThreadTaskQueue : public RefCounted {
+	GDCLASS(ThreadTaskQueue, RefCounted);
+
+public:
+    LRUQueue<StringName, Callable> _queue;
+    Ref<CoreBind::Mutex> _mutex;
+    Ref<CoreBind::Thread> _thread;
+
+    std::atomic_bool RUNNING = {true};
+    std::atomic_bool EMPTY = {true};
+    std::atomic_bool PROCESSING = {false};
+    std::atomic<uint> SIZE = 0;
+
+    void _thread_process() {
+        Callable CURRENT_TASK;
+
+        while (RUNNING) {
+            if (EMPTY.load()) {
+                continue;
+            }
+            _mutex->lock();
+            CURRENT_TASK = _queue.front();			// tasks do exist, copy the front of the queue
+            _mutex->unlock();
+
+            // all arguements are bound BEFORE being added to task queue -> no arguements needed here
+            PROCESSING.store(true, std::memory_order_acquire);
+            CURRENT_TASK.call();
+            PROCESSING.store(false, std::memory_order_acquire);
+                
+            // only safe to remove AFTER call(), due to main thread checking task queue
+            _mutex->lock();
+            _queue.pop_front();
+            SIZE--;
+            if (_queue.empty()) {    // .empty() check could be moved directly into .store(), but would require atomics to activate when not needed
+                EMPTY.store(true, std::memory_order_acquire);
+            }
+            _mutex->unlock();
+        }
+    }
+};
+
+struct TaskThreadManager {
+    std::array<ThreadTaskQueue, 4> TASKS;
+    real_t MAX_QUEUE_SIZE = 64;
+
+    /*
+    - If all task queues are processing, add the task to the smallest queue
+    - If one of the task queues is not processing, add to that queue
+    */
+    void insert_task(StringName task_name, Callable task_callable) {
+        int min = 0;
+        for (int i = 1; i < TASKS.size(); ++i) {
+            if (TASKS[i].PROCESSING && TASKS[i].SIZE < TASKS[min].SIZE) {
+                min = i;
+                continue;
+            }
+            else if (!TASKS[i].PROCESSING) {
+                min = i;
+                break;
+            }
+        }
+
+        TASKS[min]._mutex->lock();
+        TASKS[min]._queue.insert(task_name, task_callable);
+        TASKS[min].SIZE++;
+
+        // task queue is no longer empty -> 'wake up' task thread (thread not actually sleeping)
+        TASKS[min].EMPTY.store(false, std::memory_order_acquire);
+        TASKS[min]._mutex->unlock();
+    }
+
+    bool has_task(StringName task_name) {
+        for (int i = 0; i < TASKS.size(); ++i) {
+            TASKS[i]._mutex->lock();
+            bool exists = TASKS[i]._queue.has(task_name);
+            TASKS[i]._mutex->unlock();
+
+            if (exists) { return true; }
+        }
+        return false;
+    }
+
+    TaskThreadManager() {
+        for (int i = 0; i < TASKS.size(); ++i) {
+            TASKS[i]._queue.set_capacity(64);
+            TASKS[i]._mutex.instantiate();
+            TASKS[i]._thread.instantiate();
+            TASKS[i]._thread->start(callable_mp(&TASKS[i], &ThreadTaskQueue::_thread_process), CoreBind::Thread::PRIORITY_NORMAL);
+        }
+    }
+
+    ~TaskThreadManager() {
+        for (int i = 0; i < TASKS.size(); ++i) {
+            TASKS[i].RUNNING.store(false, std::memory_order_acquire);
+            TASKS[i]._thread->wait_to_finish();
+            TASKS[i]._mutex.unref();
+            TASKS[i]._thread.unref();
+        }
+    }
+};

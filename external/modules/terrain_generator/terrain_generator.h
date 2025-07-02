@@ -1,6 +1,5 @@
 #pragma once
 
-#include "core/variant/typed_dictionary.h"
 //#include "modules/noise/fastnoise_lite.h"	// this class inherits from the noise class in noise.h
 
 #include "scene/3d/physics/character_body_3d.h"
@@ -63,9 +62,9 @@ protected:
 	RingBuffer<Ref<Chunk>> reuse_pool;
 	//RingBuffer<Ref<Chunk>> delete_queue;
 	TaskBufferManager task_buffer_manager;
+	TaskThreadManager task_thread_manager;
 
 	// Only for the worker thread
-	void _thread_process();
 	void _instantiate_chunk(Vector3 chunk_position, int chunk_lod, Vector3 grid_position);
 	void _add_chunk(Vector3 chunk_position, Ref<Chunk> chunk);
 

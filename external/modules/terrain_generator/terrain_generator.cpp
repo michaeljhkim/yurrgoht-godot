@@ -36,6 +36,7 @@ TerrainGenerator::TerrainGenerator() {
 
 // destructor - cleans up anything that the main scene tree might not
 TerrainGenerator::~TerrainGenerator() {
+	/*
 	if (_thread.is_valid()) {
 		THREAD_RUNNING.store(false, std::memory_order_acquire);
 		_thread->wait_to_finish();
@@ -44,6 +45,7 @@ TerrainGenerator::~TerrainGenerator() {
 	_thread.unref();
 	_task_mutex.unref();
 	_reuse_mutex.unref();
+	*/
 
 	clean_up();
 }
@@ -87,9 +89,9 @@ void TerrainGenerator::_ready() {
 
 	_reuse_mutex.instantiate();
 	_task_mutex.instantiate();
-	_thread.instantiate();
+	//_thread.instantiate();
 
-	_thread->start(callable_mp(this, &TerrainGenerator::_thread_process), CoreBind::Thread::PRIORITY_NORMAL);
+	//_thread->start(callable_mp(this, &TerrainGenerator::_thread_process), CoreBind::Thread::PRIORITY_NORMAL);
 
 	// debug
 	start = std::chrono::high_resolution_clock::now();
@@ -143,7 +145,7 @@ void TerrainGenerator::_process(double delta) {
 
 			// we check _thread_task_queue first, since if true, we want to unlock the mutex asap
 			_task_mutex->lock();
-			bool task_exists = callable_queue.has(task_name);
+			bool task_exists = task_thread_manager.has_task(task_name);
 			_task_mutex->unlock();
 
 			// UPDATE EXISTING CHUNK
@@ -159,10 +161,11 @@ void TerrainGenerator::_process(double delta) {
 				_chunks[chunk_position]->set_flag(Chunk::FLAG::UPDATE, true);
 				TERRAIN_DEBUG("UPDATE CHUNK: ", task_name);
 
-				_task_mutex->lock();
-				callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_update_chunk_mesh).bind(_chunks[chunk_position], distance, grid_position));
-				task_exists = true;		// removes the need for the .has() check
-				_task_mutex->unlock();
+				task_thread_manager.insert_task(
+					task_name, 
+					callable_mp(this, &TerrainGenerator::_update_chunk_mesh).bind(_chunks[chunk_position], distance, grid_position)
+				);
+
 				continue;
 			}
 
@@ -177,12 +180,10 @@ void TerrainGenerator::_process(double delta) {
 			}
 
 			// direct callable instantiation
-			_task_mutex->lock();
-			callable_queue.insert(task_name, callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(chunk_position, MAX(abs(x), abs(z)), grid_position));
-			_task_mutex->unlock();
-
-			// task queue is no longer empty -> 'wake up' task thread (thread not actually sleeping)
-			QUEUE_EMPTY.store(false, std::memory_order_acquire);
+			task_thread_manager.insert_task(
+				task_name, 
+				callable_mp(this, &TerrainGenerator::_instantiate_chunk).bind(chunk_position, MAX(abs(x), abs(z)), grid_position)
+			);
 
 			return;
 		}
@@ -212,38 +213,6 @@ void TerrainGenerator::_process(double delta) {
 		TERRAIN_DEBUG("NUMBER OF CHUNKS ", chunk_count);
 		count = 0;
 		frames = 0;
-	}
-}
-
-
-/*
-- worker thread function
-
-- for the most part, this is an infinite loop, until the class itself is down
-*/
-void TerrainGenerator::_thread_process() {
-	Callable task;
-
-	while (THREAD_RUNNING) {
-		if (QUEUE_EMPTY.load()) {
-			continue;
-		}
-		_task_mutex->lock();
-		task = callable_queue.front();			// tasks do exist, copy the front of the queue
-		_task_mutex->unlock();
-
-		// all arguements are bound BEFORE being added to task queue -> no arguements needed here
-		task.call();
-			
-		// only safe to remove AFTER call(), due to main thread checking task queue
-		_task_mutex->lock();
-		callable_queue.pop_front();
-
-		// .empty() check could be moved directly into .store(), but would require atomics to activate when not needed
-		if (callable_queue.empty()) {
-			QUEUE_EMPTY.store(true, std::memory_order_acquire);
-		}
-		_task_mutex->unlock();
 	}
 }
 
