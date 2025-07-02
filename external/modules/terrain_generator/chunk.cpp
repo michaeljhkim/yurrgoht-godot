@@ -380,9 +380,7 @@ void Chunk::generate_normals(bool p_flip) {
 			continue;
 
 		Vector3 *lv = smooth_hash.getptr(vertex);
-		vertex.normal = lv ? 
-			lv->normalized() : 
-			Vector3();
+		vertex.normal = lv ? lv->normalized() : Vector3();
 	}
 }
 
