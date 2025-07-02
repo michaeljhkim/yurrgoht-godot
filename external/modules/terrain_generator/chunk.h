@@ -191,7 +191,7 @@ public:
     */
     static constexpr float CHUNK_RESOLUTION = 1.f;
 
-    static constexpr float CHUNK_SIZE = 1024.f;    // chunk_size of 64 is pretty fast - 128 and above for testing
+    static constexpr float CHUNK_SIZE = 2048.f;    // chunk_size of 64 is pretty fast - 128 and above for testing
     static constexpr float AMPLITUDE = 32.f;
 
 

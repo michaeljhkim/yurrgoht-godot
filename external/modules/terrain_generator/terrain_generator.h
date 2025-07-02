@@ -21,15 +21,15 @@ class TerrainGenerator : public Node3D {
 	int seed_input;
 	std::chrono::_V2::system_clock::time_point start;
 	
-	RID world_scenario;
+	RID _world_scenario;
 
 	// maximum number of chunks -> gaurentees that infinite chunks are not being instantiated
 	int MAX_CHUNKS_NUM;
 	int chunk_count = 0;
 
-	static const int render_distance = 5;
-	static constexpr int _delete_distance = render_distance + 1;
-	int effective_render_distance = 0;
+	static const int _render_distance = 5;
+	static constexpr int _delete_distance = _render_distance + 1;
+	int _effective_render_distance = 0;
 	
 	Vector3 _old_player_chunk;
 	CharacterBody3D* player_character = nullptr;
@@ -46,15 +46,15 @@ class TerrainGenerator : public Node3D {
 protected:
 	RingBuffer<Ref<Chunk>> _reuse_pool;
 	//RingBuffer<Ref<Chunk>> delete_queue;
-	MainThreadManager main_thread_manager;
-	TaskThreadManager task_thread_manager;
+	MainThreadManager _main_thread_manager;
+	TaskThreadManager _task_thread_manager;
 
 	// Only for worker threads
-	void _instantiate_chunk(Vector3 chunk_position, int chunk_lod, Vector3 grid_position);
-	void _update_chunk_mesh(Ref<Chunk> chunk, int chunk_lod, Vector3 grid_position);
+	void _instantiate_chunk(Vector3 chunk_pos, int lod_factor, Vector3 grid_pos);
+	void _update_chunk_mesh(Ref<Chunk> chunk, int lod_factor, Vector3 grid_pos);
 	
 	// Only for main thread
-	void _add_chunk(Vector3 chunk_position, Ref<Chunk> chunk);
+	void _add_chunk(Vector3 chunk_pos, Ref<Chunk> chunk);
 	void _delete_chunk(Vector3 chunk_key);
 	void _delete_far_away_chunks(Vector3 player_chunk);
 
