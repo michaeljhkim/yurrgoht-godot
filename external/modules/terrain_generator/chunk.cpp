@@ -109,7 +109,7 @@ void Chunk::generate_mesh() {
 
 	//float lod = MAX(pow(2, LOD_factor-1), 1.f);
 	//float octave_total = 2.0 + (1.0 - (1.0 / lod));		// Partial Sum Formula (Geometric Series)
-	float lod = CLAMP(pow(2, LOD_factor), 1, 128);
+	float lod = CLAMP(pow(2, LOD_factor), 1, 32);
 
 	// number of vertices (subdivide_w * subdivide_d)
 	int subdivide_w = (CHUNK_SIZE * CHUNK_RESOLUTION / lod) + 1.0;

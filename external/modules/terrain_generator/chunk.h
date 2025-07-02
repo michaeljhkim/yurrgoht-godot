@@ -177,8 +177,15 @@ public:
     0.5 -> vertex count = size / 2
     1.0 -> vertex count = size
     2.0 -> vertex count = size * 2
+
+    - 512 * 1.f is pretty fast 
+    - 1024 * 1.f and above for testing
+    - 2048.f * 0.25f
+        -> performs the same as 512 * 1.f
+        -> terrain is absolutely massive, but performs smoothly
+        -> lowest vertex count is 512 / 32 = 16 vertices
     */
-    static constexpr float CHUNK_RESOLUTION = 1.f;
+    static constexpr float CHUNK_RESOLUTION = 0.25f;
 
     static constexpr float CHUNK_SIZE = 2048.f;    // chunk_size of 512 is pretty fast - 1024 and above for testing
     static constexpr float AMPLITUDE = 32.f;
