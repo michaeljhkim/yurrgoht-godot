@@ -8,8 +8,8 @@ Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 	RS_instance_rid = RS::get_singleton()->instance_create();
 
 	RenderingServer::get_singleton()->instance_set_scenario(RS_instance_rid, scenario);
-	chunk_position = new_c_position;
-	chunk_LOD = new_lod;
+	_position = new_c_position;
+	_LOD_factor = new_lod;
 
 	noise.instantiate();
 	noise->set_frequency(0.01 / 4.0);
@@ -33,7 +33,7 @@ Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 }
 
 Chunk::~Chunk() {
-	_clear_chunk_data();	// check if the clear is valid
+	clear_data();	// check if the clear is valid
 	RS::get_singleton()->mesh_clear(mesh_rid);
 	
 	if (mesh_rid.is_valid())
@@ -49,16 +49,16 @@ Chunk::~Chunk() {
 /*
 * clears bare minimum for re-generation
 */
-void Chunk::_clear_chunk_data() {
-	vertex_array.clear();
-	index_array.clear();
+void Chunk::clear_data() {
+	_vertex_array.reset();
+	_index_array.reset();
 }
 
 /*
 * complete data reset
 */
-void Chunk::_reset_chunk_data() {
-	_clear_chunk_data();
+void Chunk::reset_data() {
+	clear_data();
 
 	// ADD A ADD SURFACE CANCELLATION FLAG IF DELETING 
 	//RS::get_singleton()->call_on_render_thread(callable_mp(RS::get_singleton(), &RS::mesh_clear).bind(mesh_rid));
@@ -103,14 +103,12 @@ Why not use ArrayMesh + MeshInstance3D?
 - Can be done off the main thread -> more optimization possible
 */
 
-void Chunk::_generate_chunk_mesh() {
-	//set_flag(FLAG::GENERATING, true);
-
+void Chunk::_generate_mesh() {
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	// size should most likely be established elsewhere, but do not need to currently
 
-	//float lod = MAX(pow(2, chunk_LOD-1), 1.f);
+	//float lod = MAX(pow(2, _LOD_factor-1), 1.f);
 	//float octave_total = 2.0 + (1.0 - (1.0 / lod));		// Partial Sum Formula (Geometric Series)
-	float lod = CLAMP(pow(2, chunk_LOD), 1, 128);
+	float lod = CLAMP(pow(2, _LOD_factor), 1, 128);
 
 	// number of vertices (subdivide_w * subdivide_d)
 	int subdivide_w = (CHUNK_SIZE * CHUNK_RESOLUTION / lod) + 1.0;
@@ -121,11 +119,11 @@ void Chunk::_generate_chunk_mesh() {
 	int step_size_z = size.y / (subdivide_d - 1.0);
 
 	// reserve known amount of vertices and indices
-	vertex_array.reserve((subdivide_d + 2) * (subdivide_w + 2) * 6);
-	index_array.reserve((subdivide_d + 1) * (subdivide_w + 1) * 6);
+	_vertex_array.reserve((subdivide_d + 2) * (subdivide_w + 2) * 6);
+	_index_array.reserve((subdivide_d + 1) * (subdivide_w + 1) * 6);
 
 	// start position shifted by half chunk size and one step for padding
-	Size2 start_pos = size * -0.5 - Vector2(chunk_position.x, chunk_position.z) * CHUNK_SIZE - Vector2(step_size_x, step_size_z);
+	Size2 start_pos = size * -0.5 - Vector2(_position.x, _position.z) * CHUNK_SIZE - Vector2(step_size_x, step_size_z);
 
 	float z = start_pos.y;
 	int point = 0;
@@ -146,17 +144,17 @@ void Chunk::_generate_chunk_mesh() {
 				1.0 - (j / (subdivide_d - 1.0))
 			);
 
-			vertex_array.push_back(vert);
+			_vertex_array.push_back(vert);
 			point++;
 
 			if (i > 0 && j > 0) {
-				index_array.push_back(prevrow + i - 1);
-				index_array.push_back(prevrow + i);
-				index_array.push_back(thisrow + i - 1);
+				_index_array.push_back(prevrow + i - 1);
+				_index_array.push_back(prevrow + i);
+				_index_array.push_back(thisrow + i - 1);
 
-				index_array.push_back(prevrow + i);
-				index_array.push_back(thisrow + i);
-				index_array.push_back(thisrow + i - 1);
+				_index_array.push_back(prevrow + i);
+				_index_array.push_back(thisrow + i);
+				_index_array.push_back(thisrow + i - 1);
 			}
 
 			x += step_size_x;
@@ -181,27 +179,27 @@ void Chunk::_generate_chunk_mesh() {
 	* 		(2,1) (2,2)
 	*
 	*/
-	Vector3 first_vertex = vertex_array.begin()->vertex;
-	Vector3 last_vertex = (--vertex_array.end())->vertex;	// .end() returns out of bounds -> fixed with --
+	Vector3 first_vertex = _vertex_array.begin()->vertex;
+	Vector3 last_vertex = (--_vertex_array.end())->vertex;	// .end() returns out of bounds -> fixed with --
 	
 	/*
 	DE-INDEX + 
 	GENERATE NORMALS
 	*/
-	_generate_chunk_normals();
+	_generate_normals();
 
 	/*
 	GENERATE TANGENTS + 
 	RE-INDEX
 	*/
-	_generate_chunk_tangents(first_vertex, last_vertex);
+	_generate_tangents(first_vertex, last_vertex);
 
 	
 	/*
 	GENERATE SURFACE DATA
 	*/
-	const int array_len = vertex_array.size();
-	const int index_array_len = index_array.size();
+	const int array_len = _vertex_array.size();
+	const int _index_array_len = _index_array.size();
 
 	// Build format
 	uint64_t format = (1ULL << RS::ARRAY_VERTEX) |
@@ -218,7 +216,7 @@ void Chunk::_generate_chunk_mesh() {
 	uint32_t vertex_element_size, normal_element_size, attrib_element_size, skin_element_size;
 
 	RS::get_singleton()->mesh_surface_make_offsets_from_format(
-		format, array_len, index_array_len, offsets,
+		format, array_len, _index_array_len, offsets,
 		vertex_element_size, normal_element_size, attrib_element_size, skin_element_size
 	);
 
@@ -227,19 +225,19 @@ void Chunk::_generate_chunk_mesh() {
 	const int index_stride = use_16bit ? 2 : 4;
 
 	// Allocate buffers
-	Vector<uint8_t> surface_vertex_array;
-	surface_vertex_array.resize((vertex_element_size + normal_element_size) * array_len);
+	Vector<uint8_t> surface__vertex_array;
+	surface__vertex_array.resize((vertex_element_size + normal_element_size) * array_len);
 
 	Vector<uint8_t> surface_attrib_array;
 	surface_attrib_array.resize(attrib_element_size * array_len);
 
-	Vector<uint8_t> surface_index_array;
-	surface_index_array.resize(index_stride * index_array_len);
+	Vector<uint8_t> surface__index_array;
+	surface__index_array.resize(index_stride * _index_array_len);
 
 	// Pointers
-	uint8_t *vw_base = surface_vertex_array.ptrw();
+	uint8_t *vw_base = surface__vertex_array.ptrw();
 	uint8_t *aw_base = surface_attrib_array.ptrw();
-	uint8_t *iw = surface_index_array.ptrw();
+	uint8_t *iw = surface__index_array.ptrw();
 
 	// Precompute base offset pointers
 	uint8_t *vtx_ptr   = vw_base + offsets[RS::ARRAY_VERTEX];
@@ -248,12 +246,12 @@ void Chunk::_generate_chunk_mesh() {
 	uint8_t *uv_ptr    = aw_base + offsets[RS::ARRAY_TEX_UV];
 
 	// AABB min/max
-	Vector3 min = vertex_array[0].vertex;
-	Vector3 max = vertex_array[0].vertex;
+	Vector3 min = _vertex_array[0].vertex;
+	Vector3 max = _vertex_array[0].vertex;
 
 	// Pack all vertex attributes in one loop
 	for (int i = 0; i < array_len; ++i) {
-		const Vertex &v = vertex_array[i];
+		const Vertex &v = _vertex_array[i];
 
 		// AABB
 		min = min.min(v.vertex);
@@ -294,29 +292,30 @@ void Chunk::_generate_chunk_mesh() {
 	// Index packing loop -> conditional checks are done once
 	if (use_16bit) {
 		uint16_t *iw16 = reinterpret_cast<uint16_t *>(iw);
-		for (int i = 0; i < index_array_len; ++i)
-			iw16[i] = (uint16_t)index_array[i];
+		for (int i = 0; i < _index_array_len; ++i)
+			iw16[i] = (uint16_t)_index_array[i];
 	} else {
 		uint32_t *iw32 = reinterpret_cast<uint32_t *>(iw);
-		for (int i = 0; i < index_array_len; ++i)
-			iw32[i] = (uint32_t)index_array[i];
+		for (int i = 0; i < _index_array_len; ++i)
+			iw32[i] = (uint32_t)_index_array[i];
 	}
 
-	// Populate surface_data
-	surface_data.format = format;
-	surface_data.primitive = RS::PRIMITIVE_TRIANGLES;
-	surface_data.aabb = aabb;
-	surface_data.vertex_data = surface_vertex_array;
-	surface_data.attribute_data = surface_attrib_array;
-	surface_data.vertex_count = array_len;
-	surface_data.index_data = surface_index_array;
-	surface_data.index_count = index_array_len;
-	surface_data.blend_shape_data = PackedByteArray();
-	surface_data.bone_aabbs = Vector<AABB>();
-	surface_data.lods = Vector<RenderingServer::SurfaceData::LOD>();
-	surface_data.uv_scale = Vector4(0, 0, 0, 0);
+	// Populate _surface_data
+	_surface_data.format = format;
+	_surface_data.primitive = RS::PRIMITIVE_TRIANGLES;
+	_surface_data.aabb = aabb;
+	_surface_data.vertex_data = surface__vertex_array;
+	_surface_data.attribute_data = surface_attrib_array;
+	_surface_data.vertex_count = array_len;
+	_surface_data.index_data = surface__index_array;
+	_surface_data.index_count = _index_array_len;
+	_surface_data.blend_shape_data = PackedByteArray();
+	_surface_data.bone_aabbs = Vector<AABB>();
+	_surface_data.lods = Vector<RenderingServer::SurfaceData::LOD>();
+	_surface_data.uv_scale = Vector4(0, 0, 0, 0);
 
-	//set_flag(FLAG::GENERATING, false);
+	_vertex_array.reset();
+	_index_array.reset();
 
 	// DRAW MESH
 	_draw_mesh();
@@ -324,7 +323,7 @@ void Chunk::_generate_chunk_mesh() {
 
 void Chunk::_draw_mesh() {
 	RS::get_singleton()->mesh_clear(mesh_rid);
-	RS::get_singleton()->mesh_add_surface(mesh_rid, surface_data);
+	RS::get_singleton()->mesh_add_surface(mesh_rid, _surface_data);
 
 	// for some reason, issues arise when used in constructor, use here
 	// i think its caused by mesh_clear()
@@ -335,15 +334,15 @@ void Chunk::_draw_mesh() {
 // seperated for future flexibility
 /*
 void Chunk::_draw_mesh() {
-	// surface_data -> Chunk class member 
-	Error err = RS::get_singleton()->mesh_create_surface_data_from_arrays(
-		&surface_data, (RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES, p_arr, 	// created data
+	// _surface_data -> Chunk class member 
+	Error err = RS::get_singleton()->mesh_create__surface_data_from_arrays(
+		&_surface_data, (RS::PrimitiveType)Mesh::PRIMITIVE_TRIANGLES, p_arr, 	// created data
 		TypedArray<Array>(), Dictionary(), 0									// empty data
 	);
 	ERR_FAIL_COND(err != OK);
 
 	RS::get_singleton()->mesh_clear(mesh_rid);
-	RS::get_singleton()->mesh_add_surface(mesh_rid, surface_data);
+	RS::get_singleton()->mesh_add_surface(mesh_rid, _surface_data);
 
 	// for some reason, issues arise when used in constructor, use here
 	// i think its caused by mesh_clear()
@@ -359,31 +358,31 @@ void Chunk::_draw_mesh() {
 /*
 GENERATE CHUNK NORMALS
 */
-void Chunk::_generate_chunk_normals(bool p_flip) {
+void Chunk::_generate_normals(bool p_flip) {
 	/*
 	  ---------- DE-INDEX START ----------
 	*/
 	// attempt was made to de-index on creation, but not possible through greedy algorithms
 
-	LocalVector<Vertex> old_vertex_array = vertex_array;
-	vertex_array.clear();
+	LocalVector<Vertex> old__vertex_array = _vertex_array;
+	_vertex_array.clear();
 
 	// There are 6 indices per vertex
-	for (const int &index : index_array) {
-		ERR_FAIL_COND(uint32_t(index) >= old_vertex_array.size());
-		vertex_array.push_back(old_vertex_array[index]);
+	for (const int &index : _index_array) {
+		ERR_FAIL_COND(uint32_t(index) >= old__vertex_array.size());
+		_vertex_array.push_back(old__vertex_array[index]);
 	}
-	index_array.clear();
+	_index_array.clear();
 
 	/*
 	  ---------- DE-INDEX END ----------
 	*/
 
 	// Normal Calculations -> Highly unlikely that a mesh will reach UINT32_MAX
-	AHashMap<SmoothGroupVertex, Vector3, SmoothGroupVertexHasher> smooth_hash = vertex_array.size();
+	AHashMap<SmoothGroupVertex, Vector3, SmoothGroupVertexHasher> smooth_hash = _vertex_array.size();
 
-	for (uint32_t vi = 0; vi < vertex_array.size(); vi += 3) {
-		Vertex *v = &vertex_array[vi];
+	for (uint32_t vi = 0; vi < _vertex_array.size(); vi += 3) {
+		Vertex *v = &_vertex_array[vi];
 
 		Vector3 normal = !p_flip ?
 			Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal :
@@ -403,7 +402,7 @@ void Chunk::_generate_chunk_normals(bool p_flip) {
 		}
 	}
 
-	for (Vertex &vertex : vertex_array) {
+	for (Vertex &vertex : _vertex_array) {
 		if (vertex.smooth_group == UINT32_MAX)
 			continue;
 
@@ -419,7 +418,7 @@ void Chunk::_generate_chunk_normals(bool p_flip) {
 /*
 GENERATE CHUNK TANGENTS
 */
-void Chunk::_generate_chunk_tangents(Vector3 &first_vertex, Vector3 &last_vertex) {
+void Chunk::_generate_tangents(Vector3 &first_vertex, Vector3 &last_vertex) {
 	SMikkTSpaceInterface mkif;
 	mkif.m_getNormal = mikktGetNormal;
 	mkif.m_getNumFaces = mikktGetNumFaces;
@@ -433,8 +432,8 @@ void Chunk::_generate_chunk_tangents(Vector3 &first_vertex, Vector3 &last_vertex
 	msc.m_pInterface = &mkif;
 
 	TangentGenerationContextUserData triangle_data;
-	triangle_data.vertices = &vertex_array;
-	triangle_data.indices = &index_array;
+	triangle_data.vertices = &_vertex_array;
+	triangle_data.indices = &_index_array;
 	msc.m_pUserData = &triangle_data;
 
 	bool res = genTangSpaceDefault(&msc);
@@ -446,10 +445,10 @@ void Chunk::_generate_chunk_tangents(Vector3 &first_vertex, Vector3 &last_vertex
 	*/
 
 	// use '=' here resizes the capacity -> avoids future (expensive) resize operations
-	AHashMap<Vertex &, int, VertexHasher> indices = vertex_array.size();
+	AHashMap<Vertex &, int, VertexHasher> indices = _vertex_array.size();
 
 	uint32_t new_size = 0;
-	for (Vertex &vertex : vertex_array) {
+	for (Vertex &vertex : _vertex_array) {
 		// removes vertices as explained from the logic above
 		if ((vertex.vertex.x == first_vertex.x) ||
 			(vertex.vertex.z == first_vertex.z) ||
@@ -462,16 +461,16 @@ void Chunk::_generate_chunk_tangents(Vector3 &first_vertex, Vector3 &last_vertex
 		int idx;
 		if (!idxptr) {
 			idx = indices.size();
-			vertex_array[new_size] = vertex;
-			indices.insert_new(vertex_array[new_size], idx);
+			_vertex_array[new_size] = vertex;
+			indices.insert_new(_vertex_array[new_size], idx);
 			++new_size;
 		} else {
 			idx = *idxptr;
 		}
 
-		index_array.push_back(idx);
+		_index_array.push_back(idx);
 	}
-	vertex_array.resize(new_size);
+	_vertex_array.resize(new_size);
 	/*
 	  ---------- RE-INDEX END ----------
 	*/

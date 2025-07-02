@@ -75,6 +75,7 @@ IDEAS:
 TODO LIST:
 - Connect chunk LODS -> either skirts or real vertice connections
 - figure out chunk instantiaition according to player view direction
+- Do not instantiate many chunks behind player
 - LOD cache for chunks
 
 - If a chunk has too many vertices, it splits the calculations into pieces and combine at the very end

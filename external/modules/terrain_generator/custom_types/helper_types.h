@@ -19,7 +19,7 @@
 
 - in the future, consider using more buffers, but 2 is fine for now
 */
-struct TaskBufferManager {
+struct MainThreadManager {
     std::atomic_bool PROCESSING = false;
     std::array<std::unique_ptr<RingBuffer<Callable>>, 2> TASK_BUFFERS;
     std::array<std::unique_ptr<LocalVector<StringName>>, 2> TASK_NAMES;
@@ -74,7 +74,7 @@ struct TaskBufferManager {
         return exists;
     }
 
-    TaskBufferManager() {
+    MainThreadManager() {
         for (int i = 0; i < 2; ++i) {
             TASK_BUFFERS[i] = std::make_unique<RingBuffer<Callable>>(6);    // 2**6 = 64 
             TASK_NAMES[i] = std::make_unique<LocalVector<StringName>>();
@@ -85,7 +85,7 @@ struct TaskBufferManager {
         _name_mutex.instantiate();
     }
 
-    ~TaskBufferManager() {
+    ~MainThreadManager() {
         for (int i = 0; i < 2; ++i) {
             TASK_BUFFERS[i]->clear();
             TASK_NAMES[i]->clear();

@@ -131,13 +131,13 @@ protected:
 
 	static void _bind_methods();
 
-	LocalVector<Vertex> vertex_array;
-	LocalVector<int> index_array;
-	RS::SurfaceData surface_data;
+	LocalVector<Vertex> _vertex_array;
+	LocalVector<int> _index_array;
+	RS::SurfaceData _surface_data;
 
-    Vector3 chunk_position = Vector3(0, 0, 0);
-    Vector3 grid_position = Vector3(0, 0, 0);
-    int chunk_LOD = 0;
+    Vector3 _position = Vector3(0, 0, 0);
+    Vector3 _grid_position = Vector3(0, 0, 0);
+    int _LOD_factor = 0;
     
     // for storing neighboring lod chunks -> UNUSED
     enum ADJACENT {
@@ -148,27 +148,30 @@ protected:
     };
     int adjacent_LOD_steps[4] = {0};    // array only used to check if lod should be calculated -> UNUSED
 
+    // mostly for keeping the mesh generation code clean
+    void _generate_normals(bool p_flip = false);
+    void _generate_tangents(Vector3 &first_vertex, Vector3 &last_vertex);
+
+    std::atomic<bool> CHUNK_FLAGS[2] = {false};
 
 public:
     enum FLAG : uint8_t {
         DELETE,
         UPDATE
-        //,GENERATING
     };
-    std::atomic<bool> CHUNK_FLAGS[2] = {false};
 
     void set_flag(FLAG flag, bool value) { CHUNK_FLAGS[flag].store(value, std::memory_order_acquire); }
     bool get_flag(FLAG flag) { return CHUNK_FLAGS[flag].load(std::memory_order_acquire); }
 
-    void _set_chunk_LOD(int new_LOD) { chunk_LOD = MAX(new_LOD, 1.0); }
-    int _get_chunk_LOD() { return chunk_LOD; }
+    void set_LOD_factor(int new_LOD) { _LOD_factor = MAX(new_LOD, 1.0); }
+    int get_LOD_factor() { return _LOD_factor; }
 
-    void _set_chunk_position(Vector3 new_position) { chunk_position = new_position; }
-    Vector3 _get_chunk_position() { return chunk_position; }
+    void set_position(Vector3 new_position) { _position = new_position; }
+    Vector3 get_position() { return _position; }
 
     // for update checks
-    void _set_grid_position(Vector3 new_position) { grid_position = new_position; }
-    Vector3 _get_grid_position() { return grid_position; }
+    void set_grid_position(Vector3 new_position) { _grid_position = new_position; }
+    Vector3 get_grid_position() { return _grid_position; }
 
 
     // can probably remove this, but keeping for now
@@ -176,14 +179,9 @@ public:
     //RID _get_mesh_rid() { return mesh_rid; }
     //void _generate_lods(Vector2 size);
 
-    void _generate_chunk_mesh();
+    void _generate_mesh();
     void _draw_mesh();
     
-    // mostly for keeping the mesh generation code clean
-    void _generate_chunk_normals(bool p_flip = false);
-    void _generate_chunk_tangents(Vector3 &first_vertex, Vector3 &last_vertex);
-
-
 	//static constexpr float render_distance = 4.f;
 
     /*
@@ -206,6 +204,6 @@ public:
     Chunk(RID scenario, Vector3 new_c_position, int new_lod);
     ~Chunk();
 
-    void _clear_chunk_data();
-    void _reset_chunk_data();
+    void clear_data();
+    void reset_data();
 };

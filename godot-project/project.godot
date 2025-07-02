@@ -20,6 +20,10 @@ config/icon="res://icon.svg"
 
 Heightmap="res://heightmap/Heightmap.gd"
 
+[debug]
+
+settings/stdout/print_fps=true
+
 [display]
 
 window/size/viewport_width=1920
@@ -63,6 +67,12 @@ crouch={
 [player]
 
 look_sensitivity=0.01
+
+[rendering]
+
+rendering_device/staging_buffer/block_size_kb=512
+rendering_device/staging_buffer/max_size_mb=256
+rendering_device/vulkan/max_descriptors_per_pool=128
 
 [shader_globals]
 

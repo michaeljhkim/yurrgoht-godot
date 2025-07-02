@@ -44,9 +44,9 @@ class TerrainGenerator : public Node3D {
 	HashMap<Vector3, Ref<Chunk>> _chunks;
 
 protected:
-	RingBuffer<Ref<Chunk>> reuse_pool;
+	RingBuffer<Ref<Chunk>> _reuse_pool;
 	//RingBuffer<Ref<Chunk>> delete_queue;
-	TaskBufferManager task_buffer_manager;
+	MainThreadManager main_thread_manager;
 	TaskThreadManager task_thread_manager;
 
 	// Only for worker threads
@@ -56,6 +56,7 @@ protected:
 	// Only for main thread
 	void _add_chunk(Vector3 chunk_position, Ref<Chunk> chunk);
 	void _delete_chunk(Vector3 chunk_key);
+	void _delete_far_away_chunks(Vector3 player_chunk);
 
 	static void _bind_methods();
 
@@ -68,8 +69,6 @@ public:
 	//void _init();	// probably do not need this, ready should take care of everything
 	void _ready();
 	void _process(double delta);
-
-	void _delete_far_away_chunks(Vector3 player_chunk);
 
 	void set_player_character(CharacterBody3D* p_node);
 	CharacterBody3D* get_player_character() const;
