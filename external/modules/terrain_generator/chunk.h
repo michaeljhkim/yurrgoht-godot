@@ -108,7 +108,6 @@ protected:
     
     // FOR CACHE
     RS::SurfaceData LODMeshData;
-
     /*
     TODO IDEA:
     - I know for a fact that a given chunk can be updated multiple times in rapid succession because the player might move back and forth
@@ -180,14 +179,16 @@ public:
 
     - 512 * 1.f is pretty fast 
     - 1024 * 1.f and above for testing
+
     - 2048.f * 0.25f
         -> performs the same as 512 * 1.f
         -> terrain is absolutely massive, but performs smoothly
         -> lowest vertex count is 512 / 32 = 16 vertices
     */
     static constexpr float CHUNK_RESOLUTION = 0.25f;
+    static constexpr float LOD_LIMIT = 5.f;
 
-    static constexpr float CHUNK_SIZE = 2048.f;    // chunk_size of 512 is pretty fast - 1024 and above for testing
+    static constexpr float CHUNK_SIZE = 2048.f;
     static constexpr float AMPLITUDE = 32.f;
 
 

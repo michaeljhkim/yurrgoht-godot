@@ -19,21 +19,19 @@ Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 
 	/*
 	- instantiate and create a new material for the mesh -> imitates default material
-	- we imitate the default material is because it allows the geometry of a mesh to be very visible
-
+	- we imitate the default material is because it allows the geometry of a mesh to stand out
 	- real godot default material cannot be used due to less testing options
 	*/
 	material = memnew(StandardMaterial3D);
 	material->set_albedo(Color(0.7, 0.7, 0.7));   // slightly darker gray
 	material->set_metallic(0.f);
 	material->set_roughness(1.f);
-	//material->set_depth_test();
 
 	RS::get_singleton()->instance_set_base(render_instance_rid, mesh_rid);
 }
 
 Chunk::~Chunk() {
-	clear_data();	// check if the clear is valid
+	clear_data();
 	RS::get_singleton()->mesh_clear(mesh_rid);
 	
 	if (mesh_rid.is_valid())
@@ -109,7 +107,7 @@ void Chunk::generate_mesh() {
 
 	//float lod = MAX(pow(2, LOD_factor-1), 1.f);
 	//float octave_total = 2.0 + (1.0 - (1.0 / lod));		// Partial Sum Formula (Geometric Series)
-	float lod = CLAMP(pow(2, LOD_factor), 1, 32);
+	float lod = pow(2, CLAMP(LOD_factor, 0.f, LOD_LIMIT));	// lod range -> 2**0 to 2**5
 
 	// number of vertices (subdivide_w * subdivide_d)
 	int subdivide_w = (CHUNK_SIZE * CHUNK_RESOLUTION / lod) + 1.0;
