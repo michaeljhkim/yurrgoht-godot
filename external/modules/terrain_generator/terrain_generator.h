@@ -13,14 +13,6 @@
 class TerrainGenerator : public Node3D {
 	GDCLASS(TerrainGenerator, Node3D);
 	
-	/*
-	struct Vector3Comparator {
-		bool operator()(const Vector3 &A, const Vector3 &B) const {
-			return A.length() > B.length();
-		}
-	};
-	*/
-
 	// DEBUG VALUES
 	int count = 0;
 	int frames = 0;
@@ -30,8 +22,6 @@ class TerrainGenerator : public Node3D {
 	std::chrono::_V2::system_clock::time_point start;
 	
 	RID world_scenario;
-	std::atomic_bool THREAD_RUNNING{true};
-	std::atomic<uint> CHUNKS_INSTANTIATED;
 
 	// maximum number of chunks -> gaurentees that infinite chunks are not being instantiated
 	int MAX_CHUNKS_NUM;
@@ -47,28 +37,24 @@ class TerrainGenerator : public Node3D {
 	bool _generating = true;
 	bool _deleting = false;
 
-	Ref<CoreBind::Mutex> _task_mutex;	// mutex for task queue
 	Ref<CoreBind::Mutex> _reuse_mutex;	// mutex for reuse buffer
-	Ref<CoreBind::Thread> _thread;		// worker thread
 
 	// the master list that contains a reference to each chunk
 	// allows for value deletion while iterating
 	HashMap<Vector3, Ref<Chunk>> _chunks;
 
 protected:
-	LRUQueue<StringName, Callable> callable_queue;		// would normally be a regular queue, or ring buffer, but existance checks are required
-    std::atomic_bool QUEUE_EMPTY = true;
-
 	RingBuffer<Ref<Chunk>> reuse_pool;
 	//RingBuffer<Ref<Chunk>> delete_queue;
 	TaskBufferManager task_buffer_manager;
 	TaskThreadManager task_thread_manager;
 
-	// Only for the worker thread
+	// Only for worker threads
 	void _instantiate_chunk(Vector3 chunk_position, int chunk_lod, Vector3 grid_position);
-	void _add_chunk(Vector3 chunk_position, Ref<Chunk> chunk);
-
 	void _update_chunk_mesh(Ref<Chunk> chunk, int chunk_lod, Vector3 grid_position);
+	
+	// Only for main thread
+	void _add_chunk(Vector3 chunk_position, Ref<Chunk> chunk);
 	void _delete_chunk(Vector3 chunk_key);
 
 	static void _bind_methods();

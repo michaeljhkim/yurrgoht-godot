@@ -24,7 +24,6 @@ TerrainGenerator::TerrainGenerator() {
 	set_process(true);
 
 	// reserve now instead of later
-	callable_queue.set_capacity(64);
 	reuse_pool.resize(6);	// 2**6 = 64
 
 	/*
@@ -36,17 +35,7 @@ TerrainGenerator::TerrainGenerator() {
 
 // destructor - cleans up anything that the main scene tree might not
 TerrainGenerator::~TerrainGenerator() {
-	/*
-	if (_thread.is_valid()) {
-		THREAD_RUNNING.store(false, std::memory_order_acquire);
-		_thread->wait_to_finish();
-	}
-	
-	_thread.unref();
-	_task_mutex.unref();
 	_reuse_mutex.unref();
-	*/
-
 	clean_up();
 }
 
@@ -77,8 +66,6 @@ void TerrainGenerator::_notification(int p_what) {
 void TerrainGenerator::clean_up() {
 	_chunks.clear();
 	set_process(false);
-
-	callable_queue.clear();
 }
 
 
@@ -86,12 +73,7 @@ void TerrainGenerator::clean_up() {
 // processes that only need to be done on intialization - mutexes, thread
 void TerrainGenerator::_ready() {
 	world_scenario = get_world_3d()->get_scenario();	// thread has not started yet, so this is safe
-
 	_reuse_mutex.instantiate();
-	_task_mutex.instantiate();
-	//_thread.instantiate();
-
-	//_thread->start(callable_mp(this, &TerrainGenerator::_thread_process), CoreBind::Thread::PRIORITY_NORMAL);
 
 	// debug
 	start = std::chrono::high_resolution_clock::now();
@@ -144,9 +126,7 @@ void TerrainGenerator::_process(double delta) {
 			float distance = player_chunk.distance_to(chunk_position);
 
 			// we check _thread_task_queue first, since if true, we want to unlock the mutex asap
-			_task_mutex->lock();
 			bool task_exists = task_thread_manager.has_task(task_name);
-			_task_mutex->unlock();
 
 			// UPDATE EXISTING CHUNK
 			if ( distance <= render_distance &&

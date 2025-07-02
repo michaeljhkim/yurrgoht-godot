@@ -68,7 +68,6 @@ IDEAS:
 - it could be possible that a player moves back and forth within a range, so storing the vertices,indices,e.t.c would be useful
 - all that extra data would be removed in the total reset
 
-
 - GPU generation might be viable for calculations that might happen in the future
 - calculating all other possible LODs for a given chunk 
 
@@ -78,5 +77,4 @@ TODO LIST:
 - figure out chunk instantiaition according to player view direction
 - LOD cache for chunks
 
-- Create one more thread in TerrainGenerator, and pass a reference to it to each chunk
 - If a chunk has too many vertices, it splits the calculations into pieces and combine at the very end

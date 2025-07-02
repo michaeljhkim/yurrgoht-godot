@@ -24,3 +24,4 @@ mesh = SubResource("CapsuleMesh_asxit")
 [node name="Camera3d" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 near = 10.0
+far = 16000.0

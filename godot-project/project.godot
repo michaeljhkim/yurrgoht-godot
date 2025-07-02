@@ -13,6 +13,7 @@ config_version=5
 config/name="yurrgoht-godot"
 run/main_scene="uid://bxwagnsq7krdc"
 config/features=PackedStringArray("4.5", "Forward Plus")
+run/max_fps=120
 config/icon="res://icon.svg"
 
 [autoload]
@@ -24,6 +25,7 @@ Heightmap="res://heightmap/Heightmap.gd"
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/size/mode=2
+window/vsync/vsync_mode=0
 
 [input]
 
