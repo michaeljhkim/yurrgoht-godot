@@ -102,15 +102,7 @@ protected:
     /*
     ----- CHUNK SPECIFIC MEMBER VALUES -----
     */
-    
-    // FOR CACHE
-    RS::SurfaceData LODMeshData;
-    /*
-    TODO IDEA:
-    - I know for a fact that a given chunk can be updated multiple times in rapid succession because the player might move back and forth
-    - instead of removing old lod data, and then regenerating, we can just store the old data until the delete flag is raised
-    - since the chunk will be completely removed, there is no point holding all that data, and only then are we sure we can delete it
-    */
+    HashMap<uint32_t, RS::SurfaceData> lod_surface_cache;
 
 	static void _bind_methods();
     
@@ -118,7 +110,6 @@ protected:
     LocalVector<Vertex> flat_vertex_array;
 	LocalVector<Vertex> vertex_array;
 	LocalVector<int> index_array;
-	RS::SurfaceData surface_data;
 
     Vector3 position = Vector3(0, 0, 0);
     Vector3 grid_position = Vector3(0, 0, 0);
@@ -180,10 +171,10 @@ public:
         -> terrain is absolutely massive, but performs smoothly
         -> lowest vertex count is 512 / 128 = 4 -> 4x4 = 16 vertices
     */
-    static constexpr float CHUNK_RESOLUTION = 0.25f;
+    static constexpr float CHUNK_RESOLUTION = 1.0f;
     static constexpr float LOD_LIMIT = 7.0f;
 
-    static constexpr float CHUNK_SIZE = 2048.f;
+    static constexpr float CHUNK_SIZE = 1024.f;
     static constexpr float AMPLITUDE = 32.f;
 
 	//static constexpr float render_distance = 4.f;

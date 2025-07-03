@@ -84,10 +84,49 @@ void TerrainGenerator::_process(double delta) {
 
 	// Try to generate chunks ahead of time based on where the player is moving.
 	//player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance/4, render_distance/4));
+	float yaw = player_character->get_global_rotation_degrees().y;
+	int x_start = -effective_render_distance;
+	int x_end = effective_render_distance;
+	int z_start = -effective_render_distance;
+	int z_end = effective_render_distance;
+
+	print_line("PLAYER VIEW DIRECTION: ", player_character->get_global_rotation_degrees());
+
+	if (yaw >= 0 && yaw <= 90) {
+		// -X, -Z 
+		print_line("SPAWN PARAMETERS: ", 0, 90);
+		/*
+		x_start = -effective_render_distance;
+		x_end = effective_render_distance;
+		z_start = -effective_render_distance;
+		z_end = effective_render_distance;
+		*/
+	} else if (yaw > 90 && yaw <= 180) {
+		// -X, +Z
+		print_line("SPAWN PARAMETERS: ", 90, 180);
+		x_start = -effective_render_distance;
+		x_end = effective_render_distance;
+		z_start = effective_render_distance;
+		z_end = -effective_render_distance;
+	} else if (yaw >= -180 && yaw < -90) {
+		// +X, +Z
+		print_line("SPAWN PARAMETERS: ", -180, -90);
+		x_start = effective_render_distance;
+		x_end = -effective_render_distance;
+		z_start = effective_render_distance;
+		z_end = -effective_render_distance;
+	} else if (yaw >= -90 && yaw <= -0) {
+		// +X, -Z
+		print_line("SPAWN PARAMETERS: ", -90, -0);
+		x_start = effective_render_distance;
+		x_end = -effective_render_distance;
+		z_start = -effective_render_distance;
+		z_end = effective_render_distance;
+	}
 
 	// Check existing chunks within range. If it doesn't exist, create it.
-	for (int x = -effective_render_distance; x <= effective_render_distance; x++) {
-		for (int z = -effective_render_distance; z <= effective_render_distance; z++) {
+	for (int x = x_start; x <= x_end; x++) {
+		for (int z = z_start; z <= z_end; z++) {
 			Vector3 grid_pos = Vector3(x, 0, z);
 			Vector3 chunk_pos = player_chunk + grid_pos;
 			++count;	// debug

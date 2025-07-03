@@ -31,8 +31,7 @@ Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
 }
 
 Chunk::~Chunk() {
-	clear_data();
-	RS::get_singleton()->mesh_clear(mesh_rid);
+	reset_data();
 	
 	if (mesh_rid.is_valid())
 		RS::get_singleton()->free(mesh_rid);
@@ -59,6 +58,7 @@ void Chunk::clear_data() {
 void Chunk::reset_data() {
 	clear_data();
 	RS::get_singleton()->mesh_clear(mesh_rid);
+	lod_surface_cache.clear();
 	
 	set_flag(Chunk::FLAG::UPDATE, false);
 	set_flag(Chunk::FLAG::DELETE, false);
@@ -87,8 +87,16 @@ Solution:
 */
 
 void Chunk::generate_mesh() {
-	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	// size should most likely be established elsewhere, but do not need to currently
+	// draw_mesh if SurfaceData for current LOD_Factor exists
+	if (lod_surface_cache.has(LOD_factor)) {
+		draw_mesh();
+		return;
+	}
+	// create new SurfaceData instance if it does not exist
+	lod_surface_cache.insert(LOD_factor, RS::SurfaceData());
 
+	// size should most likely be established elsewhere, but do not need to currently
+	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);
 	//float octave_total = 2.0 + (1.0 - (1.0 / lod));		// Partial Sum Formula (Geometric Series)
 	float lod = pow(2, CLAMP(LOD_factor, 0.f, LOD_LIMIT));	// lod range -> 2**0 to 2**5
 
@@ -129,19 +137,21 @@ void Chunk::generate_mesh() {
 			vertex_array.push_back(vert);
 			point++;
 
-			if (i > 0 && j > 0) {
+			
+			if (i > 0 && j > 0) {	// de-index/flatten vertices -> avoid de-indexing later
+				// triangle 1
 				index_array.push_back(prevrow + i - 1);
 				index_array.push_back(prevrow + i);
 				index_array.push_back(thisrow + i - 1);
 
-				index_array.push_back(prevrow + i);
-				index_array.push_back(thisrow + i);
-				index_array.push_back(thisrow + i - 1);
-
-				// de-index/flatten vertices -> avoids deindexing later
 				flat_vertex_array.push_back(vertex_array[prevrow + i - 1]);
 				flat_vertex_array.push_back(vertex_array[prevrow + i]);
 				flat_vertex_array.push_back(vertex_array[thisrow + i - 1]);
+
+				// triangle 2
+				index_array.push_back(prevrow + i);
+				index_array.push_back(thisrow + i);
+				index_array.push_back(thisrow + i - 1);
 
 				flat_vertex_array.push_back(vertex_array[prevrow + i]);
 				flat_vertex_array.push_back(vertex_array[thisrow + i]);
@@ -291,18 +301,18 @@ void Chunk::generate_mesh() {
 	}
 
 	// Populate surface_data
-	surface_data.format = format;
-	surface_data.primitive = RS::PRIMITIVE_TRIANGLES;
-	surface_data.aabb = aabb;
-	surface_data.vertex_data = surface_vertex_array;
-	surface_data.attribute_data = surface_attrib_array;
-	surface_data.vertex_count = array_len;
-	surface_data.index_data = surface_index_array;
-	surface_data.index_count = index_array_len;
-	surface_data.blend_shape_data = PackedByteArray();
-	surface_data.bone_aabbs = Vector<AABB>();
-	surface_data.lods = Vector<RenderingServer::SurfaceData::LOD>();
-	surface_data.uv_scale = Vector4(0, 0, 0, 0);
+	lod_surface_cache[LOD_factor].format = format;
+	lod_surface_cache[LOD_factor].primitive = RS::PRIMITIVE_TRIANGLES;
+	lod_surface_cache[LOD_factor].aabb = aabb;
+	lod_surface_cache[LOD_factor].vertex_data = surface_vertex_array;
+	lod_surface_cache[LOD_factor].attribute_data = surface_attrib_array;
+	lod_surface_cache[LOD_factor].vertex_count = array_len;
+	lod_surface_cache[LOD_factor].index_data = surface_index_array;
+	lod_surface_cache[LOD_factor].index_count = index_array_len;
+	lod_surface_cache[LOD_factor].blend_shape_data = PackedByteArray();
+	lod_surface_cache[LOD_factor].bone_aabbs = Vector<AABB>();
+	lod_surface_cache[LOD_factor].lods = Vector<RenderingServer::SurfaceData::LOD>();
+	lod_surface_cache[LOD_factor].uv_scale = Vector4(0, 0, 0, 0);
 
 	// DRAW MESH
 	draw_mesh();
@@ -310,16 +320,14 @@ void Chunk::generate_mesh() {
 
 void Chunk::draw_mesh() {
 	RS::get_singleton()->mesh_clear(mesh_rid);
-	RS::get_singleton()->mesh_add_surface(mesh_rid, surface_data);
+	RS::get_singleton()->mesh_add_surface(mesh_rid, lod_surface_cache[LOD_factor]);
 
 	// for some reason, issues arise when used in constructor, use here
 	// i think its caused by mesh_clear()
 	RS::get_singleton()->instance_set_surface_override_material(render_instance_rid, 0, material->get_rid());
 
 	// free memory space to allow more chunks to be allocated
-	vertex_array.reset();
-	index_array.reset();
-	flat_vertex_array.reset();
+	clear_data();
 }
 
 
