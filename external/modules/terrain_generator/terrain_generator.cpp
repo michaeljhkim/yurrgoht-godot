@@ -1,23 +1,14 @@
 #include "terrain_generator.h"
 
-
 /*
 CREDITs: 
-- general structure borrowed from 'Voxel Game' demo https://github.com/godotengine/godot-demo-projects/tree/4.2-31d1c0c/3d/voxel
-
-NOTES:
-- remember that instantiating a node is usually safe on another thread, but ONLY if it is outside of the main scene tree
-- basically, only touch nodes in the main scene tree ONLY IF on the main thread
-
-- notes above may not be relavant since mesh generation system no longer uses nodes
+-> general structure borrowed from 'Voxel Game' demo https://github.com/godotengine/godot-demo-projects/tree/4.2-31d1c0c/3d/voxel
 */
 
 
 // constructor - sets up default values
 TerrainGenerator::TerrainGenerator() {
 	set_process(true);
-
-	// reserve now instead of later
 	reuse_pool.resize(6);	// 2**6 = 64
 
 	/*
@@ -34,8 +25,7 @@ TerrainGenerator::~TerrainGenerator() {
 }
 
 /*
-- allows C++ classes to use the same ready/process signals as in gdscript
-- GDExtension has this built in
+allows C++ classes to use the same ready/process signals as in gdscript
 */
 void TerrainGenerator::_notification(int p_what) {
 	switch (p_what) {
@@ -66,7 +56,7 @@ void TerrainGenerator::clean_up() {
 
 // processes that only need to be done on intialization - mutexes, thread
 void TerrainGenerator::_ready() {
-	world_scenario = get_world_3d()->get_scenario();	// thread has not started yet, so this is safe
+	world_scenario = get_world_3d()->get_scenario();
 	reuse_mutex.instantiate();
 
 	// debug
@@ -80,9 +70,7 @@ void TerrainGenerator::_ready() {
 void TerrainGenerator::_process(double delta) {
 	if (player_character == nullptr) return;
 
-	// main thread process tasks - setup by worker thread
-	main_thread_manager.main_thread_process();
-	// finished tasks, continue
+	main_thread_manager.main_thread_process();		// setup by worker thread
 	
 	Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 	player_chunk.y = 0.f;
@@ -100,27 +88,19 @@ void TerrainGenerator::_process(double delta) {
 	//debug
 	++frames;
 
-	// Try to generate chunks ahead of time based on where the player is moving. - not sure what this does (study later, low priority)
+	// Try to generate chunks ahead of time based on where the player is moving.
 	//player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance/4, render_distance/4));
-
-	/*
-	- for the most part, this nested for-loop generates chunks around the player from inner circle to outer circle
-	- entire grid is scanned every iteration during generation in order to gaurentee no chunks were missed
-	- could probably take advantage of this and use the player direction to determine where to start rendering first
-	*/
 
 	// Check existing chunks within range. If it doesn't exist, create it.
 	for (int x = -effective_render_distance; x <= effective_render_distance; x++) {
 		for (int z = -effective_render_distance; z <= effective_render_distance; z++) {
 			Vector3 grid_pos = Vector3(x, 0, z);
 			Vector3 chunk_pos = player_chunk + grid_pos;
-			++count;	// debug number of grid coordinates checked
+			++count;	// debug
 
 			StringName task_name = String(chunk_pos);
-			float distance = player_chunk.distance_to(chunk_pos);
-
-			// we check _thread_task_queue first, since if true, we want to unlock the mutex asap
 			bool task_exists = task_thread_manager.has_task(task_name);
+			float distance = player_chunk.distance_to(chunk_pos);
 
 			// UPDATE EXISTING CHUNK
 			if ( distance <= render_distance &&
@@ -141,7 +121,7 @@ void TerrainGenerator::_process(double delta) {
 				continue;
 			}
 
-			// CREATE NEW CHUNK -> checks if chunk exists anywhere first
+			// CREATE NEW CHUNK
 			else if (
 				task_exists ||
 				chunks.has(chunk_pos) ||
@@ -151,7 +131,6 @@ void TerrainGenerator::_process(double delta) {
 				continue;
 			}
 
-			// direct callable instantiation
 			task_thread_manager.insert_task(
 				task_name, callable_mp(this, &TerrainGenerator::instantiate_chunk).bind(chunk_pos, MAX(abs(x), abs(z)), grid_pos)
 			);
@@ -178,7 +157,6 @@ void TerrainGenerator::_process(double delta) {
 		*/
     	std::chrono::_V2::system_clock::time_point end = std::chrono::high_resolution_clock::now();
 		long duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-		//start = end;
 
 		print_line("Duration (milliseconds) (unreliable), For-loop iterations, Generation Frames count: ", duration, count, frames);
 		print_line("NUMBER OF CHUNKS ", chunk_count);
@@ -197,7 +175,6 @@ void TerrainGenerator::instantiate_chunk(Vector3 chunk_pos, int lod_factor, Vect
 	bool data_check = reuse_pool.data_left() > 0;
 	reuse_mutex->unlock();
 
-	// check if the reuse pool has chunks we can recycle
 	Ref<Chunk> chunk;
 	if (data_check) {
 		print_line("REUSE CHUNK: ", chunk_pos);
@@ -206,37 +183,35 @@ void TerrainGenerator::instantiate_chunk(Vector3 chunk_pos, int lod_factor, Vect
 		chunk = reuse_pool.read();
 		reuse_mutex->unlock();
 
-		// reset data again -> in case it didnt take the first time
-		chunk->reset_data();
 		chunk->set_position(chunk_pos);
 		chunk->set_LOD_factor(lod_factor);
 	}
 	else if (chunk_count < MAX_CHUNKS_NUM) {
 		print_line("NEW CHUNK: ", chunk_pos);
 		++chunk_count;
-		chunk.instantiate(world_scenario, chunk_pos, lod_factor);		// this is the only other time world_scenario is used, so it's thread safe
+		chunk.instantiate(world_scenario, chunk_pos, lod_factor);
 	}
-	else return;		// neither generation conditions activated -> exit function (does not normally activate, but added for safety gaurentees)
+	else return;		// exit (does not normally activate, but added for safety gaurentees)
 		
 	chunk->set_grid_position(grid_pos);
 	chunk->generate_mesh();
 	main_thread_manager.tasks_push_back(String(chunk_pos), callable_mp(this, &TerrainGenerator::add_chunk).bind(chunk_pos, chunk));
 
-	chunk.unref(); 		// unreference for safety
+	chunk.unref();
 }
 
 /*
 * add chunk reference to master chunk list
-* done in main thread to avoid worker thread accessing master chunk list
+* done in main thread to avoid worker threads accessing master chunk list
 */
 void TerrainGenerator::add_chunk(Vector3 chunk_pos, Ref<Chunk> chunk) {
 	chunks[chunk_pos] = chunk;
 
-	chunk.unref(); 		// unreference for safety
+	chunk.unref();
 }
 
 /*
-* add chunk reference to master chunk list
+* update chunk mesh according to new LOD factor
 */
 void TerrainGenerator::update_chunk_mesh(Ref<Chunk> chunk, int lod_factor, Vector3 grid_pos) {
 	// reset chunk mesh before anything else
@@ -247,12 +222,12 @@ void TerrainGenerator::update_chunk_mesh(Ref<Chunk> chunk, int lod_factor, Vecto
 	chunk->generate_mesh();
 	chunk->set_flag(Chunk::FLAG::UPDATE, false);
 
-	chunk.unref(); 		// unreference for safety
+	chunk.unref();
 }
 
 /*
-* if there is space left in reuse_pool, add chunk for reuse, and unref the chunk in the master list
-* reset chunk data to remove rendered instance
+* if there is space left in reuse_pool, add chunk for reuse, and remove from master list
+* reset chunk data to remove rendered gpu instance
 * erase Ref from master list before data reset -> reset_data() also resets flags, some of which may still be checked
 */
 void TerrainGenerator::delete_chunk(Vector3 chunk_key) {
@@ -295,11 +270,6 @@ void TerrainGenerator::delete_far_away_chunks(Vector3 player_chunk) {
 	// We should delete old chunks more aggressively if moving fast.
 	// An easy way to calculate this is by using the effective render distance.
 	// The specific values in this formula are arbitrary and from experimentation.
-
-	/*
-	- if not adjusted correctly, some pieces may never get deleted, or just take way too long
-	- consider reversing list every time we reach max deletes per frame?
-	*/
 	//int max_deletions = CLAMP(2 * (render_distance - effective_render_distance), 2, 64);
 	int max_deletions = 1000;
 
@@ -307,7 +277,6 @@ void TerrainGenerator::delete_far_away_chunks(Vector3 player_chunk) {
 	for (KeyValue<Vector3, Ref<Chunk>> chunk : chunks) {
 		StringName task_name = String(chunk.key);
 
-		// flag check -> we do not want to tag the same chunk again
 		if (!chunk.value->get_flag(Chunk::FLAG::DELETE) &&
 			player_chunk.distance_to(chunk.key) >= delete_distance &&
 			!chunk.value->get_flag(Chunk::FLAG::UPDATE)
@@ -316,9 +285,9 @@ void TerrainGenerator::delete_far_away_chunks(Vector3 player_chunk) {
 			main_thread_manager.tasks_push_back(String(chunk.key), callable_mp(this, &TerrainGenerator::delete_chunk).bind(chunk.key));
 			deleted_this_frame += 1;
 
-			// Limit the amount of deletions per frame to avoid lag spikes.
+			// Limit the amount of deletions per frame to avoid lag spikes -> Continue deleting next frame.
 			if (deleted_this_frame > max_deletions) {
-				_deleting = true;	// Continue deleting next frame.
+				_deleting = true;
 				return;
 			}
 		}

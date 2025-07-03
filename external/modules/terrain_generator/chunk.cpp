@@ -91,6 +91,7 @@ SurfaceTool doesn’t support this method internally
 	- Reused most of:
 		-> PlaneMesh::_create_mesh_array()
 		-> SurfaceTool::index(), deindex(), generate_normals(), generate_tangents()
+		-> RenderingServer::mesh_create_surface_data_from_arrays(), _surface_set_data()
     - a few structs
 
 Why not use ArrayMesh + MeshInstance3D?
@@ -333,7 +334,7 @@ void Chunk::draw_mesh() {
 	// i think its caused by mesh_clear()
 	RS::get_singleton()->instance_set_surface_override_material(render_instance_rid, 0, material->get_rid());
 
-	// free memory space for more chunks
+	// free memory space to allow more chunks to be allocated
 	vertex_array.reset();
 	index_array.reset();
 	flat_vertex_array.reset();
