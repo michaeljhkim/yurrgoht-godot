@@ -20,6 +20,7 @@ The entire mesh—including the surface—was calculated manually. The following
 - PlaneMesh::_create_mesh_array()
 - SurfaceTool::index(), deindex(), generate_normals(), generate_tangents()
 - RenderingServer::mesh_create_surface_data_from_arrays(), _surface_set_data()
+
 Irrelevant members, validation checks, redundant copying, and unnecessary loops were removed to achieve significant performance improvements. Level of Detail (LOD) was also generated manually to control terrain complexity dynamically.
 
 ## Chunk Based Terrain
