@@ -4,29 +4,31 @@
 // NOTE: LocalVector push_back() does check if there is enough capacity, and only resizes if full
 // Vector push_back() does not do this, and resizes regardless, so need to use set if you manually resize
 
-Chunk::Chunk(RID scenario, Vector3 new_c_position, int new_lod) {
-	render_instance_rid = RS::get_singleton()->instance_create();
-
-	RenderingServer::get_singleton()->instance_set_scenario(render_instance_rid, scenario);
-	position = new_c_position;
-	LOD_factor = new_lod;
+Chunk::Chunk(RID scenario, int new_lod, Vector3 new_c_position, Vector3 new_grid_pos) :
+	position(new_c_position), grid_position(new_grid_pos), LOD_factor(new_lod)
+{
+	//float octave_total = 2.0 + (1.0 - (1.0 / lod));		// Partial Sum Formula (Geometric Series)
 
 	noise.instantiate();
 	noise->set_frequency(0.01 / 4.0);
 	noise->set_fractal_octaves(2.0);	// high octaves not reccomended, makes LOD seams much more noticeable
 
-	mesh_rid = RS::get_singleton()->mesh_create();
-
 	/*
-	- instantiate and create a new material for the mesh -> imitates default material
-	- we imitate the default material is because it allows the geometry of a mesh to stand out
-	- real godot default material cannot be used due to less testing options
+	* instantiate and create a new material for the mesh -> imitates default material
+	* we imitate the default material is because it allows the geometry of a mesh to stand out
+	* real godot default material cannot be used due to less testing options
 	*/
 	material = memnew(StandardMaterial3D);
 	material->set_albedo(Color(0.7, 0.7, 0.7));   // slightly darker gray
 	material->set_metallic(0.f);
 	material->set_roughness(1.f);
 
+	// render instance
+	render_instance_rid = RS::get_singleton()->instance_create();
+	RenderingServer::get_singleton()->instance_set_scenario(render_instance_rid, scenario);
+
+	// mesh instance
+	mesh_rid = RS::get_singleton()->mesh_create();
 	RS::get_singleton()->instance_set_base(render_instance_rid, mesh_rid);
 }
 
@@ -97,7 +99,6 @@ void Chunk::generate_mesh() {
 
 	// size should most likely be established elsewhere, but do not need to currently
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);
-	//float octave_total = 2.0 + (1.0 - (1.0 / lod));		// Partial Sum Formula (Geometric Series)
 	float lod = pow(2, CLAMP(LOD_factor, 0.f, LOD_LIMIT));	// lod range -> 2**0 to 2**5
 
 	// number of vertices (subdivide_w * subdivide_d)
@@ -109,8 +110,8 @@ void Chunk::generate_mesh() {
 	int step_size_z = size.y / (subdivide_d - 1.0);
 
 	// reserve known amount of vertices and indices
-	vertex_array.reserve((subdivide_d + 2) * (subdivide_w + 2));
-	index_array.reserve((subdivide_d + 1) * (subdivide_w + 1) * 6);
+	vertex_array.reserve(pow(subdivide_d + 2, 2));
+	index_array.reserve(pow(subdivide_d + 1, 2) * 6);
 	flat_vertex_array.reserve(index_array.size());
 
 	// start position shifted by half chunk size and one step for padding
@@ -188,8 +189,7 @@ void Chunk::generate_mesh() {
 	generate_normals();
 
 	/*
-	GENERATE TANGENTS + 
-	RE-INDEX
+	GENERATE TANGENTS + RE-INDEX
 	*/
 	generate_tangents(first_vertex, last_vertex);
 
@@ -225,13 +225,9 @@ void Chunk::generate_mesh() {
 	const int index_stride = use_16bit ? 2 : 4;
 
 	// Allocate buffers
-	Vector<uint8_t> surface_vertex_array;
+	Vector<uint8_t> surface_vertex_array, surface_attrib_array, surface_index_array;
 	surface_vertex_array.resize((vertex_element_size + normal_element_size) * array_len);
-
-	Vector<uint8_t> surface_attrib_array;
 	surface_attrib_array.resize(attrib_element_size * array_len);
-
-	Vector<uint8_t> surface_index_array;
 	surface_index_array.resize(index_stride * index_array_len);
 
 	// Pointers

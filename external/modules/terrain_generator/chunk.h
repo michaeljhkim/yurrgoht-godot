@@ -20,13 +20,16 @@ private:
     // render server pointers
     RID render_instance_rid;
     RID mesh_rid;
-    //RID world_scenario;
-
     Ref<StandardMaterial3D> material;
     Ref<FastNoiseLite> noise;
 
-protected:
+    Vector3 position = Vector3(0, 0, 0);
+    Vector3 grid_position = Vector3(0, 0, 0);
+    int LOD_factor = 0;
 
+    std::atomic<bool> CHUNK_FLAGS[2] = {false};
+
+protected:
     // Copied from SurfaceTool
     struct Vertex {
 		// Trivial data for which the hash is computed using hash_buffer.
@@ -102,19 +105,14 @@ protected:
     /*
     ----- CHUNK SPECIFIC MEMBER VALUES -----
     */
-    HashMap<uint32_t, RS::SurfaceData> lod_surface_cache;
-
 	static void _bind_methods();
-    
+
     // flattened vertices -> de-indexed vertices
     LocalVector<Vertex> flat_vertex_array;
 	LocalVector<Vertex> vertex_array;
 	LocalVector<int> index_array;
+    HashMap<uint32_t, RS::SurfaceData> lod_surface_cache;
 
-    Vector3 position = Vector3(0, 0, 0);
-    Vector3 grid_position = Vector3(0, 0, 0);
-    int LOD_factor = 0;
-    
     // for storing neighboring lod chunks -> UNUSED
     enum ADJACENT {
         UP,
@@ -123,8 +121,6 @@ protected:
         RIGHT
     };
     int adjacent_LOD_steps[4] = {0};    // array only used to check if lod should be calculated -> UNUSED
-
-    std::atomic<bool> CHUNK_FLAGS[2] = {false};
 
     // mostly for keeping the mesh generation code clean
     void generate_normals(bool p_flip = false);
@@ -135,25 +131,29 @@ public:
         DELETE,
         UPDATE
     };
-
     void set_flag(FLAG flag, bool value) { CHUNK_FLAGS[flag].store(value, std::memory_order_acquire); }
     bool get_flag(FLAG flag) { return CHUNK_FLAGS[flag].load(std::memory_order_acquire); }
 
-    void set_LOD_factor(int new_LOD) { LOD_factor = MAX(new_LOD, 1.0); }
-    int get_LOD_factor() { return LOD_factor; }
-
-    void set_position(Vector3 new_position) { position = new_position; }
-    Vector3 get_position() { return position; }
+    void setup_reuse(int new_LOD, Vector3 new_position, Vector3 new_grid_pos) {
+        LOD_factor = new_LOD;
+        position = new_position;
+        grid_position = new_grid_pos;
+    }
+    void setup_update(int new_LOD, Vector3 new_grid_pos) {
+	    // clear chunk data before anything else
+        clear_data();
+        LOD_factor = new_LOD;
+        grid_position = new_grid_pos;
+    }
 
     // for update checks
     void set_grid_position(Vector3 new_position) { grid_position = new_position; }
     Vector3 get_grid_position() { return grid_position; }
 
-
     // can probably remove this, but keeping for now
     //void _generate_chunk_collider();
-    //RID _get_mesh_rid() { return mesh_rid; }
     //void _generate_lods(Vector2 size);
+	//static constexpr float render_distance = 4.f;
 
     void generate_mesh();
     void draw_mesh();
@@ -177,15 +177,13 @@ public:
     static constexpr float CHUNK_SIZE = 1024.f;
     static constexpr float AMPLITUDE = 32.f;
 
-	//static constexpr float render_distance = 4.f;
-
     //currently not using these:
     static constexpr float TEXTURE_SHEET_WIDTH = 8;
     static constexpr int CHUNK_LAST_INDEX = CHUNK_SIZE - 1;
     static constexpr float TEXTURE_TILE_SIZE = 1.0 / TEXTURE_SHEET_WIDTH;
     
     // scenario input is the return value of 'get_world_3d()->get_scenario()' from any node within the active main scene tree
-    Chunk(RID scenario, Vector3 new_c_position, int new_lod);
+    Chunk(RID scenario, int new_lod, Vector3 new_c_position, Vector3 new_grid_pos);
     ~Chunk();
 
     void clear_data();

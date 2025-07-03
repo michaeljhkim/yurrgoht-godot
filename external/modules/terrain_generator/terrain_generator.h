@@ -56,7 +56,6 @@ protected:
 	
 	// Only for main thread
 	void add_chunk(Vector3 chunk_pos, Ref<Chunk> chunk);
-	void delete_chunk(Vector3 chunk_key);
 	void delete_far_away_chunks(Vector3 player_chunk);
 
 	static void _bind_methods();
