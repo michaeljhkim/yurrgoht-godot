@@ -174,7 +174,7 @@ public:
     static constexpr float CHUNK_RESOLUTION = 1.0f;
     static constexpr float LOD_LIMIT = 7.0f;
 
-    static constexpr float CHUNK_SIZE = 1024.f;
+    static constexpr float CHUNK_SIZE = 512.f;
     static constexpr float AMPLITUDE = 32.f;
 
 	//static constexpr float render_distance = 4.f;

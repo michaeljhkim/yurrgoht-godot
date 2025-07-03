@@ -85,48 +85,67 @@ void TerrainGenerator::_process(double delta) {
 	// Try to generate chunks ahead of time based on where the player is moving.
 	//player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance/4, render_distance/4));
 	float yaw = player_character->get_global_rotation_degrees().y;
+	print_line("PLAYER VIEW DIRECTION: ", player_character->get_global_rotation_degrees());
 	int x_start = -effective_render_distance;
 	int x_end = effective_render_distance;
 	int z_start = -effective_render_distance;
 	int z_end = effective_render_distance;
 
-	print_line("PLAYER VIEW DIRECTION: ", player_character->get_global_rotation_degrees());
+	int x_step = 1;
+	int z_step = 1;
 
-	if (yaw >= 0 && yaw <= 90) {
+	if (yaw >= 0.f && yaw <= 90.f) {
 		// -X, -Z 
-		print_line("SPAWN PARAMETERS: ", 0, 90);
+		print_line("SPAWN PARAMETERS: ", 0.f, 90.f);
 		/*
 		x_start = -effective_render_distance;
 		x_end = effective_render_distance;
 		z_start = -effective_render_distance;
 		z_end = effective_render_distance;
+		
+		x_step *= 1;
+		z_step *= 1;
 		*/
-	} else if (yaw > 90 && yaw <= 180) {
+	} else if (yaw > 90.f && yaw <= 180.f) {
 		// -X, +Z
-		print_line("SPAWN PARAMETERS: ", 90, 180);
+		print_line("SPAWN PARAMETERS: ", 90.f, 180.f);
 		x_start = -effective_render_distance;
 		x_end = effective_render_distance;
 		z_start = effective_render_distance;
 		z_end = -effective_render_distance;
-	} else if (yaw >= -180 && yaw < -90) {
+
+		z_step = -z_step;
+	} else if (yaw >= -180.f && yaw < -90.f) {
 		// +X, +Z
-		print_line("SPAWN PARAMETERS: ", -180, -90);
+		print_line("SPAWN PARAMETERS: ", -180.f, -90.f);
 		x_start = effective_render_distance;
 		x_end = -effective_render_distance;
 		z_start = effective_render_distance;
 		z_end = -effective_render_distance;
-	} else if (yaw >= -90 && yaw <= -0) {
+
+		x_step = -x_step;
+		z_step = -z_step;
+	} else if (yaw >= -90.f && yaw < 0.f) {
 		// +X, -Z
-		print_line("SPAWN PARAMETERS: ", -90, -0);
+		print_line("SPAWN PARAMETERS: ", -90.f, 0.f);
 		x_start = effective_render_distance;
 		x_end = -effective_render_distance;
 		z_start = -effective_render_distance;
 		z_end = effective_render_distance;
+		
+		x_step = -x_step;
 	}
+	print_line("SPAWN PARAMETERS: ", x_step, z_step);
 
 	// Check existing chunks within range. If it doesn't exist, create it.
-	for (int x = x_start; x <= x_end; x++) {
-		for (int z = z_start; z <= z_end; z++) {
+	for (int x = x_start; 
+		(x_end > 0) ? (x <= x_end) : (x > x_end); 
+		x += x_step
+	) {
+		for (int z = z_start; 
+			(z_end > 0) ? (z <= z_end) : (z > z_end); 
+			z += z_step
+		) {
 			Vector3 grid_pos = Vector3(x, 0, z);
 			Vector3 chunk_pos = player_chunk + grid_pos;
 			++count;	// debug
