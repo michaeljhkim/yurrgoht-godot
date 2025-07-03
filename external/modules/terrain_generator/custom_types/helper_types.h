@@ -9,6 +9,35 @@
 //#include "core/templates/lru.h"
 #include "lru_friend.h"
 
+// purely for keeping code cleaner
+/*
+if flip is false, incrementing iteration
+if flip is true, decrementing iteration
+*/
+struct range_flip {
+    range_flip(int min, int max, bool flip = false): last(max), iter(min) {
+        if (flip) {
+            iter = max;
+            last = min;
+            step = -1;
+        }
+    }
+
+    // Iterable functions
+    _FORCE_INLINE_ const range_flip& begin() const { return *this; }
+    _FORCE_INLINE_ const range_flip& end() const { return *this; }
+
+    // Iterator functions
+    _FORCE_INLINE_ bool operator==(const range_flip&) const { return iter == last; }
+    _FORCE_INLINE_ bool operator!=(const range_flip&) const { return iter != last; }
+    _FORCE_INLINE_ void operator++() { iter += step; }
+    _FORCE_INLINE_ int operator*() const { return iter; }
+
+private:
+    int last;
+    int iter;
+    int step = 1;
+};
 
 /*
 - RingBuffer is used because efficient fixed-sized queues are needed
