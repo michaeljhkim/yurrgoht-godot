@@ -6,7 +6,6 @@ CREDITs:
 */
 
 
-// constructor - sets up default values
 TerrainGenerator::TerrainGenerator() {
 	set_process(true);
 	reuse_pool.resize(6);	// 2**6 = 64
@@ -18,7 +17,7 @@ TerrainGenerator::TerrainGenerator() {
 	MAX_CHUNKS_NUM = pow((render_distance * 2) + 1, 2);
 }
 
-// destructor - cleans up anything that the main scene tree might not
+// cleans up anything that the main scene tree might not
 TerrainGenerator::~TerrainGenerator() {
 	reuse_mutex.unref();
 	clean_up();
@@ -45,16 +44,11 @@ void TerrainGenerator::_notification(int p_what) {
 	}
 }
 
-
-// called only in destructor
 void TerrainGenerator::clean_up() {
 	chunks.clear();
 	set_process(false);
 }
 
-
-
-// processes that only need to be done on intialization - mutexes, thread
 void TerrainGenerator::_ready() {
 	world_scenario = get_world_3d()->get_scenario();
 	reuse_mutex.instantiate();

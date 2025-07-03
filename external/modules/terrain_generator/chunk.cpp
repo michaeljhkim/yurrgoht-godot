@@ -58,17 +58,11 @@ void Chunk::clear_data() {
 */
 void Chunk::reset_data() {
 	clear_data();
-
-	// ADD A ADD SURFACE CANCELLATION FLAG IF DELETING 
-	//RS::get_singleton()->call_on_render_thread(callable_mp(RS::get_singleton(), &RS::mesh_clear).bind(mesh_rid));
 	RS::get_singleton()->mesh_clear(mesh_rid);
 	
 	set_flag(Chunk::FLAG::UPDATE, false);
 	set_flag(Chunk::FLAG::DELETE, false);
 }
-
-
-
 
 
 
@@ -81,32 +75,20 @@ Why not use PlaneMesh with SurfaceTool?
     - Only calculates internal normals by default
 	- Causes seaming issues, even between chunks with the same LOD (texture/lighting inconsistencies)
 
+Why not use ArrayMesh + MeshInstance3D?
+    - Adds too much overhead
+    - No multi-threading once in the scene tree -> must run on main thread
+
 Solution:
     Generate MESH with an extra row/column on all 4 sides
 	- e.g. for 4x4 chunk -> generate 6x6 -> then remove outer rows/columns
     - fixes seams between chunks (with the same LOD)
-
-SurfaceTool doesn’t support this method internally
-	- All calculations done manually
-	- Reused most of:
-		-> PlaneMesh::_create_mesh_array()
-		-> SurfaceTool::index(), deindex(), generate_normals(), generate_tangents()
-		-> RenderingServer::mesh_create_surface_data_from_arrays(), _surface_set_data()
-    - a few structs
-
-Why not use ArrayMesh + MeshInstance3D?
-    -> Adds too much overhead
-    -> No multi-threading once in the scene tree -> must run on main thread
-
-- These issues made it too unoptimized -> had to scrap that path
-- Pushing directly to RenderingServer worked well
-- Can be done off the main thread -> more optimization possible
+	- can be done multi-threaded
 */
 
 void Chunk::generate_mesh() {
 	Vector2 size(CHUNK_SIZE, CHUNK_SIZE);	// size should most likely be established elsewhere, but do not need to currently
 
-	//float lod = MAX(pow(2, LOD_factor-1), 1.f);
 	//float octave_total = 2.0 + (1.0 - (1.0 / lod));		// Partial Sum Formula (Geometric Series)
 	float lod = pow(2, CLAMP(LOD_factor, 0.f, LOD_LIMIT));	// lod range -> 2**0 to 2**5
 

@@ -37,9 +37,7 @@ protected:
 		Vector3 binormal = Vector3();
 		Vector3 tangent = Vector3();
 		Vector2 uv;
-		//Vector2 uv2;
-
-		Vector3 vertex; // Must be last.
+		Vector3 vertex;     // Must be last.
 		// ----------------------------------------------------------------
 
         // return only if none of the conditions are true
@@ -47,7 +45,6 @@ protected:
             return (
                 (vertex == p_vertex.vertex) &&
                 (uv == p_vertex.uv) &&
-                //(uv2 == p_vertex.uv2) &&
                 (normal == p_vertex.normal) &&
                 (binormal == p_vertex.binormal) &&
                 (tangent == p_vertex.tangent) &&
@@ -98,8 +95,8 @@ protected:
 	static void mikktGetPosition(const SMikkTSpaceContext *pContext, float fvPosOut[], const int iFace, const int iVert);
 	static void mikktGetNormal(const SMikkTSpaceContext *pContext, float fvNormOut[], const int iFace, const int iVert);
 	static void mikktGetTexCoord(const SMikkTSpaceContext *pContext, float fvTexcOut[], const int iFace, const int iVert);
-	static void mikktSetTSpaceDefault(const SMikkTSpaceContext *pContext, const float fvTangent[], const float fvBiTangent[], const float fMagS, const float fMagT,
-			const tbool bIsOrientationPreserving, const int iFace, const int iVert);
+	static void mikktSetTSpaceDefault(const SMikkTSpaceContext *pContext, const float fvTangent[], const float fvBiTangent[], 
+            const float fMagS, const float fMagT, const tbool bIsOrientationPreserving, const int iFace, const int iVert);
 
 
     /*
@@ -170,8 +167,6 @@ public:
     void generate_mesh();
     void draw_mesh();
     
-	//static constexpr float render_distance = 4.f;
-
     /*
     0.5 -> vertex count = size / 2
     1.0 -> vertex count = size
@@ -191,6 +186,7 @@ public:
     static constexpr float CHUNK_SIZE = 2048.f;
     static constexpr float AMPLITUDE = 32.f;
 
+	//static constexpr float render_distance = 4.f;
 
     //currently not using these:
     static constexpr float TEXTURE_SHEET_WIDTH = 8;
