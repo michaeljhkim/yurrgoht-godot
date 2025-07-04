@@ -160,31 +160,31 @@ public:
     LRUQueue<StringName, Callable> queue;
     Mutex mutex;
     Ref<CoreBind::Thread> thread;
-    Ref<CoreBind::Semaphore> EMPTY;
+    Ref<CoreBind::Semaphore> READY;
 
-    std::atomic_bool RUNNING = {true};
+    std::atomic_bool EXIT = {false};
     std::atomic_bool PROCESSING = {false};
     std::atomic<uint> SIZE = 0;
 
     void thread_process() {
         Callable CURRENT_TASK;
 
-        while (RUNNING) {
-            EMPTY->wait();
+        while (!EXIT.load()) {
+            READY->wait();
+            if (EXIT.load()) break;   // CRITICAL
             {
                 MutexLock mutex_lock(mutex);
-                CURRENT_TASK = queue.front();			// tasks do exist, copy the front of the queue
+                CURRENT_TASK = queue.front();		// tasks do exist, copy the front of the queue
             }
 
             // all arguements are bound BEFORE being added to task queue -> no arguements needed here
             PROCESSING.store(true, std::memory_order_acquire);
             CURRENT_TASK.call();
             PROCESSING.store(false, std::memory_order_acquire);
-                
-            // only safe to remove AFTER call(), due to main thread checking task queue
+
             {
                 MutexLock mutex_lock(mutex);
-                queue.pop_front();
+                queue.pop_front();      // only safe to remove AFTER call(), due to main thread checking task queue
             }
             SIZE--;
         }
@@ -218,11 +218,9 @@ struct TaskThreadManager {
         {
             MutexLock mutex_lock(TASKS[min].mutex);
             TASKS[min].queue.insert(task_name, task_callable);
-            TASKS[min].SIZE++;
         }
-
-        // task queue is no longer empty -> 'wake up' task thread
-        TASKS[min].EMPTY->post();
+        TASKS[min].SIZE++;
+        TASKS[min].READY->post();       // task queue is no longer empty -> 'wake up' task thread
     }
 
     bool has_task(StringName task_name) {
@@ -236,26 +234,29 @@ struct TaskThreadManager {
 
     TaskThreadManager() {
         thread_count = OS::get_singleton()->get_default_thread_pool_size() - 1;     // one less for safety
-        //thread_count = 4;
+        //thread_count = OS::get_singleton()->get_default_thread_pool_size() / 2;
+
         TASKS = std::make_unique<ThreadTaskQueue[]>(thread_count);
 
         for (int i = 0; i < thread_count; ++i) {
             TASKS[i].queue.set_capacity(MAX_QUEUE_SIZE);
+			TASKS[i].READY.instantiate();
             TASKS[i].thread.instantiate();
-			TASKS[i].EMPTY.instantiate();
             TASKS[i].thread->start(callable_mp(&TASKS[i], &ThreadTaskQueue::thread_process), CoreBind::Thread::PRIORITY_NORMAL);
         }
     }
 
     ~TaskThreadManager() {
         for (int i = 0; i < thread_count; ++i) {
-            TASKS[i].RUNNING.store(false, std::memory_order_acquire);
-            TASKS[i].EMPTY->post();
+            TASKS[i].EXIT.store(true, std::memory_order_acquire);
+            if ( !TASKS[i].READY->try_wait() ) {
+                TASKS[i].READY->post();
+            }
 
             TASKS[i].thread->wait_to_finish();
             TASKS[i].thread.unref();
 
-			TASKS[i].EMPTY.unref();
+			TASKS[i].READY.unref();
         }
     }
 };

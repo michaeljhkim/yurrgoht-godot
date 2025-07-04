@@ -7,8 +7,11 @@
 Chunk::Chunk(RID scenario, int new_lod, Vector3 new_c_position, Vector3 new_grid_pos) :
 	position(new_c_position), grid_position(new_grid_pos), LOD_factor(new_lod)
 {
-	//float octave_total = 2.0 + (1.0 - (1.0 / lod));		// Partial Sum Formula (Geometric Series)
+	// render instance
+	render_instance_rid = RS::get_singleton()->instance_create();
+	RenderingServer::get_singleton()->instance_set_scenario(render_instance_rid, scenario);
 
+	//float octave_total = 2.0 + (1.0 - (1.0 / lod));		// Partial Sum Formula (Geometric Series)
 	noise.instantiate();
 	noise->set_frequency(0.01 / 4.0);
 	noise->set_fractal_octaves(2.0);	// high octaves not reccomended, makes LOD seams much more noticeable
@@ -23,10 +26,6 @@ Chunk::Chunk(RID scenario, int new_lod, Vector3 new_c_position, Vector3 new_grid
 	material->set_metallic(0.f);
 	material->set_roughness(1.f);
 
-	// render instance
-	render_instance_rid = RS::get_singleton()->instance_create();
-	RenderingServer::get_singleton()->instance_set_scenario(render_instance_rid, scenario);
-
 	// mesh instance
 	mesh_rid = RS::get_singleton()->mesh_create();
 	RS::get_singleton()->instance_set_base(render_instance_rid, mesh_rid);
@@ -36,7 +35,7 @@ Chunk::Chunk(RID scenario, int new_lod, Vector3 new_c_position, Vector3 new_grid
 
 Chunk::~Chunk() {
 	reset_data();
-	
+
 	if (mesh_rid.is_valid())
 		RS::get_singleton()->free(mesh_rid);
 
@@ -51,6 +50,7 @@ Chunk::~Chunk() {
 * clears bare minimum for re-generation
 * only used by updates
 * clears does not de-allocate, less power needed, but more memory stored
+* reset does de-allocate, requiring more power, but less memory 	-> maybe allow users to choose between
 */
 void Chunk::clear_data() {
 	flat_vertex_array.clear();
@@ -62,6 +62,7 @@ void Chunk::clear_data() {
 * complete data reset
 */
 void Chunk::reset_data() {
+	//clear_data();
 	flat_vertex_array.reset();
 	vertex_array.reset();
 	index_array.reset();
@@ -399,8 +400,8 @@ void Chunk::generate_tangents(Vector3 &first_vertex, Vector3 &last_vertex) {
 	triangle_data.indices = &index_array;
 	msc.m_pUserData = &triangle_data;
 
-	//bool res = genTangSpaceDefault(&msc);
-	//ERR_FAIL_COND(!res);
+	bool res = genTangSpaceDefault(&msc);
+	ERR_FAIL_COND(!res);
 
 
 	/*

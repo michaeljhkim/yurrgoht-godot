@@ -107,7 +107,7 @@ void TerrainGenerator::_process(double delta) {
 				task_thread_manager.insert_task(
 					task_name, callable_mp(this, &TerrainGenerator::update_chunk_mesh).bind(chunks[chunk_pos], distance, grid_pos)
 				);
-				continue;
+				return;
 			}
 
 			// CREATE NEW CHUNK
@@ -243,7 +243,7 @@ void TerrainGenerator::delete_far_away_chunks(Vector3 player_chunk) {
 				print_line("DELETE CHUNK: ", chunk.key);
 				chunks.erase(chunk.key);
 				--chunk_count;
-				return;
+				continue;
 			}
 			print_line("REUSE CHUNK: ", chunk.key);
 			Ref<Chunk> chunk_ref(chunk.value);
