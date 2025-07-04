@@ -10,17 +10,12 @@ TerrainGenerator::TerrainGenerator() {
 	set_process(true);
 	reuse_pool.resize(6);	// 2**6 = 64
 
-	/*
-	- maximum possible number of chunks instantiated is ((render_distance * 2) + 1) ** 2
-	- e.g, ((5 * 2) + 1) ** 2 = 121 chunks possible (but unlikely)
-	*/
+	// maximum possible number of chunks instantiated
 	MAX_CHUNKS_NUM = pow((render_distance * 2) + 1, 2);
 }
 
 // cleans up anything that the main scene tree might not
 TerrainGenerator::~TerrainGenerator() {
-	reuse_mutex.unref();
-	clean_up();
 }
 
 /*
@@ -36,17 +31,14 @@ void TerrainGenerator::_notification(int p_what) {
 			_ready();
 			break;
 
-		/*
 		// Thread must be disposed (or "joined"), for portability.
-		case NOTIFICATION_EXIT_TREE: { } 
+		case NOTIFICATION_EXIT_TREE: {
+			reuse_mutex.unref();
+			chunks.clear();
+			set_process(false);
+		} 
 		break;
-		*/
 	}
-}
-
-void TerrainGenerator::clean_up() {
-	chunks.clear();
-	set_process(false);
 }
 
 void TerrainGenerator::_ready() {
@@ -57,10 +49,6 @@ void TerrainGenerator::_ready() {
 	start = std::chrono::high_resolution_clock::now();
 }
 
-
-/*
-- need to implement a system to make updates/deletes aggressively based on player viewing direction 
-*/
 void TerrainGenerator::_process(double delta) {
 	if (player_character == nullptr) return;
 
@@ -69,11 +57,7 @@ void TerrainGenerator::_process(double delta) {
 	Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 	player_chunk.y = 0.f;
 	
-	// goes from PI to -PI
-	//player_character->get_global_rotation();	// reference for being able to render chunks according to the direction that the player is facing
-	//print_line("PLAYER VIEW DIRECTION: ", player_character->get_global_rotation());
-
-	if (_deleting || (player_chunk != old_player_chunk)) {
+	if (_deleting || player_chunk != old_player_chunk) {
 		delete_far_away_chunks(player_chunk);
 		_generating = true;
 	}
@@ -92,8 +76,8 @@ void TerrainGenerator::_process(double delta) {
 	bool z_flip = yaw > 90.f || yaw <= -90.f;
 	range_flip x_range(-effective_render_distance, effective_render_distance, x_flip);
 	range_flip z_range(-effective_render_distance, effective_render_distance, z_flip);
-	//print_line("PLAYER VIEW DIRECTION: ", player_character->get_global_rotation_degrees());
-	//print_line("SPAWN PARAMETERS: ", x_flip, z_flip);
+	print_line("PLAYER VIEW DIRECTION: ", player_character->get_global_rotation_degrees());
+	print_line("SPAWN PARAMETERS: ", x_flip, z_flip);
 
 	// Check existing chunks within range. If it doesn't exist, create it.
 	for (int x : x_range) {
@@ -107,27 +91,25 @@ void TerrainGenerator::_process(double delta) {
 			float distance = player_chunk.distance_to(chunk_pos);
 
 			// UPDATE EXISTING CHUNK
-			if ( distance <= render_distance &&
+			if (distance <= render_distance &&
 				chunks.has(chunk_pos) &&
 				!chunks[chunk_pos]->get_flag(Chunk::FLAG::DELETE) &&
 				!chunks[chunk_pos]->get_flag(Chunk::FLAG::UPDATE) &&
 				!task_exists &&
 				!main_thread_manager.task_exists(task_name) &&
-				chunks[chunk_pos]->get_grid_position().distance_to(grid_pos) > 2
+				chunks[chunk_pos]->grid_distance(grid_pos) > 2
 			) {
-				chunks[chunk_pos]->set_flag(Chunk::FLAG::UPDATE, true);
 				print_line("UPDATE CHUNK: ", task_name);
-
+				
+				chunks[chunk_pos]->set_flag(Chunk::FLAG::UPDATE, true);
 				task_thread_manager.insert_task(
 					task_name, callable_mp(this, &TerrainGenerator::update_chunk_mesh).bind(chunks[chunk_pos], distance, grid_pos)
 				);
-
 				continue;
 			}
 
 			// CREATE NEW CHUNK
-			else if (
-				task_exists ||
+			if (task_exists ||
 				chunks.has(chunk_pos) ||
 				main_thread_manager.task_exists(task_name) ||
 				distance > render_distance ||
@@ -139,7 +121,6 @@ void TerrainGenerator::_process(double delta) {
 			task_thread_manager.insert_task(
 				task_name, callable_mp(this, &TerrainGenerator::instantiate_chunk).bind(chunk_pos, MAX(abs(x), abs(z)), grid_pos)
 			);
-
 			return;
 		}
 	}
@@ -200,9 +181,7 @@ void TerrainGenerator::instantiate_chunk(Vector3 chunk_pos, int lod_factor, Vect
 	}
 	else return;		// exit (does not normally activate, but added for safety gaurentees)
 	
-	chunk->generate_mesh();
 	main_thread_manager.tasks_push_back(String(chunk_pos), callable_mp(this, &TerrainGenerator::add_chunk).bind(chunk_pos, chunk));
-
 	chunk.unref();
 }
 
@@ -212,7 +191,6 @@ void TerrainGenerator::instantiate_chunk(Vector3 chunk_pos, int lod_factor, Vect
 */
 void TerrainGenerator::add_chunk(Vector3 chunk_pos, Ref<Chunk> chunk) {
 	chunks[chunk_pos] = chunk;
-
 	chunk.unref();
 }
 
@@ -221,9 +199,6 @@ void TerrainGenerator::add_chunk(Vector3 chunk_pos, Ref<Chunk> chunk) {
 */
 void TerrainGenerator::update_chunk_mesh(Ref<Chunk> chunk, int lod_factor, Vector3 grid_pos) {
 	chunk->setup_update(lod_factor, grid_pos);
-	chunk->generate_mesh();
-	chunk->set_flag(Chunk::FLAG::UPDATE, false);
-
 	chunk.unref();
 }
 
@@ -235,7 +210,6 @@ void TerrainGenerator::update_chunk_mesh(Ref<Chunk> chunk, int lod_factor, Vecto
 - can probably delegate this to another thread
 - TODO later
 */
-
 void TerrainGenerator::delete_far_away_chunks(Vector3 player_chunk) {
 	old_player_chunk = player_chunk;
 	// If we need to delete chunks, give the new chunk system a chance to catch up.
@@ -250,10 +224,8 @@ void TerrainGenerator::delete_far_away_chunks(Vector3 player_chunk) {
 
 	// Also take the opportunity to delete far away chunks.
 	for (KeyValue<Vector3, Ref<Chunk>> chunk : chunks) {
-		StringName task_name = String(chunk.key);
-
-		if (!chunk.value->get_flag(Chunk::FLAG::DELETE) &&
-			player_chunk.distance_to(chunk.key) >= delete_distance &&
+		if (player_chunk.distance_to(chunk.key) >= delete_distance &&
+			!chunk.value->get_flag(Chunk::FLAG::DELETE) &&
 			!chunk.value->get_flag(Chunk::FLAG::UPDATE)
 		) {
 			chunk.value->set_flag(Chunk::FLAG::DELETE, true);
@@ -263,7 +235,7 @@ void TerrainGenerator::delete_far_away_chunks(Vector3 player_chunk) {
 			reuse_mutex->unlock();
 
 			// delete if theres no space left in reuse pool, or too many chunks spawned
-			if (!space_check || (chunk_count >= MAX_CHUNKS_NUM)) {
+			if (!space_check || chunk_count >= MAX_CHUNKS_NUM) {
 				print_line("DELETE CHUNK: ", chunk.key);
 				chunks.erase(chunk.key);
 				--chunk_count;
@@ -280,7 +252,7 @@ void TerrainGenerator::delete_far_away_chunks(Vector3 player_chunk) {
 			reuse_mutex->unlock();
 
 			chunk_ref.unref();			// IMPORTANT -> memory safety
-			deleted_this_frame += 1;
+			deleted_this_frame++;
 
 			// Limit the amount of deletions per frame to avoid lag spikes -> Continue deleting next frame.
 			if (deleted_this_frame > max_deletions) {

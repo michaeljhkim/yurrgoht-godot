@@ -63,7 +63,6 @@ protected:
 public:
 	TerrainGenerator();
 	~TerrainGenerator();
-	void clean_up();
 
 	void _notification(int p_notification);
 	//void _init();	// probably do not need this, ready should take care of everything

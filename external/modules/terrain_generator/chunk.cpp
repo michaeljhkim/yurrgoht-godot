@@ -30,6 +30,8 @@ Chunk::Chunk(RID scenario, int new_lod, Vector3 new_c_position, Vector3 new_grid
 	// mesh instance
 	mesh_rid = RS::get_singleton()->mesh_create();
 	RS::get_singleton()->instance_set_base(render_instance_rid, mesh_rid);
+
+	generate_mesh();
 }
 
 Chunk::~Chunk() {

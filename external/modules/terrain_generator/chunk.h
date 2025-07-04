@@ -127,37 +127,6 @@ protected:
     void generate_tangents(Vector3 &first_vertex, Vector3 &last_vertex);
 
 public:
-    enum FLAG : uint8_t {
-        DELETE,
-        UPDATE
-    };
-    void set_flag(FLAG flag, bool value) { CHUNK_FLAGS[flag].store(value, std::memory_order_acquire); }
-    bool get_flag(FLAG flag) { return CHUNK_FLAGS[flag].load(std::memory_order_acquire); }
-
-    void setup_reuse(int new_LOD, Vector3 new_position, Vector3 new_grid_pos) {
-        LOD_factor = new_LOD;
-        position = new_position;
-        grid_position = new_grid_pos;
-    }
-    void setup_update(int new_LOD, Vector3 new_grid_pos) {
-	    // clear chunk data before anything else
-        clear_data();
-        LOD_factor = new_LOD;
-        grid_position = new_grid_pos;
-    }
-
-    // for update checks
-    void set_grid_position(Vector3 new_position) { grid_position = new_position; }
-    Vector3 get_grid_position() { return grid_position; }
-
-    // can probably remove this, but keeping for now
-    //void _generate_chunk_collider();
-    //void _generate_lods(Vector2 size);
-	//static constexpr float render_distance = 4.f;
-
-    void generate_mesh();
-    void draw_mesh();
-    
     /*
     0.5 -> vertex count = size / 2
     1.0 -> vertex count = size
@@ -171,7 +140,7 @@ public:
         -> terrain is absolutely massive, but performs smoothly
         -> lowest vertex count is 512 / 128 = 4 -> 4x4 = 16 vertices
     */
-    static constexpr float CHUNK_RESOLUTION = 1.0f;
+    static constexpr float CHUNK_RESOLUTION = 0.5f;
     static constexpr float LOD_LIMIT = 7.0f;
 
     static constexpr float CHUNK_SIZE = 1024.f;
@@ -181,6 +150,41 @@ public:
     static constexpr float TEXTURE_SHEET_WIDTH = 8;
     static constexpr int CHUNK_LAST_INDEX = CHUNK_SIZE - 1;
     static constexpr float TEXTURE_TILE_SIZE = 1.0 / TEXTURE_SHEET_WIDTH;
+
+    enum FLAG : uint8_t {
+        DELETE,
+        UPDATE
+    };
+    void set_flag(FLAG flag, bool value) { CHUNK_FLAGS[flag].store(value, std::memory_order_acquire); }
+    bool get_flag(FLAG flag) { return CHUNK_FLAGS[flag].load(std::memory_order_acquire); }
+
+    void setup_reuse(int new_LOD, Vector3 new_position, Vector3 new_grid_pos) {
+        LOD_factor = new_LOD;
+        position = new_position;
+        grid_position = new_grid_pos;
+        generate_mesh();
+    }
+    void setup_update(int new_LOD, Vector3 new_grid_pos) {
+        clear_data();
+        LOD_factor = new_LOD;
+        grid_position = new_grid_pos;
+        generate_mesh();
+
+        set_flag(Chunk::FLAG::UPDATE, false);
+    }
+
+    // for update checks
+    float grid_distance(Vector3 new_grid_pos) {
+        return grid_position.distance_to(new_grid_pos);
+    }
+
+    // can probably remove this, but keeping for now
+    //void _generate_chunk_collider();
+    //void _generate_lods(Vector2 size);
+	//static constexpr float render_distance = 4.f;
+
+    void generate_mesh();
+    void draw_mesh();
     
     // scenario input is the return value of 'get_world_3d()->get_scenario()' from any node within the active main scene tree
     Chunk(RID scenario, int new_lod, Vector3 new_c_position, Vector3 new_grid_pos);
