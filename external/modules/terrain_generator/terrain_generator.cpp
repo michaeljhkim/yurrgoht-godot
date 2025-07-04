@@ -92,36 +92,32 @@ void TerrainGenerator::_process(double delta) {
 			bool task_exists = task_thread_manager.has_task(task_name);
 			float distance = player_chunk.distance_to(chunk_pos);
 
-			// UPDATE EXISTING CHUNK
-			if (distance <= render_distance &&
-				chunks.has(chunk_pos) &&
-				!chunks[chunk_pos]->get_flag(Chunk::FLAG::DELETE) &&
-				!chunks[chunk_pos]->get_flag(Chunk::FLAG::UPDATE) &&
-				!task_exists &&
-				!main_thread_manager.task_exists(task_name) &&
-				chunks[chunk_pos]->grid_distance(grid_pos) > 2
-			) {
+			// check if task already exists
+			if (task_exists || main_thread_manager.task_exists(task_name) || distance > render_distance) {
+				continue;
+			}
+
+			if (chunks.has(chunk_pos)) {	// UPDATE EXISTING CHUNK
+				if (chunks[chunk_pos]->get_flag(Chunk::FLAG::DELETE) ||
+					chunks[chunk_pos]->get_flag(Chunk::FLAG::UPDATE) ||
+					chunks[chunk_pos]->grid_distance(grid_pos) <= 1 ) { 
+					continue;
+				}
 				print_line("UPDATE CHUNK: ", task_name);
 				chunks[chunk_pos]->set_flag(Chunk::FLAG::UPDATE, true);
 
 				task_thread_manager.insert_task(
 					task_name, callable_mp(this, &TerrainGenerator::update_chunk_mesh).bind(chunks[chunk_pos], distance, grid_pos)
-				);
+				); 
+				//continue;
 				return;
 			}
 
 			// CREATE NEW CHUNK
-			if (task_exists ||
-				chunks.has(chunk_pos) ||
-				main_thread_manager.task_exists(task_name) ||
-				distance > render_distance
-			) {
-				continue;
-			}
-
 			task_thread_manager.insert_task(
 				task_name, callable_mp(this, &TerrainGenerator::instantiate_chunk).bind(chunk_pos, MAX(abs(x), abs(z)), grid_pos)
 			);
+			
 			return;
 		}
 	}

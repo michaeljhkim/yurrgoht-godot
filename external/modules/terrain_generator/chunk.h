@@ -132,16 +132,16 @@ public:
     1.0 -> vertex count = size
     2.0 -> vertex count = size * 2
 
-    - 512 * 1.f is pretty fast 
-    - 1024 * 1.f and above for testing
+    - 256 * 1.f is the highest I should go
+    - 512 * 1.f and above for testing
 
-    - 2048.f * 0.25f
-        -> performs the same as 512 * 1.f
-        -> terrain is absolutely massive, but performs smoothly
-        -> lowest vertex count is 512 / 128 = 4 -> 4x4 = 16 vertices
+    - 1024.f * 0.25f
+        -> performs the same as 256 * 1.f (same vertex count)
+        -> terrain is quite large, but performs smoothly
+        -> lowest vertex count is 256 / 32 = 8 -> 8x8 = 64 vertices
     */
-    static constexpr float CHUNK_RESOLUTION = 1.0f;
-    static constexpr float LOD_LIMIT = 7.0f;
+    static constexpr float CHUNK_RESOLUTION = 0.25f;
+    static constexpr float LOD_LIMIT = 5.0f;
 
     static constexpr float CHUNK_SIZE = 1024.f;
     static constexpr float AMPLITUDE = 32.f;

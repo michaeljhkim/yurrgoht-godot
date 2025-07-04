@@ -204,18 +204,16 @@ struct TaskThreadManager {
     */
     void insert_task(StringName task_name, Callable task_callable) {
         int min = 0;
-        for (int i: range_flip(1, thread_count)) {
+        for (int i: range_flip(0, thread_count)) {
             if (!TASKS[i].PROCESSING.load()) {
                 min = i;
                 break;
             }
-            else if (TASKS[i].PROCESSING.load() && TASKS[i].SIZE < TASKS[min].SIZE) {
+            else if (TASKS[i].SIZE < TASKS[min].SIZE) {     // PROCESSING is true
                 min = i;
-                continue;
             }
         }
-        //print_line("INSERT INTO THREAD: ", min);
-        //print_line("NUMBER OF THREADS: ", thread_count);
+        print_line("INSERT INTO THREAD: ", min, thread_count);
         {
             MutexLock mutex_lock(TASKS[min].mutex);
             TASKS[min].queue.insert(task_name, task_callable);

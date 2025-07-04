@@ -111,7 +111,7 @@ void Chunk::generate_mesh() {
 	}
 	// create new SurfaceData instance if it does not exist
 	lod_surface_cache.insert(LOD_factor, RS::SurfaceData());
-	float lod = pow(2, CLAMP(LOD_factor, 0, LOD_LIMIT));	// lod range -> 2**0 to 2**5
+	float lod = pow(2, CLAMP(LOD_factor-1, 0, LOD_LIMIT));	// lod range -> 2**0 to 2**5
 
 	// number of vertices (subdivide_w * subdivide_d)
 	int subdivide_w = (CHUNK_SIZE * CHUNK_RESOLUTION / lod) + 1.0;

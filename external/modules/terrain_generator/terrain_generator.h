@@ -27,7 +27,7 @@ class TerrainGenerator : public Node3D {
 	int MAX_CHUNKS_NUM;
 	int chunk_count = 0;
 
-	static const int render_distance = 6;
+	static const int render_distance = 12;
 	static constexpr int delete_distance = render_distance + 1;
 	int effective_render_distance = 0;
 	
