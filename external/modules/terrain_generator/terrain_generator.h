@@ -38,7 +38,7 @@ class TerrainGenerator : public Node3D {
 	bool _final_update = false;
 	bool _deleting = false;
 
-	Ref<CoreBind::Mutex> reuse_mutex;	// mutex for reuse buffer
+	Mutex reuse_mutex;	// mutex for reuse buffer
 
 	// the master list that contains a reference to each chunk
 	// allows for value deletion while iterating

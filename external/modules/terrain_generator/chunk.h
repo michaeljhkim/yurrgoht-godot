@@ -140,16 +140,19 @@ public:
         -> terrain is absolutely massive, but performs smoothly
         -> lowest vertex count is 512 / 128 = 4 -> 4x4 = 16 vertices
     */
-    static constexpr float CHUNK_RESOLUTION = 0.5f;
+    static constexpr float CHUNK_RESOLUTION = 1.0f;
     static constexpr float LOD_LIMIT = 7.0f;
 
-    static constexpr float CHUNK_SIZE = 1024.f;
+    static constexpr float CHUNK_SIZE = 512.f;
     static constexpr float AMPLITUDE = 32.f;
 
     //currently not using these:
     static constexpr float TEXTURE_SHEET_WIDTH = 8;
     static constexpr int CHUNK_LAST_INDEX = CHUNK_SIZE - 1;
     static constexpr float TEXTURE_TILE_SIZE = 1.0 / TEXTURE_SHEET_WIDTH;
+
+	// size should most likely be established elsewhere, but do not need to currently
+    Vector2 size{CHUNK_SIZE, CHUNK_SIZE};
 
     enum FLAG : uint8_t {
         DELETE,

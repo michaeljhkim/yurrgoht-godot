@@ -16,6 +16,8 @@ TerrainGenerator::TerrainGenerator() {
 
 // cleans up anything that the main scene tree might not
 TerrainGenerator::~TerrainGenerator() {
+	chunks.clear();
+	set_process(false);
 }
 
 /*
@@ -31,19 +33,18 @@ void TerrainGenerator::_notification(int p_what) {
 			_ready();
 			break;
 
-		// Thread must be disposed (or "joined"), for portability.
+		/*
 		case NOTIFICATION_EXIT_TREE: {
-			reuse_mutex.unref();
 			chunks.clear();
 			set_process(false);
 		} 
 		break;
+		*/
 	}
 }
 
 void TerrainGenerator::_ready() {
 	world_scenario = get_world_3d()->get_scenario();
-	reuse_mutex.instantiate();
 
 	// debug
 	start = std::chrono::high_resolution_clock::now();
@@ -52,7 +53,7 @@ void TerrainGenerator::_ready() {
 void TerrainGenerator::_process(double delta) {
 	if (player_character == nullptr) return;
 
-	main_thread_manager.main_thread_process();		// setup by worker thread
+	main_thread_manager.process_tasks();		// setup by worker thread
 	
 	Vector3 player_chunk = (player_character->get_global_position() / Chunk::CHUNK_SIZE).round();
 	player_chunk.y = 0.f;
@@ -70,12 +71,13 @@ void TerrainGenerator::_process(double delta) {
 	//player_chunk.y += round(CLAMP(player_character->get_velocity().y, -render_distance/4, render_distance/4));
 
 	// priority based chunk spawning -> spawn chunks according to player view direction
-	// for now, only considers 4 directions (diagonals) -> considering 8 directions
+	// for now, only considers 4 directions (diagonals) -> considering 8 directions in the future
 	float yaw = player_character->get_global_rotation_degrees().y;
 	bool x_flip = yaw < 0.f && yaw >= -180.f;
 	bool z_flip = yaw > 90.f || yaw <= -90.f;
 	range_flip x_range(-effective_render_distance, effective_render_distance, x_flip);
 	range_flip z_range(-effective_render_distance, effective_render_distance, z_flip);
+
 	print_line("PLAYER VIEW DIRECTION: ", player_character->get_global_rotation_degrees());
 	print_line("SPAWN PARAMETERS: ", x_flip, z_flip);
 
@@ -161,17 +163,18 @@ void TerrainGenerator::_process(double delta) {
 * should only be called inside _thread_process -> purely because it can be slow
 */
 void TerrainGenerator::instantiate_chunk(Vector3 chunk_pos, int lod_factor, Vector3 grid_pos) {
-	reuse_mutex->lock();
-	bool data_check = reuse_pool.data_left() > 0;
-	reuse_mutex->unlock();
-
+	bool data_check;
+	{
+		MutexLock mutex_lock(reuse_mutex);
+		data_check = reuse_pool.data_left() > 0;
+	}
 	Ref<Chunk> chunk;
 	if (data_check) {
 		print_line("REUSE CHUNK: ", chunk_pos);
-		reuse_mutex->lock();
-		chunk = reuse_pool.read();
-		reuse_mutex->unlock();
-
+        {
+			MutexLock mutex_lock(reuse_mutex);
+			chunk = reuse_pool.read();
+		}
 		chunk->setup_reuse(lod_factor, chunk_pos, grid_pos);
 	}
 	else if (chunk_count < MAX_CHUNKS_NUM) {
@@ -229,10 +232,11 @@ void TerrainGenerator::delete_far_away_chunks(Vector3 player_chunk) {
 			!chunk.value->get_flag(Chunk::FLAG::UPDATE)
 		) {
 			chunk.value->set_flag(Chunk::FLAG::DELETE, true);
-
-			reuse_mutex->lock();
-			bool space_check = reuse_pool.space_left() > 0;
-			reuse_mutex->unlock();
+			bool space_check;
+			{
+				MutexLock mutex_lock(reuse_mutex);
+				space_check = reuse_pool.space_left() > 0;
+			}
 
 			// delete if theres no space left in reuse pool, or too many chunks spawned
 			if (!space_check || chunk_count >= MAX_CHUNKS_NUM) {
@@ -246,11 +250,10 @@ void TerrainGenerator::delete_far_away_chunks(Vector3 player_chunk) {
 			chunk.value.unref();		// erase calls destructor -> unref now to avoid true memory delete
 			chunks.erase(chunk.key);
 			chunk_ref->reset_data();	// clears render instance
-
-			reuse_mutex->lock();
-			reuse_pool.write(chunk_ref);
-			reuse_mutex->unlock();
-
+			{
+				MutexLock mutex_lock(reuse_mutex);
+				reuse_pool.write(chunk_ref);
+			}
 			chunk_ref.unref();			// IMPORTANT -> memory safety
 			deleted_this_frame++;
 
