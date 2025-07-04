@@ -160,9 +160,9 @@ public:
     LRUQueue<StringName, Callable> queue;
     Mutex mutex;
     Ref<CoreBind::Thread> thread;
+    Ref<CoreBind::Semaphore> EMPTY;
 
     std::atomic_bool RUNNING = {true};
-    std::atomic_bool EMPTY = {true};
     std::atomic_bool PROCESSING = {false};
     std::atomic<uint> SIZE = 0;
 
@@ -170,10 +170,8 @@ public:
         Callable CURRENT_TASK;
 
         while (RUNNING) {
-            if (EMPTY.load()) {
-                continue;
-            }
-            else {
+            EMPTY->wait();
+            {
                 MutexLock mutex_lock(mutex);
                 CURRENT_TASK = queue.front();			// tasks do exist, copy the front of the queue
             }
@@ -184,12 +182,11 @@ public:
             PROCESSING.store(false, std::memory_order_acquire);
                 
             // only safe to remove AFTER call(), due to main thread checking task queue
-            MutexLock mutex_lock(mutex);
-            queue.pop_front();
-            SIZE--;
-            if (queue.empty()) {    // .empty() check could be moved directly into .store(), but would require atomics to activate when not needed
-                EMPTY.store(true, std::memory_order_acquire);
+            {
+                MutexLock mutex_lock(mutex);
+                queue.pop_front();
             }
+            SIZE--;
         }
     }
 };
@@ -224,8 +221,8 @@ struct TaskThreadManager {
             TASKS[min].SIZE++;
         }
 
-        // task queue is no longer empty -> 'wake up' task thread (thread not actually sleeping)
-        TASKS[min].EMPTY.store(false, std::memory_order_acquire);
+        // task queue is no longer empty -> 'wake up' task thread
+        TASKS[min].EMPTY->post();
     }
 
     bool has_task(StringName task_name) {
@@ -238,13 +235,14 @@ struct TaskThreadManager {
     }
 
     TaskThreadManager() {
-        //thread_count = OS::get_singleton()->get_default_thread_pool_size() - 1; // -1 for safety
-        thread_count = 4;
+        thread_count = OS::get_singleton()->get_default_thread_pool_size() - 1;     // one less for safety
+        //thread_count = 4;
         TASKS = std::make_unique<ThreadTaskQueue[]>(thread_count);
 
         for (int i = 0; i < thread_count; ++i) {
             TASKS[i].queue.set_capacity(MAX_QUEUE_SIZE);
             TASKS[i].thread.instantiate();
+			TASKS[i].EMPTY.instantiate();
             TASKS[i].thread->start(callable_mp(&TASKS[i], &ThreadTaskQueue::thread_process), CoreBind::Thread::PRIORITY_NORMAL);
         }
     }
@@ -252,8 +250,12 @@ struct TaskThreadManager {
     ~TaskThreadManager() {
         for (int i = 0; i < thread_count; ++i) {
             TASKS[i].RUNNING.store(false, std::memory_order_acquire);
+            TASKS[i].EMPTY->post();
+
             TASKS[i].thread->wait_to_finish();
             TASKS[i].thread.unref();
+
+			TASKS[i].EMPTY.unref();
         }
     }
 };

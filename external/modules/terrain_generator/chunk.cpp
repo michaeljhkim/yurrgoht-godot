@@ -49,18 +49,23 @@ Chunk::~Chunk() {
 
 /*
 * clears bare minimum for re-generation
+* only used by updates
+* clears does not de-allocate, less power needed, but more memory stored
 */
 void Chunk::clear_data() {
-	flat_vertex_array.reset();
-	vertex_array.reset();
-	index_array.reset();
+	flat_vertex_array.clear();
+	vertex_array.clear();
+	index_array.clear();
 }
 
 /*
 * complete data reset
 */
 void Chunk::reset_data() {
-	clear_data();
+	flat_vertex_array.reset();
+	vertex_array.reset();
+	index_array.reset();
+
 	RS::get_singleton()->mesh_clear(mesh_rid);
 	lod_surface_cache.clear();
 	
@@ -334,8 +339,8 @@ GENERATE CHUNK NORMALS
 */
 void Chunk::generate_normals(bool p_flip) {
 	// de-indexed vertex array already created alongside vertex array -> only need to reset arrays
-	vertex_array.reset();
-	index_array.reset();
+	vertex_array.clear();
+	index_array.clear();
 
 	// Normal Calculations -> Highly unlikely that a mesh will reach UINT32_MAX
 	AHashMap<SmoothGroupVertex, Vector3, SmoothGroupVertexHasher> smooth_hash = flat_vertex_array.size();
@@ -344,8 +349,9 @@ void Chunk::generate_normals(bool p_flip) {
 		Vertex *v = &flat_vertex_array[vi];
 
 		Vector3 normal = !p_flip ?
-			Plane(v[0].vertex, v[1].vertex, v[2].vertex).normal :
-			Plane(v[2].vertex, v[1].vertex, v[0].vertex).normal;
+			(v[0].vertex - v[2].vertex).cross(v[0].vertex - v[1].vertex) :
+			(v[2].vertex - v[0].vertex).cross(v[2].vertex - v[1].vertex);
+		normal.normalize();
 
 		// Add face normal to smooth vertex influence if vertex is member of a smoothing group
 		for (int i = 0; i < 3; i++) {
@@ -393,8 +399,8 @@ void Chunk::generate_tangents(Vector3 &first_vertex, Vector3 &last_vertex) {
 	triangle_data.indices = &index_array;
 	msc.m_pUserData = &triangle_data;
 
-	bool res = genTangSpaceDefault(&msc);
-	ERR_FAIL_COND(!res);
+	//bool res = genTangSpaceDefault(&msc);
+	//ERR_FAIL_COND(!res);
 
 
 	/*
@@ -428,7 +434,7 @@ void Chunk::generate_tangents(Vector3 &first_vertex, Vector3 &last_vertex) {
 
 		index_array.push_back(idx);
 	}
-	flat_vertex_array.reset();		// finished with flattened vertex array
+	flat_vertex_array.clear();		// finished with flattened vertex array
 	vertex_array.resize(new_size);
 	/*
 	  ---------- RE-INDEX END ----------
