@@ -62,7 +62,7 @@ void TerrainGenerator::_process(double delta) {
 		delete_far_away_chunks(player_chunk);
 		_generating = true;
 	}
-	if (!_generating && !_final_update) return;
+	if (!_generating) return;
 
 	//debug
 	++frames;
@@ -102,8 +102,8 @@ void TerrainGenerator::_process(double delta) {
 				chunks[chunk_pos]->grid_distance(grid_pos) > 2
 			) {
 				print_line("UPDATE CHUNK: ", task_name);
-				
 				chunks[chunk_pos]->set_flag(Chunk::FLAG::UPDATE, true);
+
 				task_thread_manager.insert_task(
 					task_name, callable_mp(this, &TerrainGenerator::update_chunk_mesh).bind(chunks[chunk_pos], distance, grid_pos)
 				);
@@ -114,8 +114,7 @@ void TerrainGenerator::_process(double delta) {
 			if (task_exists ||
 				chunks.has(chunk_pos) ||
 				main_thread_manager.task_exists(task_name) ||
-				distance > render_distance ||
-				_final_update
+				distance > render_distance
 			) {
 				continue;
 			}
@@ -131,12 +130,8 @@ void TerrainGenerator::_process(double delta) {
 	if (effective_render_distance < render_distance) {
 		effective_render_distance += 1;
 	}
-	else if (!_final_update) {	// check for updates one more time -> allows chunks to catch up to player
-		_final_update = true;
-		_generating = false;	// Effective render distance is maxed out, done generating.
-	}
 	else {
-		_final_update = false;
+		_generating = false;			// Effective render distance is maxed out, done generating.
 		effective_render_distance = 0;	// reset effective render_distance
 
 		/*
@@ -255,6 +250,7 @@ void TerrainGenerator::delete_far_away_chunks(Vector3 player_chunk) {
 				reuse_pool.write(chunk_ref);
 			}
 			chunk_ref.unref();			// IMPORTANT -> memory safety
+
 			deleted_this_frame++;
 
 			// Limit the amount of deletions per frame to avoid lag spikes -> Continue deleting next frame.

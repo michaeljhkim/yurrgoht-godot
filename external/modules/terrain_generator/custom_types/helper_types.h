@@ -85,7 +85,7 @@ struct MainThreadManager {
             ID[1]->push_back(task_name);
         }
         
-		MutexLock lock1(task_mutex);
+		MutexLock lock(task_mutex);
         if (BUFFER[1]->space_left() > 0)
             BUFFER[1]->write(task);
 
@@ -163,7 +163,7 @@ public:
     Ref<CoreBind::Semaphore> READY;
 
     std::atomic_bool EXIT = {false};
-    std::atomic_bool PROCESSING = {false};
+    std::atomic_bool PROCESSING = {false};      // way faster than checking if semephore is waiting
     std::atomic<uint> SIZE = 0;
 
     void thread_process() {
@@ -182,9 +182,10 @@ public:
             CURRENT_TASK.call();
             PROCESSING.store(false, std::memory_order_acquire);
 
+            // only safe to remove AFTER call(), due to main thread checking task queue
             {
                 MutexLock mutex_lock(mutex);
-                queue.pop_front();      // only safe to remove AFTER call(), due to main thread checking task queue
+                queue.pop_front();
             }
             SIZE--;
         }
@@ -232,6 +233,11 @@ struct TaskThreadManager {
         return false;
     }
 
+
+    /*
+    * using all threads only FEELS slower than half threads
+    * this is because every other task finished far faster than the fastest one
+    */
     TaskThreadManager() {
         thread_count = OS::get_singleton()->get_default_thread_pool_size() - 1;     // one less for safety
         //thread_count = OS::get_singleton()->get_default_thread_pool_size() / 2;

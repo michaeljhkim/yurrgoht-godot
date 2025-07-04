@@ -53,19 +53,26 @@ Chunk::~Chunk() {
 * reset does de-allocate, requiring more power, but less memory 	-> maybe allow users to choose between
 */
 void Chunk::clear_data() {
+	flat_vertex_array.reset();
+	vertex_array.reset();
+	index_array.reset();
+	/*
 	flat_vertex_array.clear();
 	vertex_array.clear();
 	index_array.clear();
+	*/
 }
 
 /*
 * complete data reset
 */
 void Chunk::reset_data() {
-	//clear_data();
+	clear_data();
+	/*
 	flat_vertex_array.reset();
 	vertex_array.reset();
 	index_array.reset();
+	*/
 
 	RS::get_singleton()->mesh_clear(mesh_rid);
 	lod_surface_cache.clear();

@@ -35,7 +35,6 @@ class TerrainGenerator : public Node3D {
 	CharacterBody3D* player_character = nullptr;
 
 	bool _generating = true;
-	bool _final_update = false;
 	bool _deleting = false;
 
 	Mutex reuse_mutex;	// mutex for reuse buffer
