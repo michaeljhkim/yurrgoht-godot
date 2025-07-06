@@ -4,8 +4,8 @@
 // NOTE: LocalVector push_back() does check if there is enough capacity, and only resizes if full
 // Vector push_back() does not do this, and resizes regardless, so need to use set if you manually resize
 
-Chunk::Chunk(RID scenario, int new_lod, Vector3 new_c_position, Vector3 new_grid_pos) :
-	position(new_c_position), grid_position(new_grid_pos), LOD_factor(new_lod)
+Chunk::Chunk(RID scenario, int new_lod, Vector3 new_c_position, Vector3 new_grid_pos, Ref<Material> p_material) :
+	material(p_material), position(new_c_position), grid_position(new_grid_pos), LOD_factor(new_lod)
 {
 	// render instance
 	render_instance_rid = RS::get_singleton()->instance_create();
@@ -21,10 +21,18 @@ Chunk::Chunk(RID scenario, int new_lod, Vector3 new_c_position, Vector3 new_grid
 	* we imitate the default material is because it allows the geometry of a mesh to stand out
 	* real godot default material cannot be used due to less testing options
 	*/
-	material = memnew(StandardMaterial3D);
+	if (material.is_null()) {
+		material.instantiate();
+	}
+	/*
+	material.instantiate();
 	material->set_albedo(Color(0.7, 0.7, 0.7));   // slightly darker gray
 	material->set_metallic(0.f);
 	material->set_roughness(1.f);
+	material->set_shading_mode(BaseMaterial3D::ShadingMode::SHADING_MODE_PER_PIXEL);
+	material->set_diffuse_mode(BaseMaterial3D::DiffuseMode::DIFFUSE_BURLEY);
+	material->set_specular_mode(BaseMaterial3D::SpecularMode::SPECULAR_DISABLED);
+	*/
 
 	// mesh instance
 	mesh_rid = RS::get_singleton()->mesh_create();
@@ -102,6 +110,9 @@ Solution:
     - fixes seams between chunks (with the same LOD)
 	- can be done multi-threaded
 */
+int nearest_multiple_2(int num) {
+    return 2 * ((num + 1) / 2);
+}
 
 void Chunk::generate_mesh() {
 	// draw_mesh if SurfaceData for current LOD_Factor exists
@@ -111,11 +122,11 @@ void Chunk::generate_mesh() {
 	}
 	// create new SurfaceData instance if it does not exist
 	lod_surface_cache.insert(LOD_factor, RS::SurfaceData());
-	float lod = pow(2, CLAMP(LOD_factor-1, 0, LOD_LIMIT));	// lod range -> 2**0 to 2**5
+	float lod = pow(2, CLAMP(LOD_factor, 0, LOD_LIMIT));	// lod range -> 2**0 to 2**5
 
 	// number of vertices (subdivide_w * subdivide_d)
-	int subdivide_w = (CHUNK_SIZE * CHUNK_RESOLUTION / lod) + 1.0;
-	int subdivide_d = (CHUNK_SIZE * CHUNK_RESOLUTION / lod) + 1.0;
+	int subdivide_w = (CHUNK_SIZE / (CHUNK_RESOLUTION * lod)) + 1.0;
+	int subdivide_d = (CHUNK_SIZE / (CHUNK_RESOLUTION * lod)) + 1.0;
 
 	// distance between vertices
 	int step_size_x = size.x / (subdivide_w - 1.0);
@@ -134,14 +145,58 @@ void Chunk::generate_mesh() {
 	int prevrow = 0;
 	int thisrow = 0;
 
+	
+
 	for (int j = 0; j <= (subdivide_d + 1); j++) {
 		float x = start_pos.x;
 		prevrow = thisrow;
 		thisrow = point;
 
+
+		float next_height_i = 0.f;
+		float next_height_j = 0.f;
+		float prev_height_i = 0.f;
+		float prev_height_j = 0.f;
+
 		for (int i = 0; i <= (subdivide_w + 1); i++) {
 			Vertex vert;
-			vert.vertex = Vector3(-x, noise->get_noise_2d(-x,-z) * AMPLITUDE, -z);
+			//vert.vertex = Vector3(-x, noise->get_noise_2d(-x,-z) * AMPLITUDE, -z);
+			if (j == 0 || j == (subdivide_d + 1)) {
+				if ( (i % 2) == 0) {
+					vert.vertex = 
+						next_height_i != 0.f ? 
+						Vector3(-x, next_height_i, -z) :
+						Vector3(-x, noise->get_noise_2d(-x,-z) * AMPLITUDE, -z);
+
+					next_height_i = 0.f;
+				}
+				else {
+					next_height_i = noise->get_noise_2d(-(x + step_size_x),-z) * AMPLITUDE;
+					float lod_vertex_height = (prev_height_i + next_height_i) / 2.f;
+					vert.vertex = Vector3(-x, lod_vertex_height, -z);
+				}
+
+				prev_height_i = vert.vertex.y;
+			}
+			else if (i == 0 || i == (subdivide_w + 1)) {
+				if ( (j % 2) == 0) {
+					vert.vertex = 
+						next_height_j != 0.f ?
+						Vector3(-x, next_height_j, -z) :
+						Vector3(-x, noise->get_noise_2d(-x,-z) * AMPLITUDE, -z);
+
+					next_height_j = 0.f;
+				}
+				else {
+					next_height_j = noise->get_noise_2d(-x,-(z + step_size_z)) * AMPLITUDE;
+					float lod_vertex_height = (prev_height_j + next_height_j) / 2.f;
+					vert.vertex = Vector3(-x, lod_vertex_height, -z);
+				}
+
+				prev_height_j = vert.vertex.y;
+			}
+
+			
 			vert.uv = Vector2(
 				1.0 - (i / (subdivide_w - 1.0)),
 				1.0 - (j / (subdivide_d - 1.0))
@@ -149,14 +204,12 @@ void Chunk::generate_mesh() {
 
 			vertex_array.push_back(vert);
 			point++;
-
 			
 			if (i > 0 && j > 0) {	// de-index/flatten vertices -> avoid de-indexing later
 				// triangle 1
 				index_array.push_back(prevrow + i - 1);
 				index_array.push_back(prevrow + i);
 				index_array.push_back(thisrow + i - 1);
-
 				flat_vertex_array.push_back(vertex_array[prevrow + i - 1]);
 				flat_vertex_array.push_back(vertex_array[prevrow + i]);
 				flat_vertex_array.push_back(vertex_array[thisrow + i - 1]);
@@ -165,7 +218,6 @@ void Chunk::generate_mesh() {
 				index_array.push_back(prevrow + i);
 				index_array.push_back(thisrow + i);
 				index_array.push_back(thisrow + i - 1);
-
 				flat_vertex_array.push_back(vertex_array[prevrow + i]);
 				flat_vertex_array.push_back(vertex_array[thisrow + i]);
 				flat_vertex_array.push_back(vertex_array[thisrow + i - 1]);
@@ -252,6 +304,7 @@ void Chunk::generate_mesh() {
 	uint8_t *norm_ptr  = vw_base + offsets[RS::ARRAY_NORMAL];
 	uint8_t *tang_ptr  = vw_base + offsets[RS::ARRAY_TANGENT];
 	uint8_t *uv_ptr    = aw_base + offsets[RS::ARRAY_TEX_UV];
+	//uint8_t *uv2_ptr    = aw_base + offsets[RS::ARRAY_TEX_UV2];
 
 	// AABB min/max
 	Vector3 min = vertex_array[0].vertex;
@@ -277,7 +330,7 @@ void Chunk::generate_mesh() {
 		memcpy(&norm_ptr[i * normal_element_size], norm_packed, sizeof(norm_packed));
 
 		// Tangent (oct16 + handedness)
-		const double h = v.binormal.dot(v.normal.cross(v.tangent)) < 0.0 ? -1.0 : 1.0;
+		const float h = v.binormal.dot(v.normal.cross(v.tangent)) < 0.0 ? -1.0 : 1.0;
 		Vector2 tang_enc = v.tangent.octahedron_tangent_encode(h);
 		uint16_t tang_packed[2] = {
 			(uint16_t)CLAMP(tang_enc.x * 65535.0, 0, 65535),
@@ -289,6 +342,7 @@ void Chunk::generate_mesh() {
 
 		// UV
 		memcpy(&uv_ptr[i * attrib_element_size], &v.uv, sizeof(Vector2));
+		//memcpy(&uv2_ptr[i * attrib_element_size], &v.uv2, sizeof(Vector2));
 	}
 
 	// Final AABB
@@ -369,12 +423,11 @@ void Chunk::generate_normals(bool p_flip) {
 					smooth_hash.insert_new(v[i], normal);
 				else
 					(*lv) += normal;
-			} 
-			else 
-				v[i].normal = normal;
+			}
+			else v[i].normal = normal;
 		}
 	}
-
+	
 	for (Vertex &vertex : flat_vertex_array) {
 		if (vertex.smooth_group == UINT32_MAX)
 			continue;
@@ -409,7 +462,6 @@ void Chunk::generate_tangents(Vector3 &first_vertex, Vector3 &last_vertex) {
 
 	bool res = genTangSpaceDefault(&msc);
 	ERR_FAIL_COND(!res);
-
 
 	/*
 	  ---------- RE-INDEX START ----------
@@ -535,7 +587,4 @@ void Chunk::mikktSetTSpaceDefault(const SMikkTSpaceContext *pContext, const floa
 
 void Chunk::_bind_methods() {
 }
-
-
-
 

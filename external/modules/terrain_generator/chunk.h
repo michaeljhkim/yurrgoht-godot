@@ -36,10 +36,12 @@ protected:
 		// ----------------------------------------------------------------
 		uint32_t smooth_group = 0; // Must be first.
         
+		//Color color;
 		Vector3 normal;     
 		Vector3 binormal = Vector3();
 		Vector3 tangent = Vector3();
 		Vector2 uv;
+		Vector2 uv2;
 		Vector3 vertex;     // Must be last.
 		// ----------------------------------------------------------------
 
@@ -140,10 +142,10 @@ public:
         -> terrain is quite large, but performs smoothly
         -> lowest vertex count is 256 / 32 = 8 -> 8x8 = 64 vertices
     */
-    static constexpr float CHUNK_RESOLUTION = 0.25f;
-    static constexpr float LOD_LIMIT = 5.0f;
+    static constexpr float CHUNK_RESOLUTION = 4.f;
+    static constexpr float LOD_LIMIT = 8.0f;
 
-    static constexpr float CHUNK_SIZE = 1024.f;
+    static constexpr float CHUNK_SIZE = 512.f;
     static constexpr float AMPLITUDE = 32.f;
 
     //currently not using these:
@@ -181,6 +183,15 @@ public:
         return grid_position.distance_to(new_grid_pos);
     }
 
+	void set_material(Ref<Material> p_material) {
+	    material = p_material;
+    }
+
+	void set_instance_material(Ref<Material> p_material) {
+	    material = p_material;
+	    RS::get_singleton()->instance_set_surface_override_material(render_instance_rid, 0, material->get_rid());
+    }
+
     // can probably remove this, but keeping for now
     //void _generate_chunk_collider();
     //void _generate_lods(Vector2 size);
@@ -190,7 +201,7 @@ public:
     void draw_mesh();
     
     // scenario input is the return value of 'get_world_3d()->get_scenario()' from any node within the active main scene tree
-    Chunk(RID scenario, int new_lod, Vector3 new_c_position, Vector3 new_grid_pos);
+    Chunk(RID scenario, int new_lod, Vector3 new_c_position, Vector3 new_grid_pos, Ref<Material> p_material);
     ~Chunk();
 
     void clear_data();

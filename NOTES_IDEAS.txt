@@ -61,11 +61,22 @@ NOISE RELATED:
 
 
 IDEAS:
-- it could be possible that a player moves back and forth within a range, so storing the vertices,indices,e.t.c would be useful
-- all that extra data would be removed in the total reset
-
 - GPU generation might be viable for calculations that might happen in the future
 	-> calculating all other possible LODs for a given chunk 
+
+- I think I figured out how to configure seamless LODs
+	-> provided the adjacent chunk has a lower LOD, every other vertice will have the average hieght between the previous and the next vertice
+	-> like as if there is a straight line from the previous and next vertex, current vertex needs to be on that line
+	-> rather than calculating the next vertex again, just store the next vertex in a temp variable (cache)
+	-> need to be careful where to start this
+
+
+
+
+PRIORITY:
+- Current mesh generation feels too cold and robotic -> the meshes are too perfectly even
+- move vertices along xz according to how extreme certain vertices are.
+- do not compute height for the moving vertice again, instead just shift it along a line.
 
 
 TODO LIST:

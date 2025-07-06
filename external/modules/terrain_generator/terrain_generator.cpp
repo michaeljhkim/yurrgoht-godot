@@ -1,5 +1,10 @@
 #include "terrain_generator.h"
 
+#include "scene/resources/surface_tool.h"
+#include "scene/resources/3d/primitive_meshes.h"
+#include "scene/resources/mesh_data_tool.h"
+#include "scene/3d/mesh_instance_3d.h"
+
 /*
 CREDITs: 
 -> general structure borrowed from 'Voxel Game' demo https://github.com/godotengine/godot-demo-projects/tree/4.2-31d1c0c/3d/voxel
@@ -48,6 +53,64 @@ void TerrainGenerator::_ready() {
 
 	// debug
 	start = std::chrono::high_resolution_clock::now();
+
+	/*
+	MeshInstance3D* test = memnew(MeshInstance3D());
+	test->set_position(Vector3(0, 100, 0));
+
+	FastNoiseLite noise;
+	noise.set_noise_type(FastNoiseLite::TYPE_SIMPLEX);
+	noise.set_fractal_octaves(2.0);
+
+	Ref<PlaneMesh> plane_mesh;
+	plane_mesh.instantiate();
+	plane_mesh->set_size(Vector2(512, 512));
+	plane_mesh->set_subdivide_width(63);
+	plane_mesh->set_subdivide_depth(63);
+	test->set_mesh(plane_mesh);
+
+	Ref<SurfaceTool> surface_tool;
+	surface_tool.instantiate();
+	surface_tool->clear();
+	surface_tool->create_from(plane_mesh, 0);
+
+	Ref<ArrayMesh> array_mesh;
+	array_mesh.instantiate();
+	array_mesh = surface_tool->commit();
+
+	Ref<MeshDataTool> data_tool;
+	data_tool.instantiate();
+	data_tool->clear();
+	data_tool->create_from_surface(array_mesh, 0);
+	float vertex_count = data_tool->get_vertex_count();
+
+	// due to how godots arrays work, the modified vertex must be applied in this manner
+	for (int i = 0; i < vertex_count; i++) {
+		Vector3 vertex = data_tool->get_vertex(i);
+		float value = noise.get_noise_2d(vertex.x, vertex.z);
+		vertex.y =  value * 8;
+		data_tool->set_vertex(i, vertex);
+	}
+	array_mesh->clear_surfaces();
+	data_tool->commit_to_surface(array_mesh);
+
+	surface_tool->clear();
+	surface_tool->begin(Mesh::PRIMITIVE_TRIANGLES);
+	surface_tool->create_from(array_mesh, 0);
+	surface_tool->generate_normals();
+	surface_tool->generate_tangents();
+
+	test->set_mesh(surface_tool->commit());
+	add_child(test);
+
+	
+	//print_line("success");
+
+	plane_mesh.unref();
+	surface_tool.unref();
+	data_tool.unref();
+	array_mesh.unref();
+	*/
 }
 
 void TerrainGenerator::_process(double delta) {
@@ -171,7 +234,8 @@ void TerrainGenerator::instantiate_chunk(Vector3 chunk_pos, int lod_factor, Vect
 	else if (chunk_count < MAX_CHUNKS_NUM) {
 		print_line("NEW CHUNK: ", chunk_pos);
 		++chunk_count;
-		chunk.instantiate(world_scenario, lod_factor, chunk_pos, grid_pos);
+		chunk.instantiate(world_scenario, lod_factor, chunk_pos, grid_pos, terrain_material);
+		//chunk->set_material(terrain_material);
 	}
 	else return;		// exit (does not normally activate, but added for safety gaurentees)
 	
@@ -268,7 +332,6 @@ void TerrainGenerator::delete_far_away_chunks(Vector3 player_chunk) {
 */
 void TerrainGenerator::set_player_character(CharacterBody3D* p_node) {
 	if (p_node == nullptr) return;
-
 	player_character = p_node;
 }
 
@@ -276,9 +339,26 @@ CharacterBody3D* TerrainGenerator::get_player_character() const {
 	return player_character;
 }
 
+void TerrainGenerator::set_material(Ref<Material> p_material) {
+	if (p_material == nullptr) return;
+	terrain_material = p_material;
+
+	for (KeyValue<Vector3, Ref<Chunk>> chunk : chunks) {
+		chunk.value->set_instance_material(p_material);
+	}
+}
+
+Ref<Material> TerrainGenerator::get_material() const {
+	return terrain_material;
+}
+
 void TerrainGenerator::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_player_character", "p_node"), &TerrainGenerator::set_player_character);
 	ClassDB::bind_method(D_METHOD("get_player_character"), &TerrainGenerator::get_player_character);
+
+	ClassDB::bind_method(D_METHOD("set_material", "p_material"), &TerrainGenerator::set_material);
+	ClassDB::bind_method(D_METHOD("get_material"), &TerrainGenerator::get_material);
 	
 	ClassDB::add_property("TerrainGenerator", PropertyInfo(Variant::OBJECT, "player_character", PROPERTY_HINT_NODE_TYPE, "CharacterBody3D"), "set_player_character", "get_player_character");
+	ClassDB::add_property("TerrainGenerator", PropertyInfo(Variant::OBJECT, "terrain_material", PROPERTY_HINT_RESOURCE_TYPE, "StandardMaterial3D"), "set_material", "get_material");
 }

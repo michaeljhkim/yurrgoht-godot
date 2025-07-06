@@ -27,12 +27,13 @@ class TerrainGenerator : public Node3D {
 	int MAX_CHUNKS_NUM;
 	int chunk_count = 0;
 
-	static const int render_distance = 12;
+	static const int render_distance = 6;
 	static constexpr int delete_distance = render_distance + 1;
 	int effective_render_distance = 0;
 	
 	Vector3 old_player_chunk;
 	CharacterBody3D* player_character = nullptr;
+	Ref<Material> terrain_material = nullptr;
 
 	bool _generating = true;
 	bool _deleting = false;
@@ -70,5 +71,9 @@ public:
 
 	void set_player_character(CharacterBody3D* p_node);
 	CharacterBody3D* get_player_character() const;
+
+	void set_material(Ref<Material> p_material);
+	Ref<Material> get_material() const;
+
 
 };

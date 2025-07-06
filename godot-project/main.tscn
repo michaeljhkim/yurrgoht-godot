@@ -1,19 +1,24 @@
-[gd_scene load_steps=5 format=3 uid="uid://bxwagnsq7krdc"]
+[gd_scene load_steps=6 format=3 uid="uid://bxwagnsq7krdc"]
 
 [ext_resource type="PackedScene" uid="uid://bu3vtmwnoul1u" path="res://player/player_character.tscn" id="1_ig7tw"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_7dm0k"]
-sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
-ground_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_ig7tw"]
 
 [sub_resource type="Sky" id="Sky_ig7tw"]
-sky_material = SubResource("ProceduralSkyMaterial_7dm0k")
+sky_material = SubResource("ProceduralSkyMaterial_ig7tw")
 
 [sub_resource type="Environment" id="Environment_0xm2m"]
 background_mode = 2
 sky = SubResource("Sky_ig7tw")
-tonemap_mode = 2
-glow_enabled = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_0xm2m"]
+shading_mode = 2
+diffuse_mode = 1
+specular_mode = 2
+albedo_color = Color(0.9333591, 0.9333591, 0.933359, 1)
+texture_filter = 1
+texture_repeat = false
+stencil_flags = 2
 
 [node name="Node3D" type="Node3D"]
 
@@ -21,13 +26,13 @@ glow_enabled = true
 environment = SubResource("Environment_0xm2m")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.982935, 0.183952, 0, -0.183951, 0.982936, 0, 147.836, 22)
-light_bake_mode = 0
+transform = Transform3D(1, 0, 0, 0, 0.85172707, 0.5239858, 0, -0.523986, 0.8517268, 0, 147.836, 22)
 
 [node name="PlayerCharacter" parent="." instance=ExtResource("1_ig7tw")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 24.8023, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 25, 0)
 speed = 400
 jump_velocity = 8.0
 
 [node name="TerrainGenerator" type="TerrainGenerator" parent="." node_paths=PackedStringArray("player_character")]
 player_character = NodePath("../PlayerCharacter")
+terrain_material = SubResource("StandardMaterial3D_0xm2m")

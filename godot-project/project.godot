@@ -61,4 +61,26 @@ look_sensitivity=0.01
 
 [rendering]
 
-rendering_device/staging_buffer/max_size_mb=256
+occlusion_culling/jitter_projection=false
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=0
+lights_and_shadows/directional_shadow/16_bits=false
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=0
+reflections/sky_reflections/texture_array_reflections=false
+reflections/specular_occlusion/enabled=false
+global_illumination/gi/use_half_resolution=true
+textures/default_filters/anisotropic_filtering_level=1
+environment/ssao/quality=0
+environment/ssao/adaptive_target=0.0
+environment/ssil/quality=0
+environment/ssil/adaptive_target=0.0
+anti_aliasing/quality/msaa_2d=1
+anti_aliasing/quality/msaa_3d=1
+anti_aliasing/screen_space_roughness_limiter/enabled=false
+textures/decals/filter=1
+textures/light_projectors/filter=1
+environment/glow/upscale_mode=0
+environment/screen_space_reflection/roughness_quality=0
+environment/subsurface_scattering/subsurface_scattering_quality=0
+lightmapping/lightmap_gi/use_bicubic_filter=false
+environment/volumetric_fog/use_filter=0
+anti_aliasing/quality/screen_space_aa=1

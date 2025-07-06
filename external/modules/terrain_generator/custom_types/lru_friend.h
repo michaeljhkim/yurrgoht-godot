@@ -41,7 +41,7 @@ copied from "core/templates/lru.h"
 */
 
 template <typename TKey, typename TData, typename Hasher = HashMapHasherDefault, typename Comparator = HashMapComparatorDefault<TKey>, void (*BeforeEvict)(TKey &, TData &) = nullptr>
-class LRUCache {
+class LRUCache2 {
 public:
 	struct Pair {
 		TKey key;
@@ -148,11 +148,11 @@ public:
 		}
 	}
 
-	LRUCache() {
+	LRUCache2() {
 		capacity = 64;
 	}
 
-	LRUCache(int p_capacity) {
+	LRUCache2(int p_capacity) {
 		capacity = p_capacity;
 	}
 };

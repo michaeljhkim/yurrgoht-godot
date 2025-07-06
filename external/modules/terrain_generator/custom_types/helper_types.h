@@ -130,7 +130,7 @@ struct MainThreadManager {
 */
 
 template <typename TKey, typename TData>
-class LRUQueue: public LRUCache<TKey, TData> {
+class LRUQueue: public LRUCache2<TKey, TData> {
 public:
     //the back of the cache is the oldest values
     void pop_front() {
