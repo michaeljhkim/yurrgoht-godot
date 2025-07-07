@@ -1,10 +1,8 @@
 // Copyright © 2025 Cory Petkovsek, Roope Palmroos, and Contributors.
-/*
 #include <cstddef>
 #include <typeindex>
 #include "core/math/vector2i.h"
 #include "core/math/vector3.h"
-*/
 namespace godot {}
 // END ADDED HEADERS
 
@@ -55,8 +53,12 @@ using namespace godot;
 
 // Set class name for logger.h
 
+/*
 #define CLASS_NAME() const String __class__ = get_class_static() + \
 		String("#") + String::num_uint64(get_instance_id()).right(4);
+*/
+#define CLASS_NAME() const String __class__ = String(get_class_static()) + \
+	String("#") + String::num_uint64(get_instance_id()).right(4);
 
 #define CLASS_NAME_STATIC(p_name) static inline const char *__class__ = p_name;
 

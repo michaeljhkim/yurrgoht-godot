@@ -1,8 +1,11 @@
 /*
 #include "godot_cpp/godot_source_headers.hpp"
 */
+// C++ headers
+#include <array>
+
+// gdextension
 #include "core/extension/gdextension.h"
-//#include "core/extension/gdextension_interface.h"
 
 // classes
 #include "scene/3d/camera_3d.h"
@@ -40,7 +43,7 @@
 #include "core/config/project_settings.h"
 #include "core/os/os.h"
 #include "core/os/time.h"
-//#include "core/variant/variant.h"
+#include "core/variant/variant.h"
 
 #include "editor/editor_file_system.h"
 #include "editor/editor_interface.h"
@@ -74,8 +77,7 @@
 // not sure if I should do this, it might be cyclical
 namespace godot {}
 //#include "src/constants.h"
-#include "misc/math_defs.hpp"
-
+#include "misc/math.hpp"
 
 // generated_texture.cpp
 static Vector<Ref<Image>> _get_imgvec(const TypedArray<Image> &p_layers) {
@@ -98,4 +100,22 @@ typedef CoreBind::ResourceSaver ResourceSaver;
 #define take_over_path(p_path) set_path(p_path, true)
 #define force_draw() draw(true, 0.0)            // only the default value defined version is needed
 
-//
+// terrain_3d_data.cpp
+typedef CoreBind::ResourceLoader ResourceLoader;
+#define get_resource_filesystem() get_resource_file_system()
+#define file_exists(path) exists(path)
+
+// terrain_3d_editor.cpp
+typedef VariantUtilityFunctions UtilityFunctions;
+//#define get_undo_redo() EditorUndoRedoManager::get_singleton()
+
+// get_undo_redo() in EditorPlugin is protected, needed to gain access
+class EditorPluginRedo : public EditorPlugin {
+public:
+    EditorUndoRedoManager *get_undo_redo() { return EditorPlugin::get_undo_redo(); }
+};
+
+#define EditorPlugin EditorPluginRedo
+#include "src/terrain_3d.h"
+#include "src/terrain_3d_editor.cpp"
+#undef EditorPlugin
