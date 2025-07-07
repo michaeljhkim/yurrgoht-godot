@@ -73,10 +73,18 @@ IDEAS:
 
 
 
+
 PRIORITY:
-- Current mesh generation feels too cold and robotic -> the meshes are too perfectly even
-- move vertices along xz according to how extreme certain vertices are.
-- do not compute height for the moving vertice again, instead just shift it along a line.
+- Do gpu generation
+- generate HD reference heightmap, then let chunks use that heightmap for reference
+
+- recreate terrain generation demo in C++
+- first, port code to modules 
+- do not modify original files, instead just create an equivalent folder and .hpp files, and then include the real header files.
+
+**********************************************************************************
+TAKE IT SLOWLY, TRY TO UNDERSTAND THE WORKFLOW FIRST BEFORE MAKING RASH DESCISIONS
+**********************************************************************************
 
 
 TODO LIST:

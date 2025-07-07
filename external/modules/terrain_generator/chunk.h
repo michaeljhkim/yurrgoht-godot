@@ -12,6 +12,8 @@
 #include "thirdparty/misc/mikktspace.h"
 #include <atomic>
 
+#include "scene/resources/3d/primitive_meshes.h"
+
 
 class Chunk : public RefCounted {
 	GDCLASS(Chunk, RefCounted);
@@ -21,6 +23,10 @@ private:
     RID render_instance_rid;
     RID mesh_rid;
     Ref<StandardMaterial3D> material;
+    //Ref<ShaderMaterial> shader_material;
+    //Ref<Shader> shader;
+    //Ref<PlaneMesh> plane_mesh;
+
     Ref<FastNoiseLite> noise;
 
     Vector3 position = Vector3(0, 0, 0);

@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://bxwagnsq7krdc"]
+[gd_scene load_steps=5 format=3 uid="uid://bxwagnsq7krdc"]
 
 [ext_resource type="PackedScene" uid="uid://bu3vtmwnoul1u" path="res://player/player_character.tscn" id="1_ig7tw"]
 
@@ -10,15 +10,6 @@ sky_material = SubResource("ProceduralSkyMaterial_ig7tw")
 [sub_resource type="Environment" id="Environment_0xm2m"]
 background_mode = 2
 sky = SubResource("Sky_ig7tw")
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_0xm2m"]
-shading_mode = 2
-diffuse_mode = 1
-specular_mode = 2
-albedo_color = Color(0.9333591, 0.9333591, 0.933359, 1)
-texture_filter = 1
-texture_repeat = false
-stencil_flags = 2
 
 [node name="Node3D" type="Node3D"]
 
@@ -32,7 +23,3 @@ transform = Transform3D(1, 0, 0, 0, 0.85172707, 0.5239858, 0, -0.523986, 0.85172
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 25, 0)
 speed = 400
 jump_velocity = 8.0
-
-[node name="TerrainGenerator" type="TerrainGenerator" parent="." node_paths=PackedStringArray("player_character")]
-player_character = NodePath("../PlayerCharacter")
-terrain_material = SubResource("StandardMaterial3D_0xm2m")
