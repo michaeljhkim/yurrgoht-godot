@@ -1,1 +1,1 @@
-#include "godot_cpp/godot_source_headers.hpp"
+#include "core/object/class_db.h"

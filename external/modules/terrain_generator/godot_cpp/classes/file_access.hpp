@@ -1,1 +1,2 @@
-#include "godot_cpp/godot_source_headers.hpp"
+#include "core/io/file_access.h"
+#define file_exists(path) exists(path)

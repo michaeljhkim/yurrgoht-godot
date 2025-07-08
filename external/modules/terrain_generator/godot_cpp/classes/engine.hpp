@@ -1,1 +1,2 @@
-#include "godot_cpp/godot_source_headers.hpp"
+#include "godot/core/config/engine.h"
+#include "misc/math.hpp"

@@ -1,1 +1,1 @@
-#include "godot_cpp/godot_source_headers.hpp"
+#include "scene/resources/3d/height_map_shape_3d.h"

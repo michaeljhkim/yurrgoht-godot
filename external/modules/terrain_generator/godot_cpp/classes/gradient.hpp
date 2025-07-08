@@ -1,1 +1,1 @@
-#include "godot_cpp/godot_source_headers.hpp"
+#include "scene/resources/gradient.h"

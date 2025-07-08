@@ -1,1 +1,2 @@
-#include "godot_cpp/godot_source_headers.hpp"
+#include "editor/editor_interface.h"
+#define get_resource_filesystem() get_resource_file_system()
