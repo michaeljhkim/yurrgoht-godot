@@ -185,7 +185,11 @@ String Terrain3DMaterial::_strip_comments(const String &p_shader) const {
 		const int stop = (p_end == -1) ? p_v.size() : p_end;
 		const int count = stop - p_start;
 		String result;
-		result.resize(count + 1);
+		#ifdef MODULE_WRAPPER
+			result.resize_uninitialized(count + 1);
+		#else
+			result.resize(count + 1);
+		#endif
 		for (int i = 0; i < count; i++) {
 			result[i] = p_v[p_start + i];
 		}
@@ -250,7 +254,7 @@ String Terrain3DMaterial::_inject_editor_code(const String &p_shader) const {
 	regex.instantiate();
 	regex->compile("render_mode.*;?");
 	Ref<RegExMatch> match = regex->search(shader);
-	int idx = match.is_valid() ? match->get_end() : -1;
+	int idx = match.is_valid() ? match->get_end(0) : -1;
 	if (idx < 0) {
 		LOG(DEBUG, "No render mode; cannot inject editor code");
 		return shader;
@@ -269,7 +273,7 @@ String Terrain3DMaterial::_inject_editor_code(const String &p_shader) const {
 	// Insert before vertex()
 	regex->compile("void\\s+vertex\\s*\\(");
 	match = regex->search(shader);
-	idx = match.is_valid() ? match->get_start() - 1 : -1;
+	idx = match.is_valid() ? match->get_start(0) - 1 : -1;
 	if (idx < 0) {
 		LOG(DEBUG, "No void vertex(); cannot inject editor code");
 		return shader;
@@ -297,7 +301,7 @@ String Terrain3DMaterial::_inject_editor_code(const String &p_shader) const {
 	match = regex->search(shader);
 	idx = -1;
 	if (match.is_valid()) {
-		int start_idx = match->get_end() - 1;
+		int start_idx = match->get_end(0) - 1;
 		int pair = 0;
 		for (int i = start_idx; i < shader.length(); i++) {
 			if (shader[i] == '{') {
@@ -851,7 +855,7 @@ void Terrain3DMaterial::_get_property_list(List<PropertyInfo> *p_list) const {
 	_active_params.clear();
 	for (int i = 0; i < param_list.size(); i++) {
 		Dictionary dict = param_list[i];
-		StringName name = dict["name"];
+		String name = dict["name"];
 		// Filter out private uniforms that start with _
 		if (!name.begins_with("_")) {
 			// Populate Godot's property list

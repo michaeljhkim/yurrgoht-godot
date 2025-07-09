@@ -1,3 +1,3 @@
-#include "scene/resources/shader.h"
+#pragma once
 
-#define get_shader_uniform_list _get_shader_uniform_list
+#include "godot_cpp/wrapper_constants.h"

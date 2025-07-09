@@ -1,6 +1,3 @@
-#include "editor/plugins/editor_plugin.h"
+#pragma once
 
-class EditorPlugin_Wrapper : public EditorPlugin {
-public:
-    using EditorPlugin::get_undo_redo;      // this is a protected function -> expose publicly
-};
+#include "godot_cpp/wrapper_constants.h"

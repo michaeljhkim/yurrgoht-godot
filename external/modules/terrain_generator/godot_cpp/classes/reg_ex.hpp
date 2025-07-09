@@ -1,3 +1,3 @@
-#define resize resize_uninitialized
+#pragma once
 
-#include "godot_cpp/godot_source_headers.hpp"
+#include "godot_cpp/wrapper_constants.h"

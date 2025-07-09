@@ -27,7 +27,7 @@ void Terrain3DMeshAsset::_clear_lod_ranges() {
 
 bool Terrain3DMeshAsset::_sort_lod_nodes(const Node *a, const Node *b) {
 	ASSERT(a && b, false);
-	return a->get_name().right(1) < b->get_name().right(1);
+	return String(a->get_name()).right(1) < String(b->get_name()).right(1);
 }
 
 Ref<ArrayMesh> Terrain3DMeshAsset::_get_generated_mesh() const {

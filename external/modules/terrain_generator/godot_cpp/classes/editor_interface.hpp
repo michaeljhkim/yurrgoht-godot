@@ -1,2 +1,3 @@
-#include "editor/editor_interface.h"
-#define get_resource_filesystem() get_resource_file_system()
+#pragma once
+
+#include "godot_cpp/wrapper_constants.h"

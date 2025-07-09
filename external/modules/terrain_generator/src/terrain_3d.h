@@ -62,7 +62,7 @@ private:
 	Terrain3DCollision *_collision = nullptr;
 	Terrain3DMesher *_mesher = nullptr;
 	Terrain3DEditor *_editor = nullptr;
-	EditorPlugin_Wrapper *_plugin = nullptr;
+	EditorPlugin *_plugin = nullptr;
 
 	// Tracked Targets
 	TargetNode3D _clipmap_target;
@@ -144,7 +144,7 @@ public:
 	void set_editor(Terrain3DEditor *p_editor);
 	Terrain3DEditor *get_editor() const { return _editor; }
 	void set_plugin(EditorPlugin *p_plugin);
-	EditorPlugin_Wrapper *get_plugin() const { return _plugin; }
+	EditorPlugin *get_plugin() const { return _plugin; }
 
 	// Target Tracking
 	Node3D *get_clipmap_target() const { return _clipmap_target.ptr(); }

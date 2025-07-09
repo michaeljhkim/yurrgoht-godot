@@ -1,1 +1,3 @@
-#include "scene/resources/multimesh.h"
+#pragma once
+
+#include "godot_cpp/wrapper_constants.h"

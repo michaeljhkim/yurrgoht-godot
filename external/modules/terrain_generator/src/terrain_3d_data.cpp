@@ -327,10 +327,12 @@ void Terrain3DData::save_region(const Vector2i &p_region_loc, const String &p_di
 		LOG(DEBUG, "Removing ", p_region_loc, " from _regions");
 		_regions.erase(p_region_loc);
 		LOG(DEBUG, "File to be deleted: ", path);
+
 		if (!FileAccess::file_exists(path)) {
 			LOG(INFO, "File to delete ", path, " doesn't exist. (Maybe from add, undo, save)");
 			return;
 		}
+
 		Ref<DirAccess> da = DirAccess::open(p_dir);
 		if (da.is_null()) {
 			LOG(ERROR, "Cannot open directory for writing: ", p_dir, " error: ", DirAccess::get_open_error());

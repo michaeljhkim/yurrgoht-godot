@@ -3,6 +3,7 @@
 #include <typeindex>
 #include <array>
 
+#include "misc/math.hpp"
 #include "core/math/vector2i.h"
 #include "core/math/vector3.h"
 namespace godot {}
@@ -14,7 +15,7 @@ namespace godot {}
 using namespace godot;
 
 // Macros
-#define RS RenderingServer_Wrapper::get_singleton()
+#define RS RenderingServer::get_singleton()
 #define PS PhysicsServer3D::get_singleton()
 #define IS_EDITOR Engine::get_singleton()->is_editor_hint()
 
@@ -64,11 +65,14 @@ using namespace godot;
 #define CLASS_NAME_STATIC(p_name) static inline const char *__class__ = p_name;
 
 // Validation macros
-
-#define ASSERT(cond, ret)                                                                            \
-	if (!(cond)) {                                                                                   \
-		UtilityFunctions::push_error("Assertion '", #cond, "' failed at ", __FILE__, ":", __LINE__); \
-		return ret;                                                                                  \
+#define ASSERT(cond, ret)                                                                                      	\
+	if (!(cond)) {                                                                                             	\
+		String _msg = String("Assertion '") + #cond + "' failed at " + __FILE__ + ":" + itos(__LINE__);        			\
+		Variant _vmsg = _msg;                                                                                   \
+		const Variant *_args[] = { &_vmsg };                                                                    \
+		Callable::CallError _err;                                                                               \
+		VariantUtilityFunctions::push_error(_args, 1, _err);                                                    \
+		return ret;                                                                                             \
 	}
 
 #define VOID // a return value for void, to avoid compiler warnings

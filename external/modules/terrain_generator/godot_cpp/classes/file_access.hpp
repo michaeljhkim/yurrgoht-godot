@@ -1,2 +1,3 @@
-#include "core/io/file_access.h"
-#define file_exists(path) exists(path)
+#pragma once
+
+#include "godot_cpp/wrapper_constants.h"

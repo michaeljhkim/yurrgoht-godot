@@ -1,4 +1,8 @@
+#pragma once
+
+#include "core/templates/list.h"
 // Vector-Mutable
+
 template <typename T>
 class VectorMut : public Vector<T> {	
 public:
@@ -15,14 +19,16 @@ using UtilityFunctions = VariantUtilityFunctions;
 // need to force the variant typedefs to use Vector-Mutable
 using PackedByteArray 	  = VectorMut<uint8_t>;
 using PackedInt32Array 	  = VectorMut<int32_t>;
-//using PackedInt64Array    = VectorMut<int64_t>;
-//using PackedFloat32Array  = VectorMut<float>;
-//using PackedFloat64Array  = VectorMut<double>;
+using PackedFloat32Array  = VectorMut<float>;
 using PackedRealArray     = VectorMut<real_t>;
+
+//using PackedInt64Array    = VectorMut<int64_t>;
+//using PackedFloat64Array  = VectorMut<double>;
 //using PackedStringArray   = VectorMut<String>;
+//using PackedStringArray 	= VectorMut<String>;
 //using PackedVector2Array  = VectorMut<Vector2>;
 //using PackedVector3Array  = VectorMut<Vector3>;
 //using PackedColorArray    = VectorMut<Color>;
 //using PackedVector4Array  = VectorMut<Vector4>;
 
-#define _get_configuration_warnings get_configuration_warnings
+//#define push_error(pargs) push_error(sarray(pargs))

@@ -1,1 +1,3 @@
-#include "scene/resources/3d/world_3d.h"
+#pragma once
+
+#include "godot_cpp/wrapper_constants.h"
