@@ -32,6 +32,7 @@ void uninitialize_terrain_3d(ModuleInitializationLevel p_level) {
 	}
 }
 
+#ifndef MODULE_WRAPPER
 extern "C" {
 // Initialization.
 GDExtensionBool GDE_EXPORT terrain_3d_init(
@@ -47,3 +48,4 @@ GDExtensionBool GDE_EXPORT terrain_3d_init(
 	return init_obj.init();
 }
 }
+#endif

@@ -5,6 +5,8 @@
 #include "scene/resources/mesh_data_tool.h"
 #include "scene/3d/mesh_instance_3d.h"
 
+#include "terrain_3d_test/terrain_3d.h"
+
 /*
 CREDITs: 
 -> general structure borrowed from 'Voxel Game' demo https://github.com/godotengine/godot-demo-projects/tree/4.2-31d1c0c/3d/voxel
@@ -12,17 +14,21 @@ CREDITs:
 
 
 TerrainGenerator::TerrainGenerator() {
+	/*
 	set_process(true);
 	reuse_pool.resize(6);	// 2**6 = 64
 
 	// maximum possible number of chunks instantiated
 	MAX_CHUNKS_NUM = pow((render_distance * 2) + 1, 2);
+	*/
+
+	Terrain3D test;
 }
 
 // cleans up anything that the main scene tree might not
 TerrainGenerator::~TerrainGenerator() {
-	chunks.clear();
-	set_process(false);
+	//chunks.clear();
+	//set_process(false);
 }
 
 /*
@@ -30,13 +36,14 @@ allows C++ classes to use the same ready/process signals as in gdscript
 */
 void TerrainGenerator::_notification(int p_what) {
 	switch (p_what) {
+		/*
 		case NOTIFICATION_PROCESS:
 			_process(get_process_delta_time());
 			break;
-		
 		case NOTIFICATION_READY:
 			_ready();
 			break;
+		*/
 
 		/*
 		case NOTIFICATION_EXIT_TREE: {
@@ -49,10 +56,10 @@ void TerrainGenerator::_notification(int p_what) {
 }
 
 void TerrainGenerator::_ready() {
-	world_scenario = get_world_3d()->get_scenario();
+	//world_scenario = get_world_3d()->get_scenario();
 
 	// debug
-	start = std::chrono::high_resolution_clock::now();
+	//start = std::chrono::high_resolution_clock::now();
 
 	/*
 	MeshInstance3D* test = memnew(MeshInstance3D());

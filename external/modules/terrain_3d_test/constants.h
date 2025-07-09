@@ -3,7 +3,7 @@
 #include <typeindex>
 #include <array>
 
-#include "misc/math.hpp"
+#include <godot_cpp/misc/math.hpp>
 #include "core/math/vector2i.h"
 #include "core/math/vector3.h"
 namespace godot {}
