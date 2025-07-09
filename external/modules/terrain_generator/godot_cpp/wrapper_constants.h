@@ -20,9 +20,17 @@
 
 namespace godot {}
 
+/*
+constants.h -> first few lines
+terrain_3d_util.cpp -> line 323     PackedStringArray({"bmp", "dds", "exr", "hdr", "jpg", "jpeg", "png", "tga", "svg", "webp"});
+terrain_3d_mesh_asset.cpp -> line 30    String().right()
+terrain_3d_material.cpp -> line 257, 276, 304   get_start(0), get_end(0) 
+*/
+
+
 // Node
 #define get_node_internal(p_args) cast_to<Node>(call("get_node_internal", p_args).get_validated_object())
-#define _get_configuration_warnings() Node::get_configuration_warnings()
+#define _get_configuration_warnings() get_configuration_warnings()
 
 // Object
 #define get_instance(p_id) get_instance(ObjectID(p_id))
@@ -41,7 +49,6 @@ namespace godot {}
 
 // PhysicsDirectSpaceState3D
 #define intersect_ray(p_ray_query) call("intersect_ray", p_ray_query)
-//#define create(arg_1, arg_2) PhysicsRayQueryParameters3D::create(arg_1, arg_2, UINT32_MAX, TypedArray<RID>())
 
 // EditorPlugin
 #define get_undo_redo() cast_to<EditorUndoRedoManager>(this->call("get_undo_redo").get_validated_object())
