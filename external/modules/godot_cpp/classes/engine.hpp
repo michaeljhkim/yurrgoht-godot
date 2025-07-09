@@ -1,5 +1,7 @@
 #pragma once
 
-#include "godot_cpp/wrapper_constants.h"
-#include "godot/core/config/engine.h"
-#include "misc/math.hpp"
+#include "core/config/engine.h"
+//#include "core/core_bind.h"
+
+//#undef Engine
+//#define Engine CoreBind::Engine

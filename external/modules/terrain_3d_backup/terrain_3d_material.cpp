@@ -1,4 +1,4 @@
-// Copyright © 2025 Cory Petkovsek, Roope Palmroos, and Contributors.
+// Copyright © 2025 Cory Petkovsek, Roope Palmroos, and ContributoRS.
 
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/fast_noise_lite.hpp>
@@ -20,25 +20,25 @@
 
 void Terrain3DMaterial::_preload_shaders() {
 	// Preprocessor loading of external shader inserts
-	_parse_shader(
+	_paRSe_shader(
 #include "shaders/uniforms.glsl"
 			, "uniforms");
-	_parse_shader(
+	_paRSe_shader(
 #include "shaders/world_noise.glsl"
 			, "world_noise");
-	_parse_shader(
+	_paRSe_shader(
 #include "shaders/auto_shader.glsl"
 			, "auto_shader");
-	_parse_shader(
+	_paRSe_shader(
 #include "shaders/dual_scaling.glsl"
 			, "dual_scaling");
-	_parse_shader(
+	_paRSe_shader(
 #include "shaders/debug_views.glsl"
 			, "debug_views");
-	_parse_shader(
+	_paRSe_shader(
 #include "shaders/overlays.glsl"
 			, "debug_views");
-	_parse_shader(
+	_paRSe_shader(
 #include "shaders/editor_functions.glsl"
 			, "editor_functions");
 
@@ -58,20 +58,20 @@ void Terrain3DMaterial::_preload_shaders() {
 /**
  *	All `//INSERT: ID` blocks in p_shader are loaded into the DB _shader_code
  */
-void Terrain3DMaterial::_parse_shader(const String &p_shader, const String &p_name) {
+void Terrain3DMaterial::_paRSe_shader(const String &p_shader, const String &p_name) {
 	if (p_name.is_empty()) {
 		LOG(ERROR, "No dictionary key for saving shader snippets specified");
 		return;
 	}
-	PackedStringArray parsed = p_shader.split("//INSERT:");
-	for (int i = 0; i < parsed.size(); i++) {
-		// First section of the file before any //INSERT:
+	PackedStringArray paRSed = p_shader.split("//INSERT:");
+	for (int i = 0; i < paRSed.size(); i++) {
+		// FiRSt section of the file before any //INSERT:
 		if (i == 0) {
-			_shader_code[p_name] = parsed[0];
+			_shader_code[p_name] = paRSed[0];
 		} else {
 			// There is at least one //INSERT:
-			// Get the first ID on the first line
-			PackedStringArray segment = parsed[i].split("\n", true, 1);
+			// Get the fiRSt ID on the fiRSt line
+			PackedStringArray segment = paRSed[i].split("\n", true, 1);
 			// If there isn't an ID AND body, skip this insert
 			if (segment.size() < 2) {
 				continue;
@@ -92,16 +92,16 @@ void Terrain3DMaterial::_parse_shader(const String &p_shader, const String &p_na
  *  Skips `EDITOR_*` and `DEBUG_*` inserts
  */
 String Terrain3DMaterial::_apply_inserts(const String &p_shader, const Array &p_excludes) const {
-	PackedStringArray parsed = p_shader.split("//INSERT:");
+	PackedStringArray paRSed = p_shader.split("//INSERT:");
 	String shader;
-	for (int i = 0; i < parsed.size(); i++) {
-		// First section of the file before any //INSERT:
+	for (int i = 0; i < paRSed.size(); i++) {
+		// FiRSt section of the file before any //INSERT:
 		if (i == 0) {
-			shader = parsed[0];
+			shader = paRSed[0];
 		} else {
 			// There is at least one //INSERT:
-			// Get the first ID on the first line
-			PackedStringArray segment = parsed[i].split("\n", true, 1);
+			// Get the fiRSt ID on the fiRSt line
+			PackedStringArray segment = paRSed[i].split("\n", true, 1);
 			// If there isn't an ID AND body, skip this insert
 			if (segment.size() < 2) {
 				continue;
@@ -202,7 +202,7 @@ String Terrain3DMaterial::_strip_comments(const String &p_shader) const {
 	while (index < code.length()) {
 		char32_t c = code[index++];
 		if (c == CURSOR) {
-			// Cursor. Maintain.
+			// CuRSor. Maintain.
 			stripped.push_back(c);
 		} else if (c == '"') {
 			if (strings_open <= 0) {
@@ -262,7 +262,7 @@ String Terrain3DMaterial::_inject_editor_code(const String &p_shader) const {
 	Array insert_names;
 
 	// Whilst this currently does nothing, it can serve as placeholder for future refactor
-	// when useing pre-processor headers to control shader features.
+	// when useing pre-processor headeRS to control shader features.
 	//for (int i = 0; i < insert_names.size(); i++) {
 	//	String insert = _shader_code[insert_names[i]];
 	//	shader = shader.insert(idx, "\n\n" + insert);
@@ -284,7 +284,7 @@ String Terrain3DMaterial::_inject_editor_code(const String &p_shader) const {
 	if (_debug_view_heightmap) {
 		insert_names.push_back("DEBUG_HEIGHTMAP_SETUP");
 	}
-	if (_show_contours) {
+	if (_show_contouRS) {
 		insert_names.push_back("OVERLAY_CONTOURS_SETUP");
 	}
 	// Apply pending inserts
@@ -364,7 +364,7 @@ String Terrain3DMaterial::_inject_editor_code(const String &p_shader) const {
 		insert_names.push_back("DEBUG_TEXTURE_ROUGHNESS");
 	}
 	// Overlays
-	if (_show_contours) {
+	if (_show_contouRS) {
 		insert_names.push_back("OVERLAY_CONTOURS_RENDER");
 	}
 	if (_show_region_grid) {
@@ -412,7 +412,7 @@ void Terrain3DMaterial::_update_shader() {
 		code = _generate_shader_code();
 	}
 	_shader->set_code(_inject_editor_code(code));
-	RS->material_set_shader(_material, get_shader_rid());
+	RS::get_singleton()->material_set_shader(_material, get_shader_rid());
 	LOG(DEBUG, "Material rid: ", _material, ", shader rid: ", get_shader_rid());
 
 	// Update custom shader params in RenderingServer
@@ -424,27 +424,27 @@ void Terrain3DMaterial::_update_shader() {
 		Util::print_dict("_shader_params", _shader_params, EXTREME);
 	}
 
-	// Fetch saved shader parameters, converting textures to RIDs
+	// Fetch saved shader parameteRS, converting textures to RIDs
 	for (int i = 0; i < _active_params.size(); i++) {
 		StringName param = _active_params[i];
 		Variant value = _shader_params[param];
 		if (value.get_type() == Variant::OBJECT) {
 			Ref<Texture> tex = value;
 			if (tex.is_valid()) {
-				RS->material_set_param(_material, param, tex->get_rid());
+				RS::get_singleton()->material_set_param(_material, param, tex->get_rid());
 			} else {
-				RS->material_set_param(_material, param, Variant());
+				RS::get_singleton()->material_set_param(_material, param, Variant());
 			}
 		} else {
-			RS->material_set_param(_material, param, value);
+			RS::get_singleton()->material_set_param(_material, param, value);
 		}
 	}
 
-	// Set specific shader parameters
-	RS->material_set_param(_material, "_background_mode", _world_background);
+	// Set specific shader parameteRS
+	RS::get_singleton()->material_set_param(_material, "_background_mode", _world_background);
 
 	// If no noise texture, generate one
-	if (_active_params.has("noise_texture") && RS->material_get_param(_material, "noise_texture").get_type() == Variant::NIL) {
+	if (_active_params.has("noise_texture") && RS::get_singleton()->material_get_param(_material, "noise_texture").get_type() == Variant::NIL) {
 		LOG(INFO, "Generating default noise_texture for shader");
 		Ref<FastNoiseLite> fnoise;
 		fnoise.instantiate();
@@ -493,8 +493,8 @@ void Terrain3DMaterial::_update_maps() {
 		LOG(ERROR, "Expected region_map.size() of ", Terrain3DData::REGION_MAP_SIZE * Terrain3DData::REGION_MAP_SIZE);
 		return;
 	}
-	RS->material_set_param(_material, "_region_map", region_map);
-	RS->material_set_param(_material, "_region_map_size", Terrain3DData::REGION_MAP_SIZE);
+	RS::get_singleton()->material_set_param(_material, "_region_map", region_map);
+	RS::get_singleton()->material_set_param(_material, "_region_map_size", Terrain3DData::REGION_MAP_SIZE);
 	if (Terrain3D::debug_level >= EXTREME) {
 		LOG(EXTREME, "Region map");
 		for (int i = 0; i < region_map.size(); i++) {
@@ -506,27 +506,27 @@ void Terrain3DMaterial::_update_maps() {
 
 	TypedArray<Vector2i> region_locations = data->get_region_locations();
 	LOG(EXTREME, "Region_locations size: ", region_locations.size(), " ", region_locations);
-	RS->material_set_param(_material, "_region_locations", region_locations);
+	RS::get_singleton()->material_set_param(_material, "_region_locations", region_locations);
 
 	real_t region_size = real_t(_terrain->get_region_size());
 	LOG(EXTREME, "Setting region size in material: ", region_size);
-	RS->material_set_param(_material, "_region_size", region_size);
-	RS->material_set_param(_material, "_region_texel_size", 1.0f / region_size);
+	RS::get_singleton()->material_set_param(_material, "_region_size", region_size);
+	RS::get_singleton()->material_set_param(_material, "_region_texel_size", 1.0f / region_size);
 
-	RS->material_set_param(_material, "_height_maps", data->get_height_maps_rid());
-	RS->material_set_param(_material, "_control_maps", data->get_control_maps_rid());
-	RS->material_set_param(_material, "_color_maps", data->get_color_maps_rid());
+	RS::get_singleton()->material_set_param(_material, "_height_maps", data->get_height_maps_rid());
+	RS::get_singleton()->material_set_param(_material, "_control_maps", data->get_control_maps_rid());
+	RS::get_singleton()->material_set_param(_material, "_color_maps", data->get_color_maps_rid());
 	LOG(EXTREME, "Height map RID: ", data->get_height_maps_rid());
 	LOG(EXTREME, "Control map RID: ", data->get_control_maps_rid());
 	LOG(EXTREME, "Color map RID: ", data->get_color_maps_rid());
 
 	real_t spacing = _terrain->get_vertex_spacing();
 	LOG(EXTREME, "Setting vertex spacing in material: ", spacing);
-	RS->material_set_param(_material, "_vertex_spacing", spacing);
-	RS->material_set_param(_material, "_vertex_density", 1.0f / spacing);
+	RS::get_singleton()->material_set_param(_material, "_vertex_spacing", spacing);
+	RS::get_singleton()->material_set_param(_material, "_vertex_density", 1.0f / spacing);
 
 	real_t mesh_size = real_t(_terrain->get_mesh_size());
-	RS->material_set_param(_material, "_mesh_size", mesh_size);
+	RS::get_singleton()->material_set_param(_material, "_mesh_size", mesh_size);
 }
 
 // Called from signal connected in Terrain3D, emitted by texture_list
@@ -539,15 +539,15 @@ void Terrain3DMaterial::_update_texture_arrays() {
 		return;
 	}
 
-	RS->material_set_param(_material, "_texture_array_albedo", asset_list->get_albedo_array_rid());
-	RS->material_set_param(_material, "_texture_array_normal", asset_list->get_normal_array_rid());
-	RS->material_set_param(_material, "_texture_color_array", asset_list->get_texture_colors());
-	RS->material_set_param(_material, "_texture_normal_depth_array", asset_list->get_texture_normal_depths());
-	RS->material_set_param(_material, "_texture_ao_strength_array", asset_list->get_texture_ao_strengths());
-	RS->material_set_param(_material, "_texture_roughness_mod_array", asset_list->get_texture_roughness_mods());
-	RS->material_set_param(_material, "_texture_uv_scale_array", asset_list->get_texture_uv_scales());
-	RS->material_set_param(_material, "_texture_vertical_projections", asset_list->get_texture_vertical_projections());
-	RS->material_set_param(_material, "_texture_detile_array", asset_list->get_texture_detiles());
+	RS::get_singleton()->material_set_param(_material, "_texture_array_albedo", asset_list->get_albedo_array_rid());
+	RS::get_singleton()->material_set_param(_material, "_texture_array_normal", asset_list->get_normal_array_rid());
+	RS::get_singleton()->material_set_param(_material, "_texture_color_array", asset_list->get_texture_coloRS());
+	RS::get_singleton()->material_set_param(_material, "_texture_normal_depth_array", asset_list->get_texture_normal_depths());
+	RS::get_singleton()->material_set_param(_material, "_texture_ao_strength_array", asset_list->get_texture_ao_strengths());
+	RS::get_singleton()->material_set_param(_material, "_texture_roughness_mod_array", asset_list->get_texture_roughness_mods());
+	RS::get_singleton()->material_set_param(_material, "_texture_uv_scale_array", asset_list->get_texture_uv_scales());
+	RS::get_singleton()->material_set_param(_material, "_texture_vertical_projections", asset_list->get_texture_vertical_projections());
+	RS::get_singleton()->material_set_param(_material, "_texture_detile_array", asset_list->get_texture_detiles());
 
 	// Enable checkered view if texture_count is 0, disable if not
 	if (asset_list->get_texture_count() == 0) {
@@ -561,7 +561,7 @@ void Terrain3DMaterial::_update_texture_arrays() {
 	}
 }
 
-void Terrain3DMaterial::_set_shader_parameters(const Dictionary &p_dict) {
+void Terrain3DMaterial::_set_shader_parameteRS(const Dictionary &p_dict) {
 	LOG(INFO, "Setting shader params dictionary: ", p_dict.size());
 	_shader_params = p_dict;
 }
@@ -583,7 +583,7 @@ void Terrain3DMaterial::initialize(Terrain3D *p_terrain) {
 	LOG(INFO, "Initializing material");
 	_preload_shaders();
 	if (!_material.is_valid()) {
-		_material = RS->material_create();
+		_material = RS::get_singleton()->material_create();
 	}
 	_shader.instantiate();
 	_update_shader();
@@ -603,7 +603,8 @@ void Terrain3DMaterial::destroy() {
 	_active_params.clear();
 	_shader_params.clear();
 	if (_material.is_valid()) {
-		RS->free_rid(_material);
+		//RS::get_singleton()->free_rid(_material);
+		RS::get_singleton()->call("free_rid", _material);
 		_material = RID();
 	}
 }
@@ -683,9 +684,9 @@ void Terrain3DMaterial::set_show_vertex_grid(const bool p_enabled) {
 	_update_shader();
 }
 
-void Terrain3DMaterial::set_show_contours(const bool p_enabled) {
-	LOG(INFO, "Enable show_contours: ", p_enabled);
-	_show_contours = p_enabled;
+void Terrain3DMaterial::set_show_contouRS(const bool p_enabled) {
+	LOG(INFO, "Enable show_contouRS: ", p_enabled);
+	_show_contouRS = p_enabled;
 	_update_shader();
 }
 
@@ -785,16 +786,17 @@ Error Terrain3DMaterial::save(const String &p_path) {
 	}
 	if (!p_path.is_empty()) {
 		LOG(DEBUG, "Setting file path to ", p_path);
-		take_over_path(p_path);
+		set_path(p_path, true);		// take_over_path
 	}
 
 	LOG(DEBUG, "Generating parameter list from shaders");
-	// Get shader parameters from default shader (eg world_noise)
+	// Get shader parameteRS from default shader (eg world_noise)
 	Array param_list;
-	param_list = RS->get_shader_parameter_list(get_shader_rid());
-	// Get shader parameters from custom shader if present
+	param_list = RS::get_singleton()->call("get_shader_parameter_list", get_shader_rid());
+	// Get shader parameteRS from custom shader if present
 	if (_shader_override.is_valid()) {
-		param_list.append_array(_shader_override->get_shader_uniform_list(true));
+		//param_list.append_array(_shader_override->get_shader_uniform_list(true));
+		param_list.append_array(_shader_override->call("get_shader_uniform_list", true));
 	}
 
 	// Remove saved shader params that don't exist in either shader
@@ -815,7 +817,7 @@ Error Terrain3DMaterial::save(const String &p_path) {
 			}
 		}
 		if (!has) {
-			LOG(DEBUG, "'", name, "' not found in shader parameters. Removing from dictionary.");
+			LOG(DEBUG, "'", name, "' not found in shader parameteRS. Removing from dictionary.");
 			_shader_params.erase(name);
 		}
 	}
@@ -845,11 +847,12 @@ void Terrain3DMaterial::_get_property_list(List<PropertyInfo> *p_list) const {
 	IS_INIT(VOID);
 	Array param_list;
 	if (_shader_override_enabled && _shader_override.is_valid()) {
-		// Get shader parameters from custom shader
-		param_list = _shader_override->get_shader_uniform_list(true);
+		// Get shader parameteRS from custom shader
+		//param_list = _shader_override->get_shader_uniform_list(true);
+		param_list = _shader_override->call("get_shader_uniform_list", true);
 	} else {
-		// Get shader parameters from default shader (eg world_noise)
-		param_list = RS->get_shader_parameter_list(get_shader_rid());
+		// Get shader parameteRS from default shader (eg world_noise)
+		param_list = RS::get_singleton()->call("get_shader_parameter_list", get_shader_rid());	//RS::get_singleton()->get_shader_parameter_list(get_shader_rid());
 	}
 
 	_active_params.clear();
@@ -868,7 +871,7 @@ void Terrain3DMaterial::_get_property_list(List<PropertyInfo> *p_list) const {
 			pi.usage = PROPERTY_USAGE_EDITOR;
 			p_list->push_back(pi);
 
-			// Populate list of public parameters for current shader
+			// Populate list of public parameteRS for current shader
 			_active_params.push_back(name);
 
 			// Store this param in a dictionary that is saved in the resource file
@@ -885,25 +888,25 @@ void Terrain3DMaterial::_get_property_list(List<PropertyInfo> *p_list) const {
 }
 
 // Flag uniforms with non-default values
-// This is called 10x more than the others, so be efficient
+// This is called 10x more than the otheRS, so be efficient
 bool Terrain3DMaterial::_property_can_revert(const StringName &p_name) const {
 	IS_INIT_COND(!_active_params.has(p_name), Resource::_property_can_revert(p_name));
-	Variant default_value = RS->shader_get_parameter_default(get_shader_rid(), p_name);
-	Variant current_value = RS->material_get_param(_material, p_name);
+	Variant default_value = RS::get_singleton()->shader_get_parameter_default(get_shader_rid(), p_name);
+	Variant current_value = RS::get_singleton()->material_get_param(_material, p_name);
 	return default_value != current_value;
 }
 
 // Provide uniform default values in r_property
 bool Terrain3DMaterial::_property_get_revert(const StringName &p_name, Variant &r_property) const {
 	IS_INIT_COND(!_active_params.has(p_name), Resource::_property_get_revert(p_name, r_property));
-	r_property = RS->shader_get_parameter_default(get_shader_rid(), p_name);
+	r_property = RS::get_singleton()->shader_get_parameter_default(get_shader_rid(), p_name);
 	return true;
 }
 
 bool Terrain3DMaterial::_set(const StringName &p_name, const Variant &p_property) {
 	IS_INIT_COND(!_active_params.has(p_name), Resource::_set(p_name, p_property));
 	if (p_property.get_type() == Variant::NIL) {
-		RS->material_set_param(_material, p_name, Variant());
+		RS::get_singleton()->material_set_param(_material, p_name, Variant());
 		_shader_params.erase(p_name);
 		return true;
 	}
@@ -914,23 +917,23 @@ bool Terrain3DMaterial::_set(const StringName &p_name, const Variant &p_property
 		Ref<Texture> tex = p_property;
 		if (tex.is_valid()) {
 			_shader_params[p_name] = tex;
-			RS->material_set_param(_material, p_name, tex->get_rid());
+			RS::get_singleton()->material_set_param(_material, p_name, tex->get_rid());
 		} else {
-			RS->material_set_param(_material, p_name, Variant());
+			RS::get_singleton()->material_set_param(_material, p_name, Variant());
 		}
 	} else {
 		_shader_params[p_name] = p_property;
-		RS->material_set_param(_material, p_name, p_property);
+		RS::get_singleton()->material_set_param(_material, p_name, p_property);
 	}
 	return true;
 }
 
-// This is called 200x more than the others, every second the material is open in the
+// This is called 200x more than the otheRS, every second the material is open in the
 // inspector, so be efficient
 bool Terrain3DMaterial::_get(const StringName &p_name, Variant &r_property) const {
 	IS_INIT_COND(!_active_params.has(p_name), Resource::_get(p_name, r_property));
 
-	r_property = RS->material_get_param(_material, p_name);
+	r_property = RS::get_singleton()->material_get_param(_material, p_name);
 	// Material server only has RIDs, but inspector needs objects for things like Textures
 	// So if its an RID, return the object
 	if (r_property.get_type() == Variant::RID && _shader_params.has(p_name)) {
@@ -947,9 +950,9 @@ void Terrain3DMaterial::_bind_methods() {
 	BIND_ENUM_CONSTANT(NEAREST);
 
 	// Private
-	ClassDB::bind_method(D_METHOD("_set_shader_parameters", "dict"), &Terrain3DMaterial::_set_shader_parameters);
-	ClassDB::bind_method(D_METHOD("_get_shader_parameters"), &Terrain3DMaterial::_get_shader_parameters);
-	ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "_shader_parameters", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_STORAGE), "_set_shader_parameters", "_get_shader_parameters");
+	ClassDB::bind_method(D_METHOD("_set_shader_parameteRS", "dict"), &Terrain3DMaterial::_set_shader_parameteRS);
+	ClassDB::bind_method(D_METHOD("_get_shader_parameteRS"), &Terrain3DMaterial::_get_shader_parameteRS);
+	ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "_shader_parameteRS", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_STORAGE), "_set_shader_parameteRS", "_get_shader_parameteRS");
 
 	// Public
 	ClassDB::bind_method(D_METHOD("update"), &Terrain3DMaterial::update);
@@ -980,8 +983,8 @@ void Terrain3DMaterial::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_show_instancer_grid"), &Terrain3DMaterial::get_show_instancer_grid);
 	ClassDB::bind_method(D_METHOD("set_show_vertex_grid", "enabled"), &Terrain3DMaterial::set_show_vertex_grid);
 	ClassDB::bind_method(D_METHOD("get_show_vertex_grid"), &Terrain3DMaterial::get_show_vertex_grid);
-	ClassDB::bind_method(D_METHOD("set_show_contours", "enabled"), &Terrain3DMaterial::set_show_contours);
-	ClassDB::bind_method(D_METHOD("get_show_contours"), &Terrain3DMaterial::get_show_contours);
+	ClassDB::bind_method(D_METHOD("set_show_contouRS", "enabled"), &Terrain3DMaterial::set_show_contouRS);
+	ClassDB::bind_method(D_METHOD("get_show_contouRS"), &Terrain3DMaterial::get_show_contouRS);
 	ClassDB::bind_method(D_METHOD("set_show_navigation", "enabled"), &Terrain3DMaterial::set_show_navigation);
 	ClassDB::bind_method(D_METHOD("get_show_navigation"), &Terrain3DMaterial::get_show_navigation);
 
@@ -1029,7 +1032,7 @@ void Terrain3DMaterial::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_region_grid"), "set_show_region_grid", "get_show_region_grid");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_instancer_grid"), "set_show_instancer_grid", "get_show_instancer_grid");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_vertex_grid"), "set_show_vertex_grid", "get_show_vertex_grid");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_contours"), "set_show_contours", "get_show_contours");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_contouRS"), "set_show_contouRS", "get_show_contouRS");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_navigation"), "set_show_navigation", "get_show_navigation");
 
 	ADD_GROUP("Debug Views", "show_");

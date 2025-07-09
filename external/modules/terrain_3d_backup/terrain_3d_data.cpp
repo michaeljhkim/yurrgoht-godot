@@ -1,4 +1,4 @@
-// Copyright © 2025 Cory Petkovsek, Roope Palmroos, and Contributors.
+// Copyright © 2025 Cory Petkovsek, Roope Palmroos, and ContributoRS.
 
 #include <godot_cpp/classes/dir_access.hpp>
 #include <godot_cpp/classes/editor_file_system.hpp>
@@ -121,7 +121,7 @@ void Terrain3DData::change_region_size(int p_new_size) {
 		return;
 	}
 
-	// Get current region corners expressed in new region_size coordinates
+	// Get current region corneRS expressed in new region_size coordinates
 	Dictionary new_region_points;
 	Array locs = _regions.keys();
 	for (int i = 0; i < locs.size(); i++) {
@@ -243,7 +243,7 @@ Error Terrain3DData::add_region(const Ref<Terrain3DRegion> &p_region, const bool
 	Vector2i region_loc = p_region->get_location();
 	LOG(INFO, "Adding region at location ", region_loc, ", update maps: ", p_update ? "yes" : "no");
 
-	// Check bounds and slow report errors
+	// Check bounds and slow report erroRS
 	if (get_region_map_index(region_loc) < 0) {
 		LOG(ERROR, "Location ", region_loc, " out of bounds. Max: ",
 				-REGION_MAP_SIZE / 2, " to ", REGION_MAP_SIZE / 2 - 1);
@@ -258,7 +258,7 @@ Error Terrain3DData::add_region(const Ref<Terrain3DRegion> &p_region, const bool
 	}
 	_regions[region_loc] = p_region;
 	_region_map_dirty = true;
-	LOG(DEBUG, "Storing region ", region_loc, " version ", vformat("%.3f", p_region->get_version()), " id: ", _region_locations.size());
+	LOG(DEBUG, "Storing region ", region_loc, " veRSion ", vformat("%.3f", p_region->get_veRSion()), " id: ", _region_locations.size());
 	if (p_update) {
 		update_maps(TYPE_MAX, true, false);
 		_terrain->get_instancer()->update_mmis(true);
@@ -328,7 +328,13 @@ void Terrain3DData::save_region(const Vector2i &p_region_loc, const String &p_di
 		_regions.erase(p_region_loc);
 		LOG(DEBUG, "File to be deleted: ", path);
 
-		if (!FileAccess::file_exists(path)) {
+		if (
+		#ifdef MODULE_WRAPPER
+			!FileAccess::exists(path)
+		#else
+			!FileAccess::file_exists(path)
+		#endif
+		) {
 			LOG(INFO, "File to delete ", path, " doesn't exist. (Maybe from add, undo, save)");
 			return;
 		}
@@ -384,14 +390,14 @@ void Terrain3DData::load_directory(const String &p_dir) {
 			_terrain->set_region_size((Terrain3D::RegionSize)region->get_region_size());
 		} else {
 			if (_terrain->get_region_size() != (Terrain3D::RegionSize)region->get_region_size()) {
-				LOG(ERROR, "Region size mismatch. First loaded: ", _terrain->get_region_size(), " next: ",
+				LOG(ERROR, "Region size mismatch. FiRSt loaded: ", _terrain->get_region_size(), " next: ",
 						region->get_region_size(), " in file: ", path);
 				return;
 			}
 		}
-		region->take_over_path(path);
+		region->set_path(path, true);		// take_over_path
 		region->set_location(loc);
-		region->set_version(CURRENT_VERSION); // Sends upgrade warning if old version
+		region->set_veRSion(CURRENT_VERSION); // Sends upgrade warning if old veRSion
 		add_region(region, false);
 	}
 	update_maps(TYPE_MAX, true, false);
@@ -401,7 +407,13 @@ void Terrain3DData::load_directory(const String &p_dir) {
 void Terrain3DData::load_region(const Vector2i &p_region_loc, const String &p_dir, const bool p_update) {
 	LOG(INFO, "Loading region from location ", p_region_loc);
 	String path = p_dir + String("/") + Util::location_to_filename(p_region_loc);
-	if (!FileAccess::file_exists(path)) {
+	if (
+		#ifdef MODULE_WRAPPER
+			!FileAccess::exists(path)
+		#else
+			!FileAccess::file_exists(path)
+		#endif
+	) {
 		LOG(ERROR, "File ", path, " doesn't exist");
 		return;
 	}
@@ -414,14 +426,14 @@ void Terrain3DData::load_region(const Vector2i &p_region_loc, const String &p_di
 		_terrain->set_region_size((Terrain3D::RegionSize)region->get_region_size());
 	} else {
 		if (_terrain->get_region_size() != (Terrain3D::RegionSize)region->get_region_size()) {
-			LOG(ERROR, "Region size mismatch. First loaded: ", _terrain->get_region_size(), " next: ",
+			LOG(ERROR, "Region size mismatch. FiRSt loaded: ", _terrain->get_region_size(), " next: ",
 					region->get_region_size(), " in file: ", path);
 			return;
 		}
 	}
-	region->take_over_path(path);
+	region->set_path(path, true);		// take_over_path
 	region->set_location(p_region_loc);
-	region->set_version(CURRENT_VERSION); // Sends upgrade warning if old version
+	region->set_veRSion(CURRENT_VERSION); // Sends upgrade warning if old veRSion
 	add_region(region, p_update);
 }
 
@@ -500,7 +512,7 @@ void Terrain3DData::update_maps(const MapType p_map_type, const bool p_all_regio
 				region_id += 1; // Begin at 1 since 0 = no region
 				int map_index = get_region_map_index(region_loc);
 				if (map_index >= 0) {
-					_region_map[map_index] = region_id;
+					_region_map.insert(map_index, region_id);
 					_region_locations.push_back(region_loc);
 				}
 			}
@@ -823,8 +835,8 @@ void Terrain3DData::add_edited_area(const AABB &p_area) {
 }
 
 // Recalculates master height range from all active regions current height ranges
-// Recursive mode has all regions to recalculate from each heightmap pixel
-void Terrain3DData::calc_height_range(const bool p_recursive) {
+// RecuRSive mode has all regions to recalculate from each heightmap pixel
+void Terrain3DData::calc_height_range(const bool p_recuRSive) {
 	_master_height_range = V2_ZERO;
 	for (int i = 0; i < _region_locations.size(); i++) {
 		Vector2i region_loc = _region_locations[i];
@@ -832,7 +844,7 @@ void Terrain3DData::calc_height_range(const bool p_recursive) {
 		if (!region) {
 			continue;
 		}
-		if (p_recursive) {
+		if (p_recuRSive) {
 			region->calc_height_range();
 		}
 		update_master_heights(region->get_height_range());
@@ -843,7 +855,7 @@ void Terrain3DData::calc_height_range(const bool p_recursive) {
 /**
  * Imports an Image set (Height, Control, Color) into Terrain3DData
  * It does NOT normalize values to 0-1. You must do that using get_min_max() and adjusting scale and offset.
- * Parameters:
+ * ParameteRS:
  *	p_images - MapType.TYPE_MAX sized array of Images for Height, Control, Color. Images can be blank or null
  *	p_global_position - X,0,Z location on the region map. Valid range is ~ (+/-8192, +/-8192)
  *	p_offset - Add this factor to all height values, can be negative
@@ -879,7 +891,7 @@ void Terrain3DData::import_images(const TypedArray<Image> &p_images, const Vecto
 
 	Vector3 descaled_position = p_global_position / _vertex_spacing;
 	int max_dimension = _region_size * REGION_MAP_SIZE / 2;
-	if ((abs(descaled_position.x) > max_dimension) || (abs(descaled_position.z) > max_dimension)) {
+	if ((Math::abs(descaled_position.x) > max_dimension) || (Math::abs(descaled_position.z) > max_dimension)) {
 		LOG(ERROR, "Specify a position within +/-", Vector3(max_dimension, 0.f, max_dimension) * _vertex_spacing);
 		return;
 	}
@@ -989,10 +1001,10 @@ Error Terrain3DData::export_image(const String &p_file_name, const MapType p_map
 	}
 
 	// Simple file name validation
-	static const String bad_chars = "?*|%<>\"";
-	for (int i = 0; i < bad_chars.length(); ++i) {
+	static const String bad_chaRS = "?*|%<>\"";
+	for (int i = 0; i < bad_chaRS.length(); ++i) {
 		for (int j = 0; j < p_file_name.length(); ++j) {
-			if (bad_chars[i] == p_file_name[j]) {
+			if (bad_chaRS[i] == p_file_name[j]) {
 				LOG(ERROR, "Invalid file path '" + p_file_name + "'");
 				return FAILED;
 			}
@@ -1212,7 +1224,7 @@ void Terrain3DData::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_mesh_vertex", "lod", "filter", "global_position"), &Terrain3DData::get_mesh_vertex);
 
 	ClassDB::bind_method(D_METHOD("get_height_range"), &Terrain3DData::get_height_range);
-	ClassDB::bind_method(D_METHOD("calc_height_range", "recursive"), &Terrain3DData::calc_height_range, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("calc_height_range", "recuRSive"), &Terrain3DData::calc_height_range, DEFVAL(false));
 
 	ClassDB::bind_method(D_METHOD("import_images", "images", "global_position", "offset", "scale"), &Terrain3DData::import_images, DEFVAL(Vector3(0, 0, 0)), DEFVAL(0.0), DEFVAL(1.0));
 	ClassDB::bind_method(D_METHOD("export_image", "file_name", "map_type"), &Terrain3DData::export_image);

@@ -1,12 +1,18 @@
-// Copyright © 2025 Cory Petkovsek, Roope Palmroos, and Contributors.
+// Copyright © 2025 Cory Petkovsek, Roope Palmroos, and ContributoRS.
 #include <cstddef>
 #include <typeindex>
 #include <array>
 
-#include <godot_cpp/misc/math.hpp>
+#include "core/math/math_defs.h"
+#include "core/math/math_funcs.h"
 #include "core/math/vector2i.h"
 #include "core/math/vector3.h"
 namespace godot {}
+
+#define MODULE_WRAPPER
+
+#define Math_PI Math::PI
+#define Math_TAU Math::TAU
 //END NEW DEFS
 
 #ifndef CONSTANTS_CLASS_H
@@ -15,7 +21,9 @@ namespace godot {}
 using namespace godot;
 
 // Macros
-#define RS RenderingServer::get_singleton()
+//#define RS RenderingServer::get_singleton()
+//#define PS PhysicsServer3D::get_singleton()
+#define RS RenderingServer
 #define PS PhysicsServer3D::get_singleton()
 #define IS_EDITOR Engine::get_singleton()->is_editor_hint()
 

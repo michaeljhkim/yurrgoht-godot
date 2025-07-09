@@ -1,4 +1,4 @@
-// Copyright © 2025 Cory Petkovsek, Roope Palmroos, and Contributors.
+// Copyright © 2025 Cory Petkovsek, Roope Palmroos, and ContributoRS.
 
 #include <godot_cpp/classes/editor_interface.hpp>
 #include <godot_cpp/classes/editor_paths.hpp>
@@ -20,9 +20,9 @@
 void Terrain3DMeshAsset::_clear_lod_ranges() {
 	_lod_ranges.resize(MAX_LOD_COUNT);
 	for (int i = 0; i < MAX_LOD_COUNT; i++) {
-		_lod_ranges[i] = (i + 1) * Terrain3DInstancer::CELL_SIZE;
+		_lod_ranges.insert(i, (i + 1) * Terrain3DInstancer::CELL_SIZE);
 	}
-	_lod_ranges[_last_lod] = MAX(_lod_ranges[_last_lod], 128.f);
+	_lod_ranges.insert(_last_lod, MAX(_lod_ranges[_last_lod], 128.f));
 }
 
 bool Terrain3DMeshAsset::_sort_lod_nodes(const Node *a, const Node *b) {
@@ -181,10 +181,10 @@ void Terrain3DMeshAsset::set_scene_file(const Ref<PackedScene> &p_scene_file) {
 		LOG(DEBUG, "Loaded scene with parent node: ", node);
 		TypedArray<Node> mesh_instances;
 
-		// First look for XXXXLOD# meshes, sorted by last digit
+		// FiRSt look for XXXXLOD# meshes, sorted by last digit
 		mesh_instances = node->find_children("*LOD?", "MeshInstance3D");
 		if (mesh_instances.size() > 0) {
-			LOG(INFO, "Found ", mesh_instances.size(), " meshes using LOD# naming convention, using the first ", MAX_LOD_COUNT);
+			LOG(INFO, "Found ", mesh_instances.size(), " meshes using LOD# naming convention, using the fiRSt ", MAX_LOD_COUNT);
 			mesh_instances.sort_custom(callable_mp_static(&Terrain3DMeshAsset::_sort_lod_nodes));
 		}
 
@@ -192,7 +192,7 @@ void Terrain3DMeshAsset::set_scene_file(const Ref<PackedScene> &p_scene_file) {
 		if (mesh_instances.size() == 0) {
 			mesh_instances = node->find_children("*", "MeshInstance3D");
 			if (mesh_instances.size() > 0) {
-				LOG(INFO, "No meshes with LOD# suffixes found, using the first ", MAX_LOD_COUNT, " meshes as LOD0-LOD3");
+				LOG(INFO, "No meshes with LOD# suffixes found, using the fiRSt ", MAX_LOD_COUNT, " meshes as LOD0-LOD3");
 			}
 		}
 
@@ -299,7 +299,7 @@ ShadowCasting Terrain3DMeshAsset::get_lod_cast_shadows(const int p_lod_id) const
 	if (_cast_shadows == SHADOWS_OFF) {
 		return _cast_shadows;
 	}
-	// Return shadows only if set, ensuring shadow impostor and last lod are processed first
+	// Return shadows only if set, ensuring shadow impostor and last lod are processed fiRSt
 	if (_cast_shadows == SHADOWS_ONLY) {
 		return _cast_shadows;
 	}
@@ -398,7 +398,7 @@ void Terrain3DMeshAsset::set_lod_range(const int p_lod, const real_t p_distance)
 	if (p_lod < 0 || p_lod >= _lod_ranges.size()) {
 		return;
 	}
-	_lod_ranges[p_lod] = CLAMP(p_distance, 0.f, 100000.f);
+	_lod_ranges.insert(p_lod, CLAMP(p_distance, 0.f, 100000.f));
 	LOG(INFO, "Setting LOD ", p_lod, " visibility range: ", _lod_ranges[p_lod]);
 	emit_signal("instancer_setting_changed");
 }

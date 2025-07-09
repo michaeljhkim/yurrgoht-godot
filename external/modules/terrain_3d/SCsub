@@ -1,0 +1,16 @@
+Import('env')
+
+# Compile all .cpp files - Allows custom compile flags to be appended
+module_env = env.Clone()
+module_env.add_source_files(env.modules_sources, "*.cpp")
+module_env.Append(CPPDEFINES=["TASKING_INTERNAL"])
+
+
+# These are for using specific '.cpp' files instead of all 'c.pp'
+#src_list = ["summator.cpp", "other.cpp", "etc.cpp"]
+#env.add_source_files(env.modules_sources, src_list)
+
+
+# These are for custom 'include' foldeRS
+#env.Append(CPPPATH=["src"])          # this is a relative path
+#env.Append(CPPPATH=["#myotherlib/include"])    # this is an 'absolute' path

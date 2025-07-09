@@ -12,5 +12,5 @@ module_env.Append(CPPDEFINES=["TASKING_INTERNAL"])
 
 
 # These are for custom 'include' folders
-#env.Append(CPPPATH=["mylib/include"])          # this is a relative path
+#env.Append(CPPPATH=["src"])          # this is a relative path
 #env.Append(CPPPATH=["#myotherlib/include"])    # this is an 'absolute' path

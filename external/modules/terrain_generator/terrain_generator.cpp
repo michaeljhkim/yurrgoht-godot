@@ -5,7 +5,7 @@
 #include "scene/resources/mesh_data_tool.h"
 #include "scene/3d/mesh_instance_3d.h"
 
-#include "terrain_3d_test/terrain_3d.h"
+//#include "terrain_3d_module/terrain_3d.h"
 
 /*
 CREDITs: 
@@ -22,7 +22,7 @@ TerrainGenerator::TerrainGenerator() {
 	MAX_CHUNKS_NUM = pow((render_distance * 2) + 1, 2);
 	*/
 
-	Terrain3D test;
+	//Terrain3D test;
 }
 
 // cleans up anything that the main scene tree might not

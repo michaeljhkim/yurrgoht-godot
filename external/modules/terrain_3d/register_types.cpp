@@ -1,6 +1,6 @@
 // Copyright © 2025 Cory Petkovsek, Roope Palmroos, and Contributors.
 
-#include <gdextension_interface.h>
+//#include <gdextension_interface.h>
 #include <godot_cpp/core/class_db.hpp>
 
 #include "register_types.h"
@@ -9,7 +9,7 @@
 
 using namespace godot;
 
-void initialize_terrain_3d(ModuleInitializationLevel p_level) {
+void initialize_terrain_3d_module(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
@@ -26,7 +26,7 @@ void initialize_terrain_3d(ModuleInitializationLevel p_level) {
 	ClassDB::register_class<Terrain3DUtil>();
 }
 
-void uninitialize_terrain_3d(ModuleInitializationLevel p_level) {
+void uninitialize_terrain_3d_module(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
@@ -49,3 +49,4 @@ GDExtensionBool GDE_EXPORT terrain_3d_init(
 }
 }
 #endif
+

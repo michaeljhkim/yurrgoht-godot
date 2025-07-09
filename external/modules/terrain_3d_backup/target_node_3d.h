@@ -1,4 +1,4 @@
-// Copyright © 2025 Cory Petkovsek, Roope Palmroos, and Contributors.
+// Copyright © 2025 Cory Petkovsek, Roope Palmroos, and ContributoRS.
 
 #ifndef TARGET_NODE3D_CLASS_H
 #define TARGET_NODE3D_CLASS_H
@@ -39,7 +39,7 @@ public:
 
 	bool is_valid() const {
 		if (_target && _instance_id > 0) {
-			return _target == ObjectDB::get_instance(_instance_id);
+			return _target == ObjectDB::get_instance(ObjectID(_instance_id));
 		}
 		return false;
 	}

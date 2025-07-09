@@ -4,12 +4,12 @@
 #include <array>
 
 // gdextension
-#include "core/extension/gdextension.h"
+//#include "core/extension/gdextension.h"
+#include "modules/register_module_types.h"
 #include "core/variant/variant.h"
 #include "modules/regex/regex.h"
 #include "modules/register_module_types.h"
 #include "servers/text/text_server_extension.h"
-#include "misc/math.hpp"
 
 #include "classes/rendering_server.hpp"
 #include "classes/editor_plugin.hpp"
