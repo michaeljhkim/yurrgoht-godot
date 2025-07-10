@@ -1,16 +1,44 @@
-Import('env')
+#!/usr/bin/env python
+from misc.utility.scons_hints import *
 
-# Compile all .cpp files - Allows custom compile flags to be appended
-module_env = env.Clone()
-module_env.add_source_files(env.modules_sources, "*.cpp")
-module_env.Append(CPPDEFINES=["TASKING_INTERNAL"])
+Import("env")
+Import("env_modules")
 
+def get_sufix():
+    suffix = ".{}.{}".format(env["platform"], env["target"])
+    # In godot it's "linuxbsd"
+    suffix = suffix.replace("linuxbsd", "linux")
+    # Only take release
+    suffix = suffix.replace("editor", "template_release")
+    suffix = suffix.replace("template_debug", "template_release")
+    if env.dev_build:
+        suffix += ".dev"
+    if env["precision"] == "double":
+        suffix += ".double"
+    suffix += "." + env["arch"]
+    if not env["threads"]:
+        suffix += ".nothreads"
+    return suffix
 
-# These are for using specific '.cpp' files instead of all 'c.pp'
-#src_list = ["summator.cpp", "other.cpp", "etc.cpp"]
-#env.add_source_files(env.modules_sources, src_list)
+# Libraries
+if env["platform"] == "macos" or env["platform"] == "ios":
+    base_path = "#../modules/terrain_3d/bin/addons/libterrain/bin/libterrain{}.framework".format(get_sufix())
+    base_file = "libterrain{}".format(get_sufix())
+else:
+    base_path = "#../modules/terrain_3d/bin/addons/libterrain/bin"
+    base_file = "libterrain{}".format(get_sufix())
 
+env.Append(LIBS=[base_file])
+env.Append(LIBPATH=[base_path])
 
-# These are for custom 'include' foldeRS
-#env.Append(CPPPATH=["src"])          # this is a relative path
-#env.Append(CPPPATH=["#myotherlib/include"])    # this is an 'absolute' path
+# Godot-cpp
+base_path = "#../modules/terrain_3d/ext/godot-cpp/bin"
+base_file = "libgodot-cpp{}".format(get_sufix())
+
+env.Append(LIBS=[base_file])
+env.Append(LIBPATH=[base_path])
+
+# Sources
+env_gdextension = env_modules.Clone()
+
+env_gdextension.add_source_files(env.modules_sources, "*.cpp")

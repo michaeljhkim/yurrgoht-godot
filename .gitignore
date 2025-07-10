@@ -6,3 +6,5 @@ external/godot/
 # Godot custom modules build generated files
 __pycache__
 *.o
+
+Terrain3D
