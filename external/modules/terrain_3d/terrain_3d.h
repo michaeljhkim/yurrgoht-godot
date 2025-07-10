@@ -140,7 +140,7 @@ public:
 	Ref<Terrain3DAssets> get_assets() const { return _assets; }
 	Terrain3DCollision *get_collision() const { return _collision; }
 	Terrain3DInstancer *get_instancer() const { return _instancer; }
-	Node *get_mmi_parent() const { return _mmi_parent; }
+	Node *get_mmi_parent() const { return cast_to<Node>(_mmi_parent); }
 	void set_editor(Terrain3DEditor *p_editor);
 	Terrain3DEditor *get_editor() const { return _editor; }
 	void set_plugin(EditorPlugin *p_plugin);
@@ -201,7 +201,8 @@ public:
 	// Warnings
 	void set_warning(const uint8_t p_warning, const bool p_enabled);
 	uint8_t get_warnings() const { return _warnings; }
-	PackedStringArray _get_configuration_warnings() const override;
+	//PackedStringArray _get_configuration_warnings() const override;
+	PackedStringArray _get_configuration_warnings() const;
 
 	// Collision Aliases
 	void set_collision_mode(const CollisionMode p_mode) { _collision ? _collision->set_mode(p_mode) : void(); }

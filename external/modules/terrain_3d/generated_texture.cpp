@@ -32,7 +32,7 @@ RID GeneratedTexture::create(const TypedArray<Image> &p_layers) {
 				LOG(EXTREME, i, ": ", img, ", empty: ", img->is_empty(), ", size: ", img->get_size(), ", format: ", img->get_format());
 			}
 		}
-		_rid = RS->texture_2d_layered_create(p_layers, godot::RenderingServer::TEXTURE_LAYERED_2D_ARRAY);
+		_rid = RS->texture_2d_layered_create(p_layers, RenderingServer::TEXTURE_LAYERED_2D_ARRAY);
 		_dirty = false;
 	} else {
 		clear();

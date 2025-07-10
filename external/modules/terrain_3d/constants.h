@@ -9,7 +9,8 @@
 using namespace godot;
 
 // Macros
-#define RS godot::RenderingServer::get_singleton()
+#undef RS
+#define RS RenderingServer::get_singleton()
 #define PS PhysicsServer3D::get_singleton()
 #define IS_EDITOR Engine::get_singleton()->is_editor_hint()
 
@@ -49,7 +50,7 @@ using namespace godot;
 
 // Set class name for logger.h
 
-#define CLASS_NAME() const String __class__ = get_class_static() + \
+#define CLASS_NAME() const String __class__ = String(get_class_static()) + \
 		String("#") + String::num_uint64(get_instance_id()).right(4);
 
 #define CLASS_NAME_STATIC(p_name) static inline const char *__class__ = p_name;
@@ -58,7 +59,7 @@ using namespace godot;
 
 #define ASSERT(cond, ret)                                                                            \
 	if (!(cond)) {                                                                                   \
-		UtilityFunctions::push_error("Assertion '", #cond, "' failed at ", __FILE__, ":", __LINE__); \
+		UtilityFunctions_push_error("Assertion '", #cond, "' failed at ", __FILE__, ":", __LINE__); \
 		return ret;                                                                                  \
 	}
 

@@ -20,14 +20,14 @@
 void Terrain3DMeshAsset::_clear_lod_ranges() {
 	_lod_ranges.resize(MAX_LOD_COUNT);
 	for (int i = 0; i < MAX_LOD_COUNT; i++) {
-		_lod_ranges[i] = (i + 1) * Terrain3DInstancer::CELL_SIZE;
+		_lod_ranges.insert(i, (i + 1) * Terrain3DInstancer::CELL_SIZE);
 	}
-	_lod_ranges[_last_lod] = MAX(_lod_ranges[_last_lod], 128.f);
+	_lod_ranges.insert(_last_lod, MAX(_lod_ranges[_last_lod], 128.f));
 }
 
 bool Terrain3DMeshAsset::_sort_lod_nodes(const Node *a, const Node *b) {
 	ASSERT(a && b, false);
-	return a->get_name().right(1) < b->get_name().right(1);
+	return String(a->get_name()).right(1) < String(b->get_name()).right(1);
 }
 
 Ref<ArrayMesh> Terrain3DMeshAsset::_get_generated_mesh() const {
@@ -398,7 +398,7 @@ void Terrain3DMeshAsset::set_lod_range(const int p_lod, const real_t p_distance)
 	if (p_lod < 0 || p_lod >= _lod_ranges.size()) {
 		return;
 	}
-	_lod_ranges[p_lod] = CLAMP(p_distance, 0.f, 100000.f);
+	_lod_ranges.insert(p_lod, CLAMP(p_distance, 0.f, 100000.f));
 	LOG(INFO, "Setting LOD ", p_lod, " visibility range: ", _lod_ranges[p_lod]);
 	emit_signal("instancer_setting_changed");
 }

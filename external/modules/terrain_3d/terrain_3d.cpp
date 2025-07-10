@@ -769,12 +769,12 @@ Dictionary Terrain3D::get_raycast_result(const Vector3 &p_src_pos, const Vector3
 	if (!_is_inside_world) {
 		return Dictionary();
 	}
-	PhysicsDirectSpaceState3D *space_state = get_world_3d()->get_direct_space_state();
+	::PhysicsDirectSpaceState3D *space_state = get_world_3d()->get_direct_space_state();
 	Ref<PhysicsRayQueryParameters3D> query = PhysicsRayQueryParameters3D::create(p_src_pos, p_src_pos + p_destination);
 	if (_collision && p_exclude_self) {
 		query->set_exclude(TypedArray<RID>(_collision->get_rid()));
 	}
-	return space_state->intersect_ray(query);
+	return cast_to<godot::PhysicsDirectSpaceState3D>(space_state)->intersect_ray(query);
 }
 
 /**

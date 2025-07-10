@@ -258,7 +258,7 @@ _FORCE_INLINE_ bool memdelete_safely(TType *&p_ptr) {
 _FORCE_INLINE_ bool remove_from_tree(Node *p_node) {
 	// Note: is_in_tree() doesn't work in Godot-cpp 4.1.3
 	if (p_node) {
-		Node *parent = p_node->get_parent();
+		Node *parent = Object::cast_to<Node>(p_node->get_parent());
 		if (parent) {
 			parent->remove_child(p_node);
 			return true;

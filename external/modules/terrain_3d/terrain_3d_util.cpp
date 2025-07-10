@@ -311,7 +311,10 @@ Ref<Image> Terrain3DUtil::load_image(const String &p_file_name, const int p_cach
 		LOG(ERROR, "No file specified. Nothing imported");
 		return Ref<Image>();
 	}
-	if (!FileAccess::file_exists(p_file_name)) {
+	if (
+		//!FileAccess::file_exists(p_file_name)
+		!FileAccess::exists(p_file_name)
+	) {
 		LOG(ERROR, "File ", p_file_name, " does not exist. Nothing to import");
 		return Ref<Image>();
 	}
@@ -320,7 +323,7 @@ Ref<Image> Terrain3DUtil::load_image(const String &p_file_name, const int p_cach
 	Ref<Image> img;
 	LOG(INFO, "Attempting to load: ", p_file_name);
 	String ext = p_file_name.get_extension().to_lower();
-	PackedStringArray imgloader_extensions = PackedStringArray(Array::make("bmp", "dds", "exr", "hdr", "jpg", "jpeg", "png", "tga", "svg", "webp"));
+	PackedStringArray imgloader_extensions = PackedStringArray({"bmp", "dds", "exr", "hdr", "jpg", "jpeg", "png", "tga", "svg", "webp"});
 
 	// If R16 integer format (read/writeable by Krita)
 	if (ext == "r16" || ext == "raw") {

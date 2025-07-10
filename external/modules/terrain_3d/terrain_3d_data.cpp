@@ -327,7 +327,10 @@ void Terrain3DData::save_region(const Vector2i &p_region_loc, const String &p_di
 		LOG(DEBUG, "Removing ", p_region_loc, " from _regions");
 		_regions.erase(p_region_loc);
 		LOG(DEBUG, "File to be deleted: ", path);
-		if (!FileAccess::file_exists(path)) {
+		if (
+			//!FileAccess::file_exists(path)
+			!FileAccess::exists(path)
+		) {
 			LOG(INFO, "File to delete ", path, " doesn't exist. (Maybe from add, undo, save)");
 			return;
 		}
@@ -399,7 +402,10 @@ void Terrain3DData::load_directory(const String &p_dir) {
 void Terrain3DData::load_region(const Vector2i &p_region_loc, const String &p_dir, const bool p_update) {
 	LOG(INFO, "Loading region from location ", p_region_loc);
 	String path = p_dir + String("/") + Util::location_to_filename(p_region_loc);
-	if (!FileAccess::file_exists(path)) {
+		if (
+			//!FileAccess::file_exists(path)
+			!FileAccess::exists(path)
+		) {
 		LOG(ERROR, "File ", path, " doesn't exist");
 		return;
 	}
@@ -498,7 +504,7 @@ void Terrain3DData::update_maps(const MapType p_map_type, const bool p_all_regio
 				region_id += 1; // Begin at 1 since 0 = no region
 				int map_index = get_region_map_index(region_loc);
 				if (map_index >= 0) {
-					_region_map[map_index] = region_id;
+					_region_map.insert(map_index, region_id);
 					_region_locations.push_back(region_loc);
 				}
 			}

@@ -241,7 +241,7 @@ void Terrain3DEditor::_operate_map(const Vector3 &p_global_position, const real_
 						} else if (modifier_alt && !std::isnan(p_global_position.y)) {
 							// Lift troughs
 							real_t brush_center_y = p_global_position.y + brush_alpha * strength;
-							destf = Math::clamp(brush_center_y, srcf, srcf + brush_alpha * strength);
+							destf = CLAMP(brush_center_y, srcf, srcf + brush_alpha * strength);
 						} else {
 							// Raise
 							destf = srcf + (brush_alpha * strength);
@@ -255,7 +255,7 @@ void Terrain3DEditor::_operate_map(const Vector3 &p_global_position, const real_
 						} else if (modifier_alt && !std::isnan(p_global_position.y)) {
 							// Flatten peaks
 							real_t brush_center_y = p_global_position.y - brush_alpha * strength;
-							destf = Math::clamp(brush_center_y, srcf - brush_alpha * strength, srcf);
+							destf = CLAMP(brush_center_y, srcf - brush_alpha * strength, srcf);
 						} else {
 							// Lower
 							destf = srcf - (brush_alpha * strength);
@@ -307,7 +307,7 @@ void Terrain3DEditor::_operate_map(const Vector3 &p_global_position, const real_
 
 							Vector2 dir = point_2_xz - point_1_xz;
 							real_t weight = dir.normalized().dot(brush_xz - point_1_xz) / dir.length();
-							weight = Math::clamp(weight, (real_t)0.0f, (real_t)1.0f);
+							weight = CLAMP(weight, (real_t)0.0f, (real_t)1.0f);
 							real_t height = Math::lerp(point_1.y, point_2.y, weight);
 							destf = Math::lerp(srcf, height, CLAMP(brush_alpha * strength, 0.f, 1.f));
 						}
