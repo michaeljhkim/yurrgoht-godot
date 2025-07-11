@@ -5,10 +5,10 @@
 #include "constants.h"
 
 
-class Terrain3D;
+class TerrainGenerator;
 
-class Terrain3DMesher {
-	CLASS_NAME_STATIC("Terrain3DMesher");
+class TerrainGeneratorMesher {
+	CLASS_NAME_STATIC("TerrainGeneratorMesher");
 
 public: // Constants
 	enum MeshType {
@@ -25,7 +25,7 @@ public: // Constants
 	};
 
 private:
-	Terrain3D *_terrain = nullptr;
+	TerrainGenerator *_terrain = nullptr;
 	Vector2 _last_target_position = V2_MAX;
 
 	Array _mesh_rids;
@@ -57,10 +57,10 @@ private:
 	void _clear_mesh_types();
 
 public:
-	Terrain3DMesher() {}
-	~Terrain3DMesher() { destroy(); }
+	TerrainGeneratorMesher() {}
+	~TerrainGeneratorMesher() { destroy(); }
 
-	void initialize(Terrain3D *p_terrain);
+	void initialize(TerrainGenerator *p_terrain);
 	void destroy();
 
 	void snap();

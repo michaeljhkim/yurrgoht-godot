@@ -17,9 +17,9 @@
 // The inline functions below are not part of the class but are in the namespace, eg bilerp
 // However some of these inline functions are also exposed to GDScript
 
-class Terrain3DUtil : public Object {
-	GDCLASS(Terrain3DUtil, Object);
-	CLASS_NAME_STATIC("Terrain3DUtil");
+class TerrainGeneratorUtil : public Object {
+	GDCLASS(TerrainGeneratorUtil, Object);
+	CLASS_NAME_STATIC("TerrainGeneratorUtil");
 
 public:
 	// Print info to the console
@@ -52,13 +52,13 @@ public:
 			const bool p_normalize_alpha = false,
 			const int p_alpha_channel = 0);
 	static Ref<Image> luminance_to_height(const Ref<Image> &p_src_rgb);
-	static void benchmark(Terrain3D *p_terrain);
+	static void benchmark(TerrainGenerator *p_terrain);
 
 protected:
 	static void _bind_methods();
 };
 
-typedef Terrain3DUtil Util;
+typedef TerrainGeneratorUtil Util;
 
 // Inline Functions
 

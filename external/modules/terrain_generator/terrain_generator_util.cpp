@@ -13,7 +13,7 @@
 // Public Functions
 ///////////////////////////
 
-void Terrain3DUtil::print_arr(const String &p_name, const Array &p_arr, const int p_level) {
+void TerrainGeneratorUtil::print_arr(const String &p_name, const Array &p_arr, const int p_level) {
 	LOG(p_level, "Array[", p_arr.size(), "]: ", p_name);
 	for (int i = 0; i < p_arr.size(); i++) {
 		Variant var = p_arr[i];
@@ -40,7 +40,7 @@ void Terrain3DUtil::print_arr(const String &p_name, const Array &p_arr, const in
 	}
 }
 
-void Terrain3DUtil::print_dict(const String &p_name, const Dictionary &p_dict, const int p_level) {
+void TerrainGeneratorUtil::print_dict(const String &p_name, const Dictionary &p_dict, const int p_level) {
 	LOG(p_level, "Dictionary: ", p_name);
 	Array keys = p_dict.keys();
 	for (int i = 0; i < keys.size(); i++) {
@@ -68,11 +68,11 @@ void Terrain3DUtil::print_dict(const String &p_name, const Dictionary &p_dict, c
 	}
 }
 
-void Terrain3DUtil::dump_gentex(const GeneratedTexture p_gen, const String &p_name, const int p_level) {
+void TerrainGeneratorUtil::dump_gentex(const GeneratedTexture p_gen, const String &p_name, const int p_level) {
 	LOG(p_level, "Generated ", p_name, " RID: ", p_gen.get_rid(), ", dirty: ", p_gen.is_dirty(), ", image: ", p_gen.get_image());
 }
 
-void Terrain3DUtil::dump_maps(const TypedArray<Image> &p_maps, const String &p_name) {
+void TerrainGeneratorUtil::dump_maps(const TypedArray<Image> &p_maps, const String &p_name) {
 	LOG(DEBUG, "Dumping ", p_name, " map array. Size: ", p_maps.size());
 	for (int i = 0; i < p_maps.size(); i++) {
 		Ref<Image> img = p_maps[i];
@@ -80,14 +80,14 @@ void Terrain3DUtil::dump_maps(const TypedArray<Image> &p_maps, const String &p_n
 	}
 }
 
-// Expects a filename in a String like: "terrain3d-01_02.res" which returns (-1, 2)
-Vector2i Terrain3DUtil::filename_to_location(const String &p_filename) {
-	String location_string = p_filename.trim_prefix("terrain3d").trim_suffix(".res");
+// Expects a filename in a String like: "TerrainGenerator-01_02.res" which returns (-1, 2)
+Vector2i TerrainGeneratorUtil::filename_to_location(const String &p_filename) {
+	String location_string = p_filename.trim_prefix("TerrainGenerator").trim_suffix(".res");
 	return string_to_location(location_string);
 }
 
 // Expects a string formatted as: "±##±##" which returns (##,##)
-Vector2i Terrain3DUtil::string_to_location(const String &p_string) {
+Vector2i TerrainGeneratorUtil::string_to_location(const String &p_string) {
 	String x_str = p_string.left(3).replace("_", "");
 	String y_str = p_string.right(3).replace("_", "");
 	if (!x_str.is_valid_int() || !y_str.is_valid_int()) {
@@ -97,13 +97,13 @@ Vector2i Terrain3DUtil::string_to_location(const String &p_string) {
 	return Vector2i(x_str.to_int(), y_str.to_int());
 }
 
-// Expects a v2i(-1,2) and returns terrain3d-01_02.res
-String Terrain3DUtil::location_to_filename(const Vector2i &p_region_loc) {
-	return "terrain3d" + location_to_string(p_region_loc) + ".res";
+// Expects a v2i(-1,2) and returns TerrainGenerator-01_02.res
+String TerrainGeneratorUtil::location_to_filename(const Vector2i &p_region_loc) {
+	return "TerrainGenerator" + location_to_string(p_region_loc) + ".res";
 }
 
 // Expects a v2i(-1,2) and returns -01_02
-String Terrain3DUtil::location_to_string(const Vector2i &p_region_loc) {
+String TerrainGeneratorUtil::location_to_string(const Vector2i &p_region_loc) {
 	const String POS_REGION_FORMAT = "_%02d";
 	const String NEG_REGION_FORMAT = "%03d";
 	String x_str, y_str;
@@ -112,7 +112,7 @@ String Terrain3DUtil::location_to_string(const Vector2i &p_region_loc) {
 	return x_str + y_str;
 }
 
-PackedStringArray Terrain3DUtil::get_files(const String &p_dir, const String &p_glob) {
+PackedStringArray TerrainGeneratorUtil::get_files(const String &p_dir, const String &p_glob) {
 	PackedStringArray files;
 	Ref<DirAccess> da = DirAccess::open(p_dir);
 	if (da.is_null()) {
@@ -131,7 +131,7 @@ PackedStringArray Terrain3DUtil::get_files(const String &p_dir, const String &p_
 	return files;
 }
 
-Ref<Image> Terrain3DUtil::black_to_alpha(const Ref<Image> &p_image) {
+Ref<Image> TerrainGeneratorUtil::black_to_alpha(const Ref<Image> &p_image) {
 	if (p_image.is_null()) {
 		return Ref<Image>();
 	}
@@ -152,7 +152,7 @@ Ref<Image> Terrain3DUtil::black_to_alpha(const Ref<Image> &p_image) {
 /**
  * Returns the minimum and maximum values for a heightmap (red channel only)
  */
-Vector2 Terrain3DUtil::get_min_max(const Ref<Image> &p_image) {
+Vector2 TerrainGeneratorUtil::get_min_max(const Ref<Image> &p_image) {
 	if (p_image.is_null()) {
 		LOG(ERROR, "Provided image is not valid. Nothing to analyze");
 		return Vector2(INFINITY, INFINITY);
@@ -183,7 +183,7 @@ Vector2 Terrain3DUtil::get_min_max(const Ref<Image> &p_image) {
  * Returns a Image of a float heightmap normalized to RGB8 greyscale and scaled
  * Minimum of 8x8
  */
-Ref<Image> Terrain3DUtil::get_thumbnail(const Ref<Image> &p_image, const Vector2i &p_size) {
+Ref<Image> TerrainGeneratorUtil::get_thumbnail(const Ref<Image> &p_image, const Vector2i &p_size) {
 	if (p_image.is_null()) {
 		LOG(ERROR, "Provided image is not valid. Nothing to process");
 		return Ref<Image>();
@@ -235,7 +235,7 @@ Ref<Image> Terrain3DUtil::get_thumbnail(const Ref<Image> &p_image, const Vector2
  * unreliable, offering little control over the output format, choosing automatically and
  * often wrong. We have selected a few compressed formats it gets right.
  */
-Ref<Image> Terrain3DUtil::get_filled_image(const Vector2i &p_size, const Color &p_color,
+Ref<Image> TerrainGeneratorUtil::get_filled_image(const Vector2i &p_size, const Color &p_color,
 		const bool p_create_mipmaps, const Image::Format p_format) {
 	Image::Format format = p_format;
 	if (format < 0 || format >= Image::FORMAT_MAX) {
@@ -307,7 +307,7 @@ Ref<Image> Terrain3DUtil::get_filled_image(const Vector2i &p_size, const Color &
  *	p_height_range - R16 format: x=Min & y=Max value ranges. Required for R16 import
  *	p_size - R16 format: Image dimensions. Default (0,0) auto detects f/ square images. Required f/ non-square R16
  */
-Ref<Image> Terrain3DUtil::load_image(const String &p_file_name, const int p_cache_mode, const Vector2 &p_r16_height_range, const Vector2i &p_r16_size) {
+Ref<Image> TerrainGeneratorUtil::load_image(const String &p_file_name, const int p_cache_mode, const Vector2 &p_r16_height_range, const Vector2i &p_r16_size) {
 	if (p_file_name.is_empty()) {
 		LOG(ERROR, "No file specified. Nothing imported");
 		return Ref<Image>();
@@ -373,7 +373,7 @@ Ref<Image> Terrain3DUtil::load_image(const String &p_file_name, const int p_cach
  * If p_invert_green is true, the destination green channel will be 1.0 - input green channel.
  * If p_invert_alpha is true, the destination alpha channel will be 1.0 - input source channel.
  */
-Ref<Image> Terrain3DUtil::pack_image(const Ref<Image> &p_src_rgb, const Ref<Image> &p_src_a,
+Ref<Image> TerrainGeneratorUtil::pack_image(const Ref<Image> &p_src_rgb, const Ref<Image> &p_src_a,
 		const bool p_invert_green, const bool p_invert_alpha, const bool p_normalize_alpha, const int p_alpha_channel) {
 	if (!p_src_rgb.is_valid() || !p_src_a.is_valid()) {
 		LOG(ERROR, "Provided images are not valid. Cannot pack");
@@ -430,7 +430,7 @@ Ref<Image> Terrain3DUtil::pack_image(const Ref<Image> &p_src_rgb, const Ref<Imag
 }
 
 // From source RGB, create a new L image that is scaled to use full 0 - 1 range.
-Ref<Image> Terrain3DUtil::luminance_to_height(const Ref<Image> &p_src_rgb) {
+Ref<Image> TerrainGeneratorUtil::luminance_to_height(const Ref<Image> &p_src_rgb) {
 	if (!p_src_rgb.is_valid()) {
 		LOG(ERROR, "Provided images are not valid. Cannot pack");
 		return Ref<Image>();
@@ -469,11 +469,11 @@ Ref<Image> Terrain3DUtil::luminance_to_height(const Ref<Image> &p_src_rgb) {
 	return dst;
 }
 
-void Terrain3DUtil::benchmark(Terrain3D *p_terrain) {
+void TerrainGeneratorUtil::benchmark(TerrainGenerator *p_terrain) {
 	if (!p_terrain) {
 		return;
 	}
-	Terrain3DData *data = p_terrain->get_data();
+	TerrainGeneratorData *data = p_terrain->get_data();
 	if (!data) {
 		return;
 	}
@@ -508,37 +508,37 @@ void Terrain3DUtil::benchmark(Terrain3D *p_terrain) {
 // Protected Functions
 ///////////////////////////
 
-void Terrain3DUtil::_bind_methods() {
+void TerrainGeneratorUtil::_bind_methods() {
 	// Control map converters
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("as_float", "value"), &as_float);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("as_uint", "value"), &as_uint);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("get_base", "pixel"), &gd_get_base);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("enc_base", "base"), &gd_enc_base);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("get_overlay", "pixel"), &gd_get_overlay);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("enc_overlay", "overlay"), &gd_enc_overlay);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("get_blend", "pixel"), &gd_get_blend);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("enc_blend", "blend"), &gd_enc_blend);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("get_uv_rotation", "pixel"), &gd_get_uv_rotation);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("enc_uv_rotation", "rotation"), &gd_enc_uv_rotation);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("get_uv_scale", "pixel"), &gd_get_uv_scale);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("enc_uv_scale", "scale"), &gd_enc_uv_scale);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("is_hole", "pixel"), &gd_is_hole);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("enc_hole", "pixel"), &enc_hole);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("is_nav", "pixel"), &gd_is_nav);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("enc_nav", "pixel"), &enc_nav);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("is_auto", "pixel"), &gd_is_auto);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("enc_auto", "pixel"), &enc_auto);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("as_float", "value"), &as_float);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("as_uint", "value"), &as_uint);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("get_base", "pixel"), &gd_get_base);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("enc_base", "base"), &gd_enc_base);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("get_overlay", "pixel"), &gd_get_overlay);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("enc_overlay", "overlay"), &gd_enc_overlay);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("get_blend", "pixel"), &gd_get_blend);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("enc_blend", "blend"), &gd_enc_blend);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("get_uv_rotation", "pixel"), &gd_get_uv_rotation);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("enc_uv_rotation", "rotation"), &gd_enc_uv_rotation);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("get_uv_scale", "pixel"), &gd_get_uv_scale);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("enc_uv_scale", "scale"), &gd_enc_uv_scale);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("is_hole", "pixel"), &gd_is_hole);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("enc_hole", "pixel"), &enc_hole);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("is_nav", "pixel"), &gd_is_nav);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("enc_nav", "pixel"), &enc_nav);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("is_auto", "pixel"), &gd_is_auto);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("enc_auto", "pixel"), &enc_auto);
 
 	// String functions
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("filename_to_location", "filename"), &Terrain3DUtil::filename_to_location);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("location_to_filename", "region_location"), &Terrain3DUtil::location_to_filename);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("filename_to_location", "filename"), &TerrainGeneratorUtil::filename_to_location);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("location_to_filename", "region_location"), &TerrainGeneratorUtil::location_to_filename);
 
 	// Image handling
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("black_to_alpha", "image"), &Terrain3DUtil::black_to_alpha);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("get_min_max", "image"), &Terrain3DUtil::get_min_max);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("get_thumbnail", "image", "size"), &Terrain3DUtil::get_thumbnail, DEFVAL(Vector2i(256, 256)));
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("get_filled_image", "size", "color", "create_mipmaps", "format"), &Terrain3DUtil::get_filled_image);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("load_image", "file_name", "cache_mode", "r16_height_range", "r16_size"), &Terrain3DUtil::load_image, DEFVAL(CoreBind::ResourceLoader::CACHE_MODE_IGNORE), DEFVAL(Vector2(0, 255)), DEFVAL(V2I_ZERO));
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("pack_image", "src_rgb", "src_a", "invert_green", "invert_alpha", "normalize_alpha", "alpha_channel"), &Terrain3DUtil::pack_image, DEFVAL(false), DEFVAL(false), DEFVAL(false), DEFVAL(0));
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("luminance_to_height", "src_rgb"), &Terrain3DUtil::luminance_to_height);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("black_to_alpha", "image"), &TerrainGeneratorUtil::black_to_alpha);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("get_min_max", "image"), &TerrainGeneratorUtil::get_min_max);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("get_thumbnail", "image", "size"), &TerrainGeneratorUtil::get_thumbnail, DEFVAL(Vector2i(256, 256)));
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("get_filled_image", "size", "color", "create_mipmaps", "format"), &TerrainGeneratorUtil::get_filled_image);
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("load_image", "file_name", "cache_mode", "r16_height_range", "r16_size"), &TerrainGeneratorUtil::load_image, DEFVAL(CoreBind::ResourceLoader::CACHE_MODE_IGNORE), DEFVAL(Vector2(0, 255)), DEFVAL(V2I_ZERO));
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("pack_image", "src_rgb", "src_a", "invert_green", "invert_alpha", "normalize_alpha", "alpha_channel"), &TerrainGeneratorUtil::pack_image, DEFVAL(false), DEFVAL(false), DEFVAL(false), DEFVAL(0));
+	ClassDB::bind_static_method("TerrainGeneratorUtil", D_METHOD("luminance_to_height", "src_rgb"), &TerrainGeneratorUtil::luminance_to_height);
 }

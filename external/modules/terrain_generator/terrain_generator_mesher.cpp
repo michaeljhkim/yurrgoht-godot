@@ -12,7 +12,7 @@
 // Private Functions
 ///////////////////////////
 
-void Terrain3DMesher::_generate_mesh_types(const int p_size) {
+void TerrainGeneratorMesher::_generate_mesh_types(const int p_size) {
 	_clear_mesh_types();
 	LOG(INFO, "Generating all Mesh segments for clipmap of size ", p_size);
 	// Create initial set of Mesh blocks to build the clipmap
@@ -39,7 +39,7 @@ void Terrain3DMesher::_generate_mesh_types(const int p_size) {
 	return;
 }
 
-RID Terrain3DMesher::_generate_mesh(const Vector2i &p_size, const bool p_standard_grid) {
+RID TerrainGeneratorMesher::_generate_mesh(const Vector2i &p_size, const bool p_standard_grid) {
 	PackedVector3Array vertices;
 	PackedInt32Array indices;
 	AABB aabb = AABB(V3_ZERO, Vector3(p_size.x, 0.1f, p_size.y));
@@ -84,7 +84,7 @@ RID Terrain3DMesher::_generate_mesh(const Vector2i &p_size, const bool p_standar
 	return _instantiate_mesh(vertices, indices, aabb);
 }
 
-RID Terrain3DMesher::_instantiate_mesh(const PackedVector3Array &p_vertices, const PackedInt32Array &p_indices, const AABB &p_aabb) {
+RID TerrainGeneratorMesher::_instantiate_mesh(const PackedVector3Array &p_vertices, const PackedInt32Array &p_indices, const AABB &p_aabb) {
 	Array arrays;
 	arrays.resize(RenderingServer::ARRAY_MAX);
 	arrays[RenderingServer::ARRAY_VERTEX] = p_vertices;
@@ -101,17 +101,17 @@ RID Terrain3DMesher::_instantiate_mesh(const PackedVector3Array &p_vertices, con
 	arrays[RenderingServer::ARRAY_TANGENT] = tangents;
 
 	LOG(DEBUG, "Creating mesh via the Rendering server");
-	RID mesh = RS->mesh_create();
-	RS->mesh_add_surface_from_arrays(mesh, RenderingServer::PRIMITIVE_TRIANGLES, arrays);
+	RID mesh = RS::get_singleton()->mesh_create();
+	RS::get_singleton()->mesh_add_surface_from_arrays(mesh, RenderingServer::PRIMITIVE_TRIANGLES, arrays);
 
 	LOG(DEBUG, "Setting custom aabb: ", p_aabb.position, ", ", p_aabb.size);
-	RS->mesh_set_custom_aabb(mesh, p_aabb);
-	RS->mesh_surface_set_material(mesh, 0, _terrain->get_material()->get_material_rid());
+	RS::get_singleton()->mesh_set_custom_aabb(mesh, p_aabb);
+	RS::get_singleton()->mesh_surface_set_material(mesh, 0, _terrain->get_material()->get_material_rid());
 
 	return mesh;
 }
 
-void Terrain3DMesher::_generate_clipmap(const int p_size, const int p_lods, const RID &p_scenario) {
+void TerrainGeneratorMesher::_generate_clipmap(const int p_size, const int p_lods, const RID &p_scenario) {
 	_clear_clipmap();
 	_generate_mesh_types(p_size);
 	_generate_offset_data(p_size);
@@ -124,7 +124,7 @@ void Terrain3DMesher::_generate_clipmap(const int p_size, const int p_lods, cons
 		int tile_ammount = (level == 0) ? 16 : 12;
 
 		for (int i = 0; i < tile_ammount; i++) {
-			RID tile_rid = RS->instance_create2(_mesh_rids[level == 0 ? STANDARD_TILE : TILE], p_scenario);
+			RID tile_rid = RS::get_singleton()->instance_create2(_mesh_rids[level == 0 ? STANDARD_TILE : TILE], p_scenario);
 			tile_rids.append(tile_rid);
 		}
 		lod.append(tile_rids); // index 0 TILE
@@ -132,14 +132,14 @@ void Terrain3DMesher::_generate_clipmap(const int p_size, const int p_lods, cons
 		// 4 Edges present on all LODs
 		Array edge_a_rids;
 		for (int i = 0; i < 2; i++) {
-			RID edge_a_rid = RS->instance_create2(_mesh_rids[level == 0 ? STANDARD_EDGE_A : EDGE_A], p_scenario);
+			RID edge_a_rid = RS::get_singleton()->instance_create2(_mesh_rids[level == 0 ? STANDARD_EDGE_A : EDGE_A], p_scenario);
 			edge_a_rids.append(edge_a_rid);
 		}
 		lod.append(edge_a_rids); // index 1 EDGE_A
 
 		Array edge_b_rids;
 		for (int i = 0; i < 2; i++) {
-			RID edge_b_rid = RS->instance_create2(_mesh_rids[level == 0 ? STANDARD_EDGE_B : EDGE_B], p_scenario);
+			RID edge_b_rid = RS::get_singleton()->instance_create2(_mesh_rids[level == 0 ? STANDARD_EDGE_B : EDGE_B], p_scenario);
 			edge_b_rids.append(edge_b_rid);
 		}
 		lod.append(edge_b_rids); // index 2 EDGE_B
@@ -148,14 +148,14 @@ void Terrain3DMesher::_generate_clipmap(const int p_size, const int p_lods, cons
 		if (level > 0) {
 			Array fill_a_rids;
 			for (int i = 0; i < 2; i++) {
-				RID fill_a_rid = RS->instance_create2(_mesh_rids[FILL_A], p_scenario);
+				RID fill_a_rid = RS::get_singleton()->instance_create2(_mesh_rids[FILL_A], p_scenario);
 				fill_a_rids.append(fill_a_rid);
 			}
 			lod.append(fill_a_rids); // index 4 FILL_A
 
 			Array fill_b_rids;
 			for (int i = 0; i < 2; i++) {
-				RID fill_b_rid = RS->instance_create2(_mesh_rids[FILL_B], p_scenario);
+				RID fill_b_rid = RS::get_singleton()->instance_create2(_mesh_rids[FILL_B], p_scenario);
 				fill_b_rids.append(fill_b_rid);
 			}
 			lod.append(fill_b_rids); // index 5 FILL_B
@@ -164,14 +164,14 @@ void Terrain3DMesher::_generate_clipmap(const int p_size, const int p_lods, cons
 		} else {
 			Array trim_a_rids;
 			for (int i = 0; i < 2; i++) {
-				RID trim_a_rid = RS->instance_create2(_mesh_rids[STANDARD_TRIM_A], p_scenario);
+				RID trim_a_rid = RS::get_singleton()->instance_create2(_mesh_rids[STANDARD_TRIM_A], p_scenario);
 				trim_a_rids.append(trim_a_rid);
 			}
 			lod.append(trim_a_rids); // index 4 TRIM_A
 
 			Array trim_b_rids;
 			for (int i = 0; i < 2; i++) {
-				RID trim_b_rid = RS->instance_create2(_mesh_rids[STANDARD_TRIM_B], p_scenario);
+				RID trim_b_rid = RS::get_singleton()->instance_create2(_mesh_rids[STANDARD_TRIM_B], p_scenario);
 				trim_b_rids.append(trim_b_rid);
 			}
 			lod.append(trim_b_rids); // index 5 TRIM_B
@@ -184,7 +184,7 @@ void Terrain3DMesher::_generate_clipmap(const int p_size, const int p_lods, cons
 
 // Precomputes all instance offset data into lookup arrays that match created instances.
 // All meshes are created with 0,0 as their origin and grow along +xz. Offsets account for this.
-void Terrain3DMesher::_generate_offset_data(const int p_size) {
+void TerrainGeneratorMesher::_generate_offset_data(const int p_size) {
 	LOG(INFO, "Computing all clipmap instance positioning offsets");
 	_tile_pos_lod_0.clear();
 	_trim_a_pos.clear();
@@ -251,14 +251,14 @@ void Terrain3DMesher::_generate_offset_data(const int p_size) {
 }
 
 // Frees all clipmap instance RIDs. Mesh rids must be freed seperatley.
-void Terrain3DMesher::_clear_clipmap() {
+void TerrainGeneratorMesher::_clear_clipmap() {
 	LOG(INFO, "Freeing all clipmap instances");
 	for (int lod = 0; lod < _clipmap_rids.size(); lod++) {
 		Array lod_array = _clipmap_rids[lod];
 		for (int mesh = 0; mesh < lod_array.size(); mesh++) {
 			Array mesh_array = lod_array[mesh];
 			for (int instance = 0; instance < mesh_array.size(); instance++) {
-				RS->free(mesh_array[instance]);
+				RS::get_singleton()->free(mesh_array[instance]);
 			}
 			mesh_array.clear();
 		}
@@ -269,10 +269,10 @@ void Terrain3DMesher::_clear_clipmap() {
 }
 
 // Frees all Mesh RIDs use for clipmap instances.
-void Terrain3DMesher::_clear_mesh_types() {
+void TerrainGeneratorMesher::_clear_mesh_types() {
 	LOG(INFO, "Freeing all clipmap meshes");
 	for (int m = 0; m < _mesh_rids.size(); m++) {
-		RS->free(_mesh_rids[m]);
+		RS::get_singleton()->free(_mesh_rids[m]);
 	}
 	_mesh_rids.clear();
 	return;
@@ -282,14 +282,14 @@ void Terrain3DMesher::_clear_mesh_types() {
 // Public Functions
 ///////////////////////////
 
-void Terrain3DMesher::initialize(Terrain3D *p_terrain) {
+void TerrainGeneratorMesher::initialize(TerrainGenerator *p_terrain) {
 	if (p_terrain) {
 		_terrain = p_terrain;
 	} else {
 		return;
 	}
 	if (!_terrain->is_inside_world()) {
-		LOG(DEBUG, "Terrain3D's world3D is null");
+		LOG(DEBUG, "TerrainGenerator's world3D is null");
 		return;
 	}
 	LOG(INFO, "Initializing GeoMesh");
@@ -301,7 +301,7 @@ void Terrain3DMesher::initialize(Terrain3D *p_terrain) {
 	snap();
 }
 
-void Terrain3DMesher::destroy() {
+void TerrainGeneratorMesher::destroy() {
 	LOG(INFO, "Destroying clipmap");
 	_clear_clipmap();
 	_clear_mesh_types();
@@ -313,7 +313,7 @@ void Terrain3DMesher::destroy() {
 	_fill_b_pos.clear();
 }
 
-void Terrain3DMesher::snap() {
+void TerrainGeneratorMesher::snap() {
 	IS_INIT(VOID);
 	// If clipmap target has moved enough, re-center terrain on the target.
 	Vector3 target_pos = _terrain->get_clipmap_target_position();
@@ -325,7 +325,7 @@ void Terrain3DMesher::snap() {
 
 	real_t vertex_spacing = _terrain->get_vertex_spacing();
 	Vector3 snapped_pos = (target_pos / vertex_spacing).floor() * vertex_spacing;
-	RS->material_set_param(_terrain->get_material()->get_material_rid(), "_camera_pos", snapped_pos);
+	RS::get_singleton()->material_set_param(_terrain->get_material()->get_material_rid(), "_camera_pos", snapped_pos);
 
 	Vector3 pos = Vector3(0.f, 0.f, 0.f);
 	for (int lod = 0; lod < _clipmap_rids.size(); ++lod) {
@@ -389,8 +389,9 @@ void Terrain3DMesher::snap() {
 				}
 				t = t.scaled(lod_scale);
 				t.origin += pos;
-				RS->instance_set_transform(mesh_array[instance], t);
-				//RS->instance_reset_physics_interpolation(mesh_array[instance]);
+				RS::get_singleton()->instance_set_transform(mesh_array[instance], t);
+				//RS::get_singleton()->instance_reset_physics_interpolation(mesh_array[instance]);
+				//RS::get_singleton()->instance_teleport(mesh_array[instance]);
 			}
 		}
 	}
@@ -398,10 +399,10 @@ void Terrain3DMesher::snap() {
 }
 
 // Iterates over every instance of every mesh and updates all properties.
-void Terrain3DMesher::update() {
+void TerrainGeneratorMesher::update() {
 	IS_INIT(VOID);
 	if (!_terrain->is_inside_world()) {
-		LOG(DEBUG, "Terrain3D's world3D is null");
+		LOG(DEBUG, "TerrainGenerator's world3D is null");
 		return;
 	}
 	bool baked_light;
@@ -433,12 +434,12 @@ void Terrain3DMesher::update() {
 		for (int mesh = 0; mesh < lod_array.size(); ++mesh) {
 			Array mesh_array = lod_array[mesh];
 			for (int instance = 0; instance < mesh_array.size(); ++instance) {
-				RS->instance_set_visible(mesh_array[instance], visible);
-				RS->instance_set_scenario(mesh_array[instance], scenario);
-				RS->instance_set_layer_mask(mesh_array[instance], render_layers);
-				RS->instance_geometry_set_cast_shadows_setting(mesh_array[instance], cast_shadows);
-				RS->instance_geometry_set_flag(mesh_array[instance], RenderingServer::INSTANCE_FLAG_USE_BAKED_LIGHT, baked_light);
-				RS->instance_geometry_set_flag(mesh_array[instance], RenderingServer::INSTANCE_FLAG_USE_DYNAMIC_GI, dynamic_gi);
+				RS::get_singleton()->instance_set_visible(mesh_array[instance], visible);
+				RS::get_singleton()->instance_set_scenario(mesh_array[instance], scenario);
+				RS::get_singleton()->instance_set_layer_mask(mesh_array[instance], render_layers);
+				RS::get_singleton()->instance_geometry_set_cast_shadows_setting(mesh_array[instance], cast_shadows);
+				RS::get_singleton()->instance_geometry_set_flag(mesh_array[instance], RenderingServer::INSTANCE_FLAG_USE_BAKED_LIGHT, baked_light);
+				RS::get_singleton()->instance_geometry_set_flag(mesh_array[instance], RenderingServer::INSTANCE_FLAG_USE_DYNAMIC_GI, dynamic_gi);
 			}
 		}
 	}
@@ -447,19 +448,19 @@ void Terrain3DMesher::update() {
 
 // Iterates over all meshes and updates their AABBs
 // All instances of each mesh inherit the updated AABB
-void Terrain3DMesher::update_aabbs() {
+void TerrainGeneratorMesher::update_aabbs() {
 	IS_DATA_INIT(VOID);
 	real_t cull_margin = _terrain->get_cull_margin();
 	Vector2 height_range = _terrain->get_data()->get_height_range();
-	height_range.y += abs(height_range.x);
+	height_range.y += Math::abs(height_range.x);
 
 	LOG(INFO, "Updating ", _mesh_rids.size(), " meshes AABBs")
 	for (int m = 0; m < _mesh_rids.size(); m++) {
 		RID mesh = _mesh_rids[m];
-		AABB aabb = RS->mesh_get_custom_aabb(mesh);
+		AABB aabb = RS::get_singleton()->mesh_get_custom_aabb(mesh);
 		aabb.position.y = height_range.x - cull_margin;
 		aabb.size.y = height_range.y + cull_margin * 2.f;
-		RS->mesh_set_custom_aabb(mesh, aabb);
+		RS::get_singleton()->mesh_set_custom_aabb(mesh, aabb);
 	}
 	return;
 }

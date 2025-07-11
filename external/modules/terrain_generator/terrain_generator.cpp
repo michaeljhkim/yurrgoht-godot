@@ -25,19 +25,19 @@
 #include "terrain_generator_util.h"
 
 // Initialize static member variable
-Terrain3D::DebugLevel Terrain3D::debug_level{ ERROR };
+TerrainGenerator::DebugLevel TerrainGenerator::debug_level{ ERROR };
 
 ///////////////////////////
 // Private Functions
 ///////////////////////////
 
-void Terrain3D::_initialize() {
+void TerrainGenerator::_initialize() {
 	LOG(INFO, "Instantiating main subsystems");
 
 	// Make blank objects if needed
 	if (!_data) {
 		LOG(DEBUG, "Creating blank data object");
-		_data = memnew(Terrain3DData);
+		_data = memnew(TerrainGeneratorData);
 	}
 	if (_material.is_null()) {
 		LOG(DEBUG, "Creating blank material");
@@ -49,47 +49,47 @@ void Terrain3D::_initialize() {
 	}
 	if (!_collision) {
 		LOG(DEBUG, "Creating collision manager");
-		_collision = memnew(Terrain3DCollision);
+		_collision = memnew(TerrainGeneratorCollision);
 	}
 	if (!_instancer) {
 		LOG(DEBUG, "Creating instancer");
-		_instancer = memnew(Terrain3DInstancer);
+		_instancer = memnew(TerrainGeneratorInstancer);
 	}
 	if (!_mesher) {
 		LOG(DEBUG, "Creating mesher");
-		_mesher = new Terrain3DMesher();
+		_mesher = new TerrainGeneratorMesher();
 	}
 
 	// Connect signals
 	// Any region was changed, update region labels
-	if (!_data->is_connected("region_map_changed", callable_mp(this, &Terrain3D::update_region_labels))) {
+	if (!_data->is_connected("region_map_changed", callable_mp(this, &TerrainGenerator::update_region_labels))) {
 		LOG(DEBUG, "Connecting _data::region_map_changed signal to set_show_region_locations()");
-		_data->connect("region_map_changed", callable_mp(this, &Terrain3D::update_region_labels));
+		_data->connect("region_map_changed", callable_mp(this, &TerrainGenerator::update_region_labels));
 	}
 	// Any region was changed, regenerate collision if enabled
-	if (!_data->is_connected("region_map_changed", callable_mp(_collision, &Terrain3DCollision::build))) {
+	if (!_data->is_connected("region_map_changed", callable_mp(_collision, &TerrainGeneratorCollision::build))) {
 		LOG(DEBUG, "Connecting _data::region_map_changed signal to build()");
-		_data->connect("region_map_changed", callable_mp(_collision, &Terrain3DCollision::build));
+		_data->connect("region_map_changed", callable_mp(_collision, &TerrainGeneratorCollision::build));
 	}
 	// Any map was regenerated or regions changed, update material
-	if (!_data->is_connected("maps_changed", callable_mp(_material.ptr(), &Terrain3DMaterial::_update_maps))) {
+	if (!_data->is_connected("maps_changed", callable_mp(_material.ptr(), &TerrainGeneratorMaterial::_update_maps))) {
 		LOG(DEBUG, "Connecting _data::maps_changed signal to _material->_update_maps()");
-		_data->connect("maps_changed", callable_mp(_material.ptr(), &Terrain3DMaterial::_update_maps));
+		_data->connect("maps_changed", callable_mp(_material.ptr(), &TerrainGeneratorMaterial::_update_maps));
 	}
 	// Height map was regenerated, update aabbs
-	if (!_data->is_connected("height_maps_changed", callable_mp(this, &Terrain3D::_update_mesher_aabbs))) {
+	if (!_data->is_connected("height_maps_changed", callable_mp(this, &TerrainGenerator::_update_mesher_aabbs))) {
 		LOG(DEBUG, "Connecting _data::height_maps_changed signal to update_aabbs()");
-		_data->connect("height_maps_changed", callable_mp(this, &Terrain3D::_update_mesher_aabbs));
+		_data->connect("height_maps_changed", callable_mp(this, &TerrainGenerator::_update_mesher_aabbs));
 	}
 	// Texture assets changed, update material
-	if (!_assets->is_connected("textures_changed", callable_mp(_material.ptr(), &Terrain3DMaterial::_update_texture_arrays))) {
+	if (!_assets->is_connected("textures_changed", callable_mp(_material.ptr(), &TerrainGeneratorMaterial::_update_texture_arrays))) {
 		LOG(DEBUG, "Connecting _assets.textures_changed to _material->_update_texture_arrays()");
-		_assets->connect("textures_changed", callable_mp(_material.ptr(), &Terrain3DMaterial::_update_texture_arrays));
+		_assets->connect("textures_changed", callable_mp(_material.ptr(), &TerrainGeneratorMaterial::_update_texture_arrays));
 	}
 	// MeshAssets changed, update instancer
-	if (!_assets->is_connected("meshes_changed", callable_mp(_instancer, &Terrain3DInstancer::_update_mmis).bind(V2I_MAX, -1))) {
+	if (!_assets->is_connected("meshes_changed", callable_mp(_instancer, &TerrainGeneratorInstancer::_update_mmis).bind(V2I_MAX, -1))) {
 		LOG(DEBUG, "Connecting _assets.meshes_changed to _instancer->_update_mmis()");
-		_assets->connect("meshes_changed", callable_mp(_instancer, &Terrain3DInstancer::_update_mmis).bind(V2I_MAX, -1));
+		_assets->connect("meshes_changed", callable_mp(_instancer, &TerrainGeneratorInstancer::_update_mmis).bind(V2I_MAX, -1));
 	}
 
 	// Initialize the system
@@ -110,7 +110,7 @@ void Terrain3D::_initialize() {
  * This is a proxy for _process(delta) called by _notification() due to
  * https://github.com/godotengine/godot-cpp/issues/1022
  */
-void Terrain3D::__physics_process(const double p_delta) {
+void TerrainGenerator::__physics_process(const double p_delta) {
 	if (!_initialized)
 		return;
 	if (!_camera.is_valid()) {
@@ -129,7 +129,7 @@ void Terrain3D::__physics_process(const double p_delta) {
  * If running in the editor, grab the first editor viewport camera.
  * The edited_scene_root is excluded in case the user already has a Camera3D in their scene.
  */
-void Terrain3D::_grab_camera() {
+void TerrainGenerator::_grab_camera() {
 	if (IS_EDITOR) {
 		_camera.set_target(EditorInterface::get_singleton()->get_editor_viewport_3d(0)->get_camera_3d());
 		LOG(DEBUG, "Grabbing the first editor viewport camera: ", _camera.get_target());
@@ -143,7 +143,7 @@ void Terrain3D::_grab_camera() {
 	}
 }
 
-void Terrain3D::_build_containers() {
+void TerrainGenerator::_build_containers() {
 	_label_parent = memnew(Node3D);
 	_label_parent->set_name("Labels");
 	add_child(_label_parent, true);
@@ -152,12 +152,12 @@ void Terrain3D::_build_containers() {
 	add_child(_mmi_parent, true);
 }
 
-void Terrain3D::_destroy_containers() {
+void TerrainGenerator::_destroy_containers() {
 	memdelete_safely(_label_parent);
 	memdelete_safely(_mmi_parent);
 }
 
-void Terrain3D::_destroy_labels() {
+void TerrainGenerator::_destroy_labels() {
 	Array labels = _label_parent->get_children();
 	LOG(DEBUG, "Destroying ", labels.size(), " region labels");
 	for (int i = 0; i < labels.size(); i++) {
@@ -166,12 +166,12 @@ void Terrain3D::_destroy_labels() {
 	}
 }
 
-void Terrain3D::_destroy_instancer() {
+void TerrainGenerator::_destroy_instancer() {
 	LOG(INFO, "Destroying Instancer");
 	memdelete_safely(_instancer);
 }
 
-void Terrain3D::_destroy_collision(const bool p_final) {
+void TerrainGenerator::_destroy_collision(const bool p_final) {
 	LOG(INFO, "Destroying Collision");
 	if (_collision) {
 		_collision->destroy();
@@ -181,7 +181,7 @@ void Terrain3D::_destroy_collision(const bool p_final) {
 	}
 }
 
-void Terrain3D::_destroy_mesher(const bool p_final) {
+void TerrainGenerator::_destroy_mesher(const bool p_final) {
 	LOG(INFO, "Destroying GeoMesh");
 	if (_mesher) {
 		_mesher->destroy();
@@ -192,7 +192,7 @@ void Terrain3D::_destroy_mesher(const bool p_final) {
 	}
 }
 
-void Terrain3D::_setup_mouse_picking() {
+void TerrainGenerator::_setup_mouse_picking() {
 	if (!is_inside_tree()) {
 		LOG(ERROR, "Not inside the tree, skipping mouse setup");
 		return;
@@ -251,7 +251,7 @@ void Terrain3D::_setup_mouse_picking() {
 	set_mouse_layer(_mouse_layer);
 }
 
-void Terrain3D::_destroy_mouse_picking() {
+void TerrainGenerator::_destroy_mouse_picking() {
 	LOG(DEBUG, "Freeing mouse_quad");
 	memdelete_safely(_mouse_quad);
 	LOG(DEBUG, "Freeing mouse_cam");
@@ -260,8 +260,8 @@ void Terrain3D::_destroy_mouse_picking() {
 	memdelete_safely(_mouse_vp);
 }
 
-void Terrain3D::_generate_triangles(PackedVector3Array &p_vertices, PackedVector2Array *p_uvs, const int32_t p_lod,
-		const Terrain3DData::HeightFilter p_filter, const bool p_require_nav, const AABB &p_global_aabb) const {
+void TerrainGenerator::_generate_triangles(PackedVector3Array &p_vertices, PackedVector2Array *p_uvs, const int32_t p_lod,
+		const TerrainGeneratorData::HeightFilter p_filter, const bool p_require_nav, const AABB &p_global_aabb) const {
 	ERR_FAIL_COND(_data == nullptr);
 	int32_t step = 1 << CLAMP(p_lod, 0, 8);
 
@@ -305,8 +305,8 @@ void Terrain3D::_generate_triangles(PackedVector3Array &p_vertices, PackedVector
 // p_vertices is assumed to exist and the destination for data
 // p_uvs might not exist, so a pointer is fine
 // p_require_nav is false for the runtime baker, which ignores navigation
-void Terrain3D::_generate_triangle_pair(PackedVector3Array &p_vertices, PackedVector2Array *p_uvs,
-		const int32_t p_lod, const Terrain3DData::HeightFilter p_filter, const bool p_require_nav,
+void TerrainGenerator::_generate_triangle_pair(PackedVector3Array &p_vertices, PackedVector2Array *p_uvs,
+		const int32_t p_lod, const TerrainGeneratorData::HeightFilter p_filter, const bool p_require_nav,
 		const int32_t x, const int32_t z) const {
 	int32_t step = 1 << CLAMP(p_lod, 0, 8);
 	Vector3 xz = Vector3(x, 0.0f, z) * _vertex_spacing;
@@ -354,9 +354,9 @@ void Terrain3D::_generate_triangle_pair(PackedVector3Array &p_vertices, PackedVe
 	bool hole4 = ctrl4 != UINT32_MAX && is_hole(ctrl4);
 	// Navigation is where the control map is valid and the bit is set, or it's the region edge and nav1 is set
 	bool nav1 = ctrl1 != UINT32_MAX && is_nav(ctrl1);
-	bool nav2 = ctrl2 != UINT32_MAX && is_nav(ctrl2) || nan2 && nav1;
-	bool nav3 = ctrl3 != UINT32_MAX && is_nav(ctrl3) || nan3 && nav1;
-	bool nav4 = ctrl4 != UINT32_MAX && is_nav(ctrl4) || nan4 && nav1;
+	bool nav2 = ctrl2 != (UINT32_MAX && is_nav(ctrl2)) || (nan2 && nav1);
+	bool nav3 = ctrl3 != (UINT32_MAX && is_nav(ctrl3)) || (nan3 && nav1);
+	bool nav4 = ctrl4 != (UINT32_MAX && is_nav(ctrl4)) || (nan4 && nav1);
 	//Bottom 143 triangle
 	if (!(hole1 || hole4 || hole3) && (!p_require_nav || (nav1 && nav4 && nav3))) {
 		p_vertices.push_back(v1);
@@ -385,12 +385,12 @@ void Terrain3D::_generate_triangle_pair(PackedVector3Array &p_vertices, PackedVe
 // Public Functions
 ///////////////////////////
 
-Terrain3D::Terrain3D() {
+TerrainGenerator::TerrainGenerator() {
 	// Process the command line
 	PackedStringArray args = CoreBind::OS::get_singleton()->get_cmdline_args();
 	for (int i = args.size() - 1; i >= 0; i--) {
 		String arg = args[i];
-		if (arg.begins_with("--terrain3d-debug=")) {
+		if (arg.begins_with("--TerrainGenerator-debug=")) {
 			String value = arg.rsplit("=")[1];
 			if (value == "ERROR") {
 				set_debug_level(ERROR);
@@ -405,15 +405,15 @@ Terrain3D::Terrain3D() {
 	}
 }
 
-void Terrain3D::set_debug_level(const DebugLevel p_level) {
+void TerrainGenerator::set_debug_level(const DebugLevel p_level) {
 	LOG(INFO, "Setting debug level: ", p_level);
 	debug_level = CLAMP(p_level, ERROR, EXTREME);
 }
 
-void Terrain3D::set_data_directory(String p_dir) {
+void TerrainGenerator::set_data_directory(String p_dir) {
 	LOG(INFO, "Setting data directory to ", p_dir);
 	if (_data_directory != p_dir) {
-		if (_data_directory.is_empty() && Util::get_files(p_dir, "terrain3d*.res").size() == 0) {
+		if (_data_directory.is_empty() && Util::get_files(p_dir, "TerrainGenerator*.res").size() == 0) {
 			// If _data_directory was empty and now specified, and has no data
 			// assume we want to retain the current data
 			_data_directory = p_dir;
@@ -431,7 +431,7 @@ void Terrain3D::set_data_directory(String p_dir) {
 	update_configuration_warnings();
 }
 
-void Terrain3D::set_material(const Ref<Terrain3DMaterial> &p_material) {
+void TerrainGenerator::set_material(const Ref<TerrainGeneratorMaterial> &p_material) {
 	if (_material != p_material) {
 		_initialized = false;
 		LOG(INFO, "Setting material");
@@ -441,7 +441,7 @@ void Terrain3D::set_material(const Ref<Terrain3DMaterial> &p_material) {
 	}
 }
 
-void Terrain3D::set_assets(const Ref<Terrain3DAssets> &p_assets) {
+void TerrainGenerator::set_assets(const Ref<TerrainGeneratorAssets> &p_assets) {
 	if (_assets != p_assets) {
 		_initialized = false;
 		LOG(INFO, "Setting asset list");
@@ -451,19 +451,19 @@ void Terrain3D::set_assets(const Ref<Terrain3DAssets> &p_assets) {
 	}
 }
 
-void Terrain3D::set_editor(Terrain3DEditor *p_editor) {
+void TerrainGenerator::set_editor(TerrainGeneratorEditor *p_editor) {
 	if (p_editor && p_editor->is_queued_for_deletion()) {
 		LOG(ERROR, "Attempted to set a node queued for deletion");
 		return;
 	}
-	LOG(INFO, "Set Terrain3DEditor: ", p_editor);
+	LOG(INFO, "Set TerrainGeneratorEditor: ", p_editor);
 	_editor = p_editor;
 	if (_material.is_valid()) {
 		_material->update();
 	}
 }
 
-void Terrain3D::set_plugin(EditorPlugin *p_plugin) {
+void TerrainGenerator::set_plugin(EditorPlugin *p_plugin) {
 	if (p_plugin && p_plugin->is_queued_for_deletion()) {
 		LOG(ERROR, "Attempted to set a node queued for deletion");
 		return;
@@ -472,7 +472,7 @@ void Terrain3D::set_plugin(EditorPlugin *p_plugin) {
 	_plugin = p_plugin;
 }
 
-void Terrain3D::set_clipmap_target(Node3D *p_node) {
+void TerrainGenerator::set_clipmap_target(Node3D *p_node) {
 	if (p_node && p_node->is_queued_for_deletion()) {
 		LOG(ERROR, "Attempted to set a node queued for deletion");
 		_clipmap_target.clear();
@@ -483,7 +483,7 @@ void Terrain3D::set_clipmap_target(Node3D *p_node) {
 	set_physics_process(true);
 }
 
-Vector3 Terrain3D::get_clipmap_target_position() const {
+Vector3 TerrainGenerator::get_clipmap_target_position() const {
 	if (!IS_EDITOR && _clipmap_target.is_inside_tree()) {
 		return _clipmap_target.ptr()->get_global_position();
 	}
@@ -493,7 +493,7 @@ Vector3 Terrain3D::get_clipmap_target_position() const {
 	return V3_ZERO;
 }
 
-void Terrain3D::set_collision_target(Node3D *p_node) {
+void TerrainGenerator::set_collision_target(Node3D *p_node) {
 	if (p_node && p_node->is_queued_for_deletion()) {
 		LOG(ERROR, "Attempted to set a node queued for deletion");
 		_collision_target.clear();
@@ -503,14 +503,14 @@ void Terrain3D::set_collision_target(Node3D *p_node) {
 	_collision_target.set_target(p_node);
 }
 
-Vector3 Terrain3D::get_collision_target_position() const {
+Vector3 TerrainGenerator::get_collision_target_position() const {
 	if (!IS_EDITOR && _collision_target.is_inside_tree()) {
 		return _collision_target.ptr()->get_global_position();
 	}
 	return get_clipmap_target_position();
 }
 
-void Terrain3D::set_camera(Camera3D *p_camera) {
+void TerrainGenerator::set_camera(Camera3D *p_camera) {
 	if (p_camera && p_camera->is_queued_for_deletion()) {
 		LOG(ERROR, "Attempted to set a node queued for deletion");
 		_camera.clear();
@@ -521,7 +521,7 @@ void Terrain3D::set_camera(Camera3D *p_camera) {
 	set_physics_process(true);
 }
 
-void Terrain3D::set_region_size(const RegionSize p_size) {
+void TerrainGenerator::set_region_size(const RegionSize p_size) {
 	LOG(INFO, "Setting region size: ", p_size);
 	ERR_FAIL_COND(p_size < SIZE_64);
 	ERR_FAIL_COND(p_size > SIZE_2048);
@@ -535,12 +535,12 @@ void Terrain3D::set_region_size(const RegionSize p_size) {
 	}
 }
 
-void Terrain3D::set_save_16_bit(const bool p_enabled) {
+void TerrainGenerator::set_save_16_bit(const bool p_enabled) {
 	LOG(INFO, p_enabled);
 	_save_16_bit = p_enabled;
 }
 
-void Terrain3D::set_label_distance(const real_t p_distance) {
+void TerrainGenerator::set_label_distance(const real_t p_distance) {
 	real_t distance = CLAMP(p_distance, 0.f, 100000.f);
 	LOG(INFO, "Setting region label distance: ", distance);
 	if (_label_distance != distance) {
@@ -549,7 +549,7 @@ void Terrain3D::set_label_distance(const real_t p_distance) {
 	}
 }
 
-void Terrain3D::set_label_size(const int p_size) {
+void TerrainGenerator::set_label_size(const int p_size) {
 	int size = CLAMP(p_size, 24, 128);
 	LOG(INFO, "Setting region label size: ", size);
 	if (_label_size != size) {
@@ -558,7 +558,7 @@ void Terrain3D::set_label_size(const int p_size) {
 	}
 }
 
-void Terrain3D::update_region_labels() {
+void TerrainGenerator::update_region_labels() {
 	_destroy_labels();
 	if (_label_distance > 0.f && _data) {
 		Array region_locations = _data->get_region_locations();
@@ -590,7 +590,7 @@ void Terrain3D::update_region_labels() {
 	}
 }
 
-void Terrain3D::set_mesh_lods(const int p_count) {
+void TerrainGenerator::set_mesh_lods(const int p_count) {
 	if (_mesh_lods != p_count) {
 		LOG(INFO, "Setting mesh levels: ", p_count);
 		_mesh_lods = p_count;
@@ -600,7 +600,7 @@ void Terrain3D::set_mesh_lods(const int p_count) {
 	}
 }
 
-void Terrain3D::set_mesh_size(const int p_size) {
+void TerrainGenerator::set_mesh_size(const int p_size) {
 	if (_mesh_size != p_size) {
 		LOG(INFO, "Setting mesh size: ", p_size);
 		_mesh_size = p_size;
@@ -611,7 +611,7 @@ void Terrain3D::set_mesh_size(const int p_size) {
 	}
 }
 
-void Terrain3D::set_vertex_spacing(const real_t p_spacing) {
+void TerrainGenerator::set_vertex_spacing(const real_t p_spacing) {
 	real_t spacing = CLAMP(p_spacing, 0.25f, 100.0f);
 	if (_vertex_spacing != spacing) {
 		_vertex_spacing = spacing;
@@ -631,7 +631,7 @@ void Terrain3D::set_vertex_spacing(const real_t p_spacing) {
 	}
 }
 
-void Terrain3D::set_render_layers(const uint32_t p_layers) {
+void TerrainGenerator::set_render_layers(const uint32_t p_layers) {
 	LOG(INFO, "Setting terrain render layers to: ", p_layers);
 	_render_layers = p_layers;
 	if (_mesher) {
@@ -639,7 +639,7 @@ void Terrain3D::set_render_layers(const uint32_t p_layers) {
 	}
 }
 
-void Terrain3D::set_mouse_layer(const uint32_t p_layer) {
+void TerrainGenerator::set_mouse_layer(const uint32_t p_layer) {
 	uint32_t layer = CLAMP(p_layer, 21, 32);
 	_mouse_layer = layer;
 	uint32_t mouse_mask = 1 << (_mouse_layer - 1);
@@ -662,21 +662,21 @@ void Terrain3D::set_mouse_layer(const uint32_t p_layer) {
 	}
 }
 
-void Terrain3D::set_cast_shadows(const RenderingServer::ShadowCastingSetting p_cast_shadows) {
+void TerrainGenerator::set_cast_shadows(const RenderingServer::ShadowCastingSetting p_cast_shadows) {
 	_cast_shadows = p_cast_shadows;
 	if (_mesher) {
 		_mesher->update();
 	}
 }
 
-void Terrain3D::set_gi_mode(const GeometryInstance3D::GIMode p_gi_mode) {
+void TerrainGenerator::set_gi_mode(const GeometryInstance3D::GIMode p_gi_mode) {
 	_gi_mode = p_gi_mode;
 	if (_mesher) {
 		_mesher->update();
 	}
 }
 
-void Terrain3D::set_cull_margin(const real_t p_margin) {
+void TerrainGenerator::set_cull_margin(const real_t p_margin) {
 	LOG(INFO, "Setting extra cull margin: ", p_margin);
 	_cull_margin = p_margin;
 	if (_mesher) {
@@ -690,7 +690,7 @@ void Terrain3D::set_cull_margin(const real_t p_margin) {
  *  p_gpu_mode - false: use raymarching, true: use GPU mode
  * Returns Vec3(NAN) on error or vec3(3.402823466e+38F) on no intersection. Test w/ if (var.x < 3.4e38)
  */
-Vector3 Terrain3D::get_intersection(const Vector3 &p_src_pos, const Vector3 &p_direction, const bool p_gpu_mode) {
+Vector3 TerrainGenerator::get_intersection(const Vector3 &p_src_pos, const Vector3 &p_direction, const bool p_gpu_mode) {
 	if (!_mouse_cam) {
 		LOG(ERROR, "Invalid mouse camera");
 		return Vector3(NAN, NAN, NAN);
@@ -766,7 +766,7 @@ Vector3 Terrain3D::get_intersection(const Vector3 &p_src_pos, const Vector3 &p_d
  *	p_src_pos (ray start position)
  *	p_direction (ray direction * magnitude)
  */
-Dictionary Terrain3D::get_raycast_result(const Vector3 &p_src_pos, const Vector3 &p_destination, const bool p_exclude_self) const {
+Dictionary TerrainGenerator::get_raycast_result(const Vector3 &p_src_pos, const Vector3 &p_destination, const bool p_exclude_self) const {
 	if (!_is_inside_world) {
 		return Dictionary();
 	}
@@ -788,7 +788,7 @@ Dictionary Terrain3D::get_raycast_result(const Vector3 &p_src_pos, const Vector3
  *   This takes longer than ..._NEAREST, but can be used to create occluders, since it can guarantee the
  *   generated mesh will not extend above or outside the clipmap at any LOD.
  */
-Ref<Mesh> Terrain3D::bake_mesh(const int p_lod, const Terrain3DData::HeightFilter p_filter) const {
+Ref<Mesh> TerrainGenerator::bake_mesh(const int p_lod, const TerrainGeneratorData::HeightFilter p_filter) const {
 	LOG(INFO, "Baking mesh at lod: ", p_lod, " with filter: ", p_filter);
 	Ref<Mesh> result;
 	ERR_FAIL_COND_V(_data == nullptr, result);
@@ -824,14 +824,14 @@ Ref<Mesh> Terrain3D::bake_mesh(const int p_lod, const Terrain3DData::HeightFilte
  *  Otherwise, geometry is generated for the entire terrain within the AABB (which can be useful for
  *  dynamic and/or runtime nav mesh baking).
  */
-PackedVector3Array Terrain3D::generate_nav_mesh_source_geometry(const AABB &p_global_aabb, const bool p_require_nav) const {
+PackedVector3Array TerrainGenerator::generate_nav_mesh_source_geometry(const AABB &p_global_aabb, const bool p_require_nav) const {
 	LOG(INFO, "Generating NavMesh source geometry from terrain");
 	PackedVector3Array faces;
-	_generate_triangles(faces, nullptr, 0, Terrain3DData::HEIGHT_FILTER_NEAREST, p_require_nav, p_global_aabb);
+	_generate_triangles(faces, nullptr, 0, TerrainGeneratorData::HEIGHT_FILTER_NEAREST, p_require_nav, p_global_aabb);
 	return faces;
 }
 
-void Terrain3D::set_warning(const uint8_t p_warning, const bool p_enabled) {
+void TerrainGenerator::set_warning(const uint8_t p_warning, const bool p_enabled) {
 	if (p_enabled) {
 		_warnings |= p_warning;
 	} else {
@@ -840,7 +840,7 @@ void Terrain3D::set_warning(const uint8_t p_warning, const bool p_enabled) {
 	update_configuration_warnings();
 }
 
-PackedStringArray Terrain3D::_get_configuration_warnings() const {
+PackedStringArray TerrainGenerator::_get_configuration_warnings() const {
 	PackedStringArray psa;
 	if (_data_directory.is_empty()) {
 		psa.push_back("No data directory specified. Select a directory then save the scene to write data.");
@@ -863,7 +863,7 @@ PackedStringArray Terrain3D::_get_configuration_warnings() const {
 
 // Notifications are defined in individual classes: Object, Node, Node3D
 // Listed below in order of operation
-void Terrain3D::_notification(const int p_what) {
+void TerrainGenerator::_notification(const int p_what) {
 	switch (p_what) {
 			/// Startup notifications
 
@@ -893,7 +893,7 @@ void Terrain3D::_notification(const int p_what) {
 			set_notify_transform(true);
 			set_meta("_edit_lock_", true);
 			_setup_mouse_picking();
-			if (_free_editor_textures && !IS_EDITOR && _assets.is_valid() && !_assets->get_path().contains("Terrain3DAssets")) {
+			if (_free_editor_textures && !IS_EDITOR && _assets.is_valid() && !_assets->get_path().contains("TerrainGeneratorAssets")) {
 				LOG(INFO, "free_editor_textures enabled, reloading Assets path: ", _assets->get_path());
 				_assets = CoreBind::ResourceLoader::get_singleton()->load(_assets->get_path(), "", CoreBind::ResourceLoader::CACHE_MODE_IGNORE);
 			}
@@ -906,7 +906,7 @@ void Terrain3D::_notification(const int p_what) {
 			// Node is ready
 			LOG(INFO, "NOTIFICATION_READY");
 			if (_free_editor_textures && !IS_EDITOR && _assets.is_valid()) {
-				if (_assets->get_path().contains("Terrain3DAssets")) {
+				if (_assets->get_path().contains("TerrainGeneratorAssets")) {
 					LOG(WARN, "free_editor_textures requires `Assets` be saved to a file. Do so, or disable the former to turn off this warning");
 				} else {
 					LOG(INFO, "free_editor_textures enabled, clearing texture assets");
@@ -1028,7 +1028,7 @@ void Terrain3D::_notification(const int p_what) {
 	}
 }
 
-void Terrain3D::_bind_methods() {
+void TerrainGenerator::_bind_methods() {
 	BIND_ENUM_CONSTANT(ERROR);
 	BIND_ENUM_CONSTANT(INFO);
 	BIND_ENUM_CONSTANT(DEBUG);
@@ -1041,142 +1041,142 @@ void Terrain3D::_bind_methods() {
 	BIND_ENUM_CONSTANT(SIZE_1024);
 	BIND_ENUM_CONSTANT(SIZE_2048);
 
-	ClassDB::bind_method(D_METHOD("get_version"), &Terrain3D::get_version);
-	ClassDB::bind_method(D_METHOD("set_debug_level", "level"), &Terrain3D::set_debug_level);
-	ClassDB::bind_method(D_METHOD("get_debug_level"), &Terrain3D::get_debug_level);
-	ClassDB::bind_method(D_METHOD("set_data_directory", "directory"), &Terrain3D::set_data_directory);
-	ClassDB::bind_method(D_METHOD("get_data_directory"), &Terrain3D::get_data_directory);
+	ClassDB::bind_method(D_METHOD("get_version"), &TerrainGenerator::get_version);
+	ClassDB::bind_method(D_METHOD("set_debug_level", "level"), &TerrainGenerator::set_debug_level);
+	ClassDB::bind_method(D_METHOD("get_debug_level"), &TerrainGenerator::get_debug_level);
+	ClassDB::bind_method(D_METHOD("set_data_directory", "directory"), &TerrainGenerator::set_data_directory);
+	ClassDB::bind_method(D_METHOD("get_data_directory"), &TerrainGenerator::get_data_directory);
 
 	// Object references
-	ClassDB::bind_method(D_METHOD("get_data"), &Terrain3D::get_data);
-	ClassDB::bind_method(D_METHOD("set_material", "material"), &Terrain3D::set_material);
-	ClassDB::bind_method(D_METHOD("get_material"), &Terrain3D::get_material);
-	ClassDB::bind_method(D_METHOD("set_assets", "assets"), &Terrain3D::set_assets);
-	ClassDB::bind_method(D_METHOD("get_assets"), &Terrain3D::get_assets);
-	ClassDB::bind_method(D_METHOD("get_collision"), &Terrain3D::get_collision);
-	ClassDB::bind_method(D_METHOD("get_instancer"), &Terrain3D::get_instancer);
-	ClassDB::bind_method(D_METHOD("set_editor", "editor"), &Terrain3D::set_editor);
-	ClassDB::bind_method(D_METHOD("get_editor"), &Terrain3D::get_editor);
-	ClassDB::bind_method(D_METHOD("set_plugin", "plugin"), &Terrain3D::set_plugin);
-	ClassDB::bind_method(D_METHOD("get_plugin"), &Terrain3D::get_plugin);
+	ClassDB::bind_method(D_METHOD("get_data"), &TerrainGenerator::get_data);
+	ClassDB::bind_method(D_METHOD("set_material", "material"), &TerrainGenerator::set_material);
+	ClassDB::bind_method(D_METHOD("get_material"), &TerrainGenerator::get_material);
+	ClassDB::bind_method(D_METHOD("set_assets", "assets"), &TerrainGenerator::set_assets);
+	ClassDB::bind_method(D_METHOD("get_assets"), &TerrainGenerator::get_assets);
+	ClassDB::bind_method(D_METHOD("get_collision"), &TerrainGenerator::get_collision);
+	ClassDB::bind_method(D_METHOD("get_instancer"), &TerrainGenerator::get_instancer);
+	ClassDB::bind_method(D_METHOD("set_editor", "editor"), &TerrainGenerator::set_editor);
+	ClassDB::bind_method(D_METHOD("get_editor"), &TerrainGenerator::get_editor);
+	ClassDB::bind_method(D_METHOD("set_plugin", "plugin"), &TerrainGenerator::set_plugin);
+	ClassDB::bind_method(D_METHOD("get_plugin"), &TerrainGenerator::get_plugin);
 
 	// Target Tracking
-	ClassDB::bind_method(D_METHOD("set_camera", "camera"), &Terrain3D::set_camera);
-	ClassDB::bind_method(D_METHOD("get_camera"), &Terrain3D::get_camera);
-	ClassDB::bind_method(D_METHOD("set_clipmap_target", "node"), &Terrain3D::set_clipmap_target);
-	ClassDB::bind_method(D_METHOD("get_clipmap_target"), &Terrain3D::get_clipmap_target);
-	ClassDB::bind_method(D_METHOD("get_clipmap_target_position"), &Terrain3D::get_clipmap_target_position);
-	ClassDB::bind_method(D_METHOD("set_collision_target", "node"), &Terrain3D::set_collision_target);
-	ClassDB::bind_method(D_METHOD("get_collision_target"), &Terrain3D::get_collision_target);
-	ClassDB::bind_method(D_METHOD("get_collision_target_position"), &Terrain3D::get_collision_target_position);
+	ClassDB::bind_method(D_METHOD("set_camera", "camera"), &TerrainGenerator::set_camera);
+	ClassDB::bind_method(D_METHOD("get_camera"), &TerrainGenerator::get_camera);
+	ClassDB::bind_method(D_METHOD("set_clipmap_target", "node"), &TerrainGenerator::set_clipmap_target);
+	ClassDB::bind_method(D_METHOD("get_clipmap_target"), &TerrainGenerator::get_clipmap_target);
+	ClassDB::bind_method(D_METHOD("get_clipmap_target_position"), &TerrainGenerator::get_clipmap_target_position);
+	ClassDB::bind_method(D_METHOD("set_collision_target", "node"), &TerrainGenerator::set_collision_target);
+	ClassDB::bind_method(D_METHOD("get_collision_target"), &TerrainGenerator::get_collision_target);
+	ClassDB::bind_method(D_METHOD("get_collision_target_position"), &TerrainGenerator::get_collision_target_position);
 
 	// Regions
-	ClassDB::bind_method(D_METHOD("change_region_size", "size"), &Terrain3D::change_region_size);
-	ClassDB::bind_method(D_METHOD("get_region_size"), &Terrain3D::get_region_size);
-	ClassDB::bind_method(D_METHOD("set_save_16_bit", "enabled"), &Terrain3D::set_save_16_bit);
-	ClassDB::bind_method(D_METHOD("get_save_16_bit"), &Terrain3D::get_save_16_bit);
-	ClassDB::bind_method(D_METHOD("set_label_distance", "distance"), &Terrain3D::set_label_distance);
-	ClassDB::bind_method(D_METHOD("get_label_distance"), &Terrain3D::get_label_distance);
-	ClassDB::bind_method(D_METHOD("set_label_size", "size"), &Terrain3D::set_label_size);
-	ClassDB::bind_method(D_METHOD("get_label_size"), &Terrain3D::get_label_size);
+	ClassDB::bind_method(D_METHOD("change_region_size", "size"), &TerrainGenerator::change_region_size);
+	ClassDB::bind_method(D_METHOD("get_region_size"), &TerrainGenerator::get_region_size);
+	ClassDB::bind_method(D_METHOD("set_save_16_bit", "enabled"), &TerrainGenerator::set_save_16_bit);
+	ClassDB::bind_method(D_METHOD("get_save_16_bit"), &TerrainGenerator::get_save_16_bit);
+	ClassDB::bind_method(D_METHOD("set_label_distance", "distance"), &TerrainGenerator::set_label_distance);
+	ClassDB::bind_method(D_METHOD("get_label_distance"), &TerrainGenerator::get_label_distance);
+	ClassDB::bind_method(D_METHOD("set_label_size", "size"), &TerrainGenerator::set_label_size);
+	ClassDB::bind_method(D_METHOD("get_label_size"), &TerrainGenerator::get_label_size);
 
 	// Collision
-	ClassDB::bind_method(D_METHOD("set_collision_mode", "mode"), &Terrain3D::set_collision_mode);
-	ClassDB::bind_method(D_METHOD("get_collision_mode"), &Terrain3D::get_collision_mode);
-	ClassDB::bind_method(D_METHOD("set_collision_shape_size", "size"), &Terrain3D::set_collision_shape_size);
-	ClassDB::bind_method(D_METHOD("get_collision_shape_size"), &Terrain3D::get_collision_shape_size);
-	ClassDB::bind_method(D_METHOD("set_collision_radius", "radius"), &Terrain3D::set_collision_radius);
-	ClassDB::bind_method(D_METHOD("get_collision_radius"), &Terrain3D::get_collision_radius);
-	ClassDB::bind_method(D_METHOD("set_collision_layer", "layers"), &Terrain3D::set_collision_layer);
-	ClassDB::bind_method(D_METHOD("get_collision_layer"), &Terrain3D::get_collision_layer);
-	ClassDB::bind_method(D_METHOD("set_collision_mask", "mask"), &Terrain3D::set_collision_mask);
-	ClassDB::bind_method(D_METHOD("get_collision_mask"), &Terrain3D::get_collision_mask);
-	ClassDB::bind_method(D_METHOD("set_collision_priority", "priority"), &Terrain3D::set_collision_priority);
-	ClassDB::bind_method(D_METHOD("get_collision_priority"), &Terrain3D::get_collision_priority);
-	ClassDB::bind_method(D_METHOD("set_physics_material", "material"), &Terrain3D::set_physics_material);
-	ClassDB::bind_method(D_METHOD("get_physics_material"), &Terrain3D::get_physics_material);
+	ClassDB::bind_method(D_METHOD("set_collision_mode", "mode"), &TerrainGenerator::set_collision_mode);
+	ClassDB::bind_method(D_METHOD("get_collision_mode"), &TerrainGenerator::get_collision_mode);
+	ClassDB::bind_method(D_METHOD("set_collision_shape_size", "size"), &TerrainGenerator::set_collision_shape_size);
+	ClassDB::bind_method(D_METHOD("get_collision_shape_size"), &TerrainGenerator::get_collision_shape_size);
+	ClassDB::bind_method(D_METHOD("set_collision_radius", "radius"), &TerrainGenerator::set_collision_radius);
+	ClassDB::bind_method(D_METHOD("get_collision_radius"), &TerrainGenerator::get_collision_radius);
+	ClassDB::bind_method(D_METHOD("set_collision_layer", "layers"), &TerrainGenerator::set_collision_layer);
+	ClassDB::bind_method(D_METHOD("get_collision_layer"), &TerrainGenerator::get_collision_layer);
+	ClassDB::bind_method(D_METHOD("set_collision_mask", "mask"), &TerrainGenerator::set_collision_mask);
+	ClassDB::bind_method(D_METHOD("get_collision_mask"), &TerrainGenerator::get_collision_mask);
+	ClassDB::bind_method(D_METHOD("set_collision_priority", "priority"), &TerrainGenerator::set_collision_priority);
+	ClassDB::bind_method(D_METHOD("get_collision_priority"), &TerrainGenerator::get_collision_priority);
+	ClassDB::bind_method(D_METHOD("set_physics_material", "material"), &TerrainGenerator::set_physics_material);
+	ClassDB::bind_method(D_METHOD("get_physics_material"), &TerrainGenerator::get_physics_material);
 
 	// Meshes
-	ClassDB::bind_method(D_METHOD("set_mesh_lods", "count"), &Terrain3D::set_mesh_lods);
-	ClassDB::bind_method(D_METHOD("get_mesh_lods"), &Terrain3D::get_mesh_lods);
-	ClassDB::bind_method(D_METHOD("set_mesh_size", "size"), &Terrain3D::set_mesh_size);
-	ClassDB::bind_method(D_METHOD("get_mesh_size"), &Terrain3D::get_mesh_size);
-	ClassDB::bind_method(D_METHOD("set_vertex_spacing", "scale"), &Terrain3D::set_vertex_spacing);
-	ClassDB::bind_method(D_METHOD("get_vertex_spacing"), &Terrain3D::get_vertex_spacing);
+	ClassDB::bind_method(D_METHOD("set_mesh_lods", "count"), &TerrainGenerator::set_mesh_lods);
+	ClassDB::bind_method(D_METHOD("get_mesh_lods"), &TerrainGenerator::get_mesh_lods);
+	ClassDB::bind_method(D_METHOD("set_mesh_size", "size"), &TerrainGenerator::set_mesh_size);
+	ClassDB::bind_method(D_METHOD("get_mesh_size"), &TerrainGenerator::get_mesh_size);
+	ClassDB::bind_method(D_METHOD("set_vertex_spacing", "scale"), &TerrainGenerator::set_vertex_spacing);
+	ClassDB::bind_method(D_METHOD("get_vertex_spacing"), &TerrainGenerator::get_vertex_spacing);
 
 	// Rendering
-	ClassDB::bind_method(D_METHOD("set_render_layers", "layers"), &Terrain3D::set_render_layers);
-	ClassDB::bind_method(D_METHOD("get_render_layers"), &Terrain3D::get_render_layers);
-	ClassDB::bind_method(D_METHOD("set_mouse_layer", "layer"), &Terrain3D::set_mouse_layer);
-	ClassDB::bind_method(D_METHOD("get_mouse_layer"), &Terrain3D::get_mouse_layer);
-	ClassDB::bind_method(D_METHOD("set_cast_shadows", "shadow_casting_setting"), &Terrain3D::set_cast_shadows);
-	ClassDB::bind_method(D_METHOD("get_cast_shadows"), &Terrain3D::get_cast_shadows);
-	ClassDB::bind_method(D_METHOD("set_gi_mode", "gi_mode"), &Terrain3D::set_gi_mode);
-	ClassDB::bind_method(D_METHOD("get_gi_mode"), &Terrain3D::get_gi_mode);
-	ClassDB::bind_method(D_METHOD("set_cull_margin", "margin"), &Terrain3D::set_cull_margin);
-	ClassDB::bind_method(D_METHOD("get_cull_margin"), &Terrain3D::get_cull_margin);
-	ClassDB::bind_method(D_METHOD("set_free_editor_textures"), &Terrain3D::set_free_editor_textures);
-	ClassDB::bind_method(D_METHOD("get_free_editor_textures"), &Terrain3D::get_free_editor_textures);
-	ClassDB::bind_method(D_METHOD("set_show_instances", "visible"), &Terrain3D::set_show_instances);
-	ClassDB::bind_method(D_METHOD("get_show_instances"), &Terrain3D::get_show_instances);
+	ClassDB::bind_method(D_METHOD("set_render_layers", "layers"), &TerrainGenerator::set_render_layers);
+	ClassDB::bind_method(D_METHOD("get_render_layers"), &TerrainGenerator::get_render_layers);
+	ClassDB::bind_method(D_METHOD("set_mouse_layer", "layer"), &TerrainGenerator::set_mouse_layer);
+	ClassDB::bind_method(D_METHOD("get_mouse_layer"), &TerrainGenerator::get_mouse_layer);
+	ClassDB::bind_method(D_METHOD("set_cast_shadows", "shadow_casting_setting"), &TerrainGenerator::set_cast_shadows);
+	ClassDB::bind_method(D_METHOD("get_cast_shadows"), &TerrainGenerator::get_cast_shadows);
+	ClassDB::bind_method(D_METHOD("set_gi_mode", "gi_mode"), &TerrainGenerator::set_gi_mode);
+	ClassDB::bind_method(D_METHOD("get_gi_mode"), &TerrainGenerator::get_gi_mode);
+	ClassDB::bind_method(D_METHOD("set_cull_margin", "margin"), &TerrainGenerator::set_cull_margin);
+	ClassDB::bind_method(D_METHOD("get_cull_margin"), &TerrainGenerator::get_cull_margin);
+	ClassDB::bind_method(D_METHOD("set_free_editor_textures"), &TerrainGenerator::set_free_editor_textures);
+	ClassDB::bind_method(D_METHOD("get_free_editor_textures"), &TerrainGenerator::get_free_editor_textures);
+	ClassDB::bind_method(D_METHOD("set_show_instances", "visible"), &TerrainGenerator::set_show_instances);
+	ClassDB::bind_method(D_METHOD("get_show_instances"), &TerrainGenerator::get_show_instances);
 
 	// Overlays
-	ClassDB::bind_method(D_METHOD("set_show_region_grid", "enabled"), &Terrain3D::set_show_region_grid);
-	ClassDB::bind_method(D_METHOD("get_show_region_grid"), &Terrain3D::get_show_region_grid);
-	ClassDB::bind_method(D_METHOD("set_show_instancer_grid", "enabled"), &Terrain3D::set_show_instancer_grid);
-	ClassDB::bind_method(D_METHOD("get_show_instancer_grid"), &Terrain3D::get_show_instancer_grid);
-	ClassDB::bind_method(D_METHOD("set_show_vertex_grid", "enabled"), &Terrain3D::set_show_vertex_grid);
-	ClassDB::bind_method(D_METHOD("get_show_vertex_grid"), &Terrain3D::get_show_vertex_grid);
-	ClassDB::bind_method(D_METHOD("set_show_contours", "enabled"), &Terrain3D::set_show_contours);
-	ClassDB::bind_method(D_METHOD("get_show_contours"), &Terrain3D::get_show_contours);
-	ClassDB::bind_method(D_METHOD("set_show_navigation", "enabled"), &Terrain3D::set_show_navigation);
-	ClassDB::bind_method(D_METHOD("get_show_navigation"), &Terrain3D::get_show_navigation);
+	ClassDB::bind_method(D_METHOD("set_show_region_grid", "enabled"), &TerrainGenerator::set_show_region_grid);
+	ClassDB::bind_method(D_METHOD("get_show_region_grid"), &TerrainGenerator::get_show_region_grid);
+	ClassDB::bind_method(D_METHOD("set_show_instancer_grid", "enabled"), &TerrainGenerator::set_show_instancer_grid);
+	ClassDB::bind_method(D_METHOD("get_show_instancer_grid"), &TerrainGenerator::get_show_instancer_grid);
+	ClassDB::bind_method(D_METHOD("set_show_vertex_grid", "enabled"), &TerrainGenerator::set_show_vertex_grid);
+	ClassDB::bind_method(D_METHOD("get_show_vertex_grid"), &TerrainGenerator::get_show_vertex_grid);
+	ClassDB::bind_method(D_METHOD("set_show_contours", "enabled"), &TerrainGenerator::set_show_contours);
+	ClassDB::bind_method(D_METHOD("get_show_contours"), &TerrainGenerator::get_show_contours);
+	ClassDB::bind_method(D_METHOD("set_show_navigation", "enabled"), &TerrainGenerator::set_show_navigation);
+	ClassDB::bind_method(D_METHOD("get_show_navigation"), &TerrainGenerator::get_show_navigation);
 
 	// Debug Views
-	ClassDB::bind_method(D_METHOD("set_show_checkered", "enabled"), &Terrain3D::set_show_checkered);
-	ClassDB::bind_method(D_METHOD("get_show_checkered"), &Terrain3D::get_show_checkered);
-	ClassDB::bind_method(D_METHOD("set_show_grey", "enabled"), &Terrain3D::set_show_grey);
-	ClassDB::bind_method(D_METHOD("get_show_grey"), &Terrain3D::get_show_grey);
-	ClassDB::bind_method(D_METHOD("set_show_heightmap", "enabled"), &Terrain3D::set_show_heightmap);
-	ClassDB::bind_method(D_METHOD("get_show_heightmap"), &Terrain3D::get_show_heightmap);
-	ClassDB::bind_method(D_METHOD("set_show_jaggedness", "enabled"), &Terrain3D::set_show_jaggedness);
-	ClassDB::bind_method(D_METHOD("get_show_jaggedness"), &Terrain3D::get_show_jaggedness);
-	ClassDB::bind_method(D_METHOD("set_show_autoshader", "enabled"), &Terrain3D::set_show_autoshader);
-	ClassDB::bind_method(D_METHOD("get_show_autoshader"), &Terrain3D::get_show_autoshader);
-	ClassDB::bind_method(D_METHOD("set_show_control_texture", "enabled"), &Terrain3D::set_show_control_texture);
-	ClassDB::bind_method(D_METHOD("get_show_control_texture"), &Terrain3D::get_show_control_texture);
-	ClassDB::bind_method(D_METHOD("set_show_control_blend", "enabled"), &Terrain3D::set_show_control_blend);
-	ClassDB::bind_method(D_METHOD("get_show_control_blend"), &Terrain3D::get_show_control_blend);
-	ClassDB::bind_method(D_METHOD("set_show_control_angle", "enabled"), &Terrain3D::set_show_control_angle);
-	ClassDB::bind_method(D_METHOD("get_show_control_angle"), &Terrain3D::get_show_control_angle);
-	ClassDB::bind_method(D_METHOD("set_show_control_scale", "enabled"), &Terrain3D::set_show_control_scale);
-	ClassDB::bind_method(D_METHOD("get_show_control_scale"), &Terrain3D::get_show_control_scale);
-	ClassDB::bind_method(D_METHOD("set_show_colormap", "enabled"), &Terrain3D::set_show_colormap);
-	ClassDB::bind_method(D_METHOD("get_show_colormap"), &Terrain3D::get_show_colormap);
-	ClassDB::bind_method(D_METHOD("set_show_roughmap", "enabled"), &Terrain3D::set_show_roughmap);
-	ClassDB::bind_method(D_METHOD("get_show_roughmap"), &Terrain3D::get_show_roughmap);
-	ClassDB::bind_method(D_METHOD("set_show_texture_height", "enabled"), &Terrain3D::set_show_texture_height);
-	ClassDB::bind_method(D_METHOD("get_show_texture_height"), &Terrain3D::get_show_texture_height);
-	ClassDB::bind_method(D_METHOD("set_show_texture_normal", "enabled"), &Terrain3D::set_show_texture_normal);
-	ClassDB::bind_method(D_METHOD("get_show_texture_normal"), &Terrain3D::get_show_texture_normal);
-	ClassDB::bind_method(D_METHOD("set_show_texture_rough", "enabled"), &Terrain3D::set_show_texture_rough);
-	ClassDB::bind_method(D_METHOD("get_show_texture_rough"), &Terrain3D::get_show_texture_rough);
+	ClassDB::bind_method(D_METHOD("set_show_checkered", "enabled"), &TerrainGenerator::set_show_checkered);
+	ClassDB::bind_method(D_METHOD("get_show_checkered"), &TerrainGenerator::get_show_checkered);
+	ClassDB::bind_method(D_METHOD("set_show_grey", "enabled"), &TerrainGenerator::set_show_grey);
+	ClassDB::bind_method(D_METHOD("get_show_grey"), &TerrainGenerator::get_show_grey);
+	ClassDB::bind_method(D_METHOD("set_show_heightmap", "enabled"), &TerrainGenerator::set_show_heightmap);
+	ClassDB::bind_method(D_METHOD("get_show_heightmap"), &TerrainGenerator::get_show_heightmap);
+	ClassDB::bind_method(D_METHOD("set_show_jaggedness", "enabled"), &TerrainGenerator::set_show_jaggedness);
+	ClassDB::bind_method(D_METHOD("get_show_jaggedness"), &TerrainGenerator::get_show_jaggedness);
+	ClassDB::bind_method(D_METHOD("set_show_autoshader", "enabled"), &TerrainGenerator::set_show_autoshader);
+	ClassDB::bind_method(D_METHOD("get_show_autoshader"), &TerrainGenerator::get_show_autoshader);
+	ClassDB::bind_method(D_METHOD("set_show_control_texture", "enabled"), &TerrainGenerator::set_show_control_texture);
+	ClassDB::bind_method(D_METHOD("get_show_control_texture"), &TerrainGenerator::get_show_control_texture);
+	ClassDB::bind_method(D_METHOD("set_show_control_blend", "enabled"), &TerrainGenerator::set_show_control_blend);
+	ClassDB::bind_method(D_METHOD("get_show_control_blend"), &TerrainGenerator::get_show_control_blend);
+	ClassDB::bind_method(D_METHOD("set_show_control_angle", "enabled"), &TerrainGenerator::set_show_control_angle);
+	ClassDB::bind_method(D_METHOD("get_show_control_angle"), &TerrainGenerator::get_show_control_angle);
+	ClassDB::bind_method(D_METHOD("set_show_control_scale", "enabled"), &TerrainGenerator::set_show_control_scale);
+	ClassDB::bind_method(D_METHOD("get_show_control_scale"), &TerrainGenerator::get_show_control_scale);
+	ClassDB::bind_method(D_METHOD("set_show_colormap", "enabled"), &TerrainGenerator::set_show_colormap);
+	ClassDB::bind_method(D_METHOD("get_show_colormap"), &TerrainGenerator::get_show_colormap);
+	ClassDB::bind_method(D_METHOD("set_show_roughmap", "enabled"), &TerrainGenerator::set_show_roughmap);
+	ClassDB::bind_method(D_METHOD("get_show_roughmap"), &TerrainGenerator::get_show_roughmap);
+	ClassDB::bind_method(D_METHOD("set_show_texture_height", "enabled"), &TerrainGenerator::set_show_texture_height);
+	ClassDB::bind_method(D_METHOD("get_show_texture_height"), &TerrainGenerator::get_show_texture_height);
+	ClassDB::bind_method(D_METHOD("set_show_texture_normal", "enabled"), &TerrainGenerator::set_show_texture_normal);
+	ClassDB::bind_method(D_METHOD("get_show_texture_normal"), &TerrainGenerator::get_show_texture_normal);
+	ClassDB::bind_method(D_METHOD("set_show_texture_rough", "enabled"), &TerrainGenerator::set_show_texture_rough);
+	ClassDB::bind_method(D_METHOD("get_show_texture_rough"), &TerrainGenerator::get_show_texture_rough);
 
 	// Utility
-	ClassDB::bind_method(D_METHOD("get_intersection", "src_pos", "direction", "gpu_mode"), &Terrain3D::get_intersection, DEFVAL(false));
-	ClassDB::bind_method(D_METHOD("bake_mesh", "lod", "filter"), &Terrain3D::bake_mesh, DEFVAL(Terrain3DData::HEIGHT_FILTER_NEAREST));
-	ClassDB::bind_method(D_METHOD("generate_nav_mesh_source_geometry", "global_aabb", "require_nav"), &Terrain3D::generate_nav_mesh_source_geometry, DEFVAL(true));
+	ClassDB::bind_method(D_METHOD("get_intersection", "src_pos", "direction", "gpu_mode"), &TerrainGenerator::get_intersection, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("bake_mesh", "lod", "filter"), &TerrainGenerator::bake_mesh, DEFVAL(TerrainGeneratorData::HEIGHT_FILTER_NEAREST));
+	ClassDB::bind_method(D_METHOD("generate_nav_mesh_source_geometry", "global_aabb", "require_nav"), &TerrainGenerator::generate_nav_mesh_source_geometry, DEFVAL(true));
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "version", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY), "", "get_version");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "debug_level", PROPERTY_HINT_ENUM, "Errors,Info,Debug,Extreme"), "set_debug_level", "get_debug_level");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "data_directory", PROPERTY_HINT_DIR), "set_data_directory", "get_data_directory");
 
 	// Object references
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "data", PROPERTY_HINT_NONE, "Terrain3DData", PROPERTY_USAGE_NONE), "", "get_data");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "material", PROPERTY_HINT_RESOURCE_TYPE, "Terrain3DMaterial"), "set_material", "get_material");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "assets", PROPERTY_HINT_RESOURCE_TYPE, "Terrain3DAssets"), "set_assets", "get_assets");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "collision", PROPERTY_HINT_NONE, "Terrain3DCollision", PROPERTY_USAGE_NONE), "", "get_collision");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "instancer", PROPERTY_HINT_NONE, "Terrain3DInstancer", PROPERTY_USAGE_NONE), "", "get_instancer");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "data", PROPERTY_HINT_NONE, "TerrainGeneratorData", PROPERTY_USAGE_NONE), "", "get_data");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "material", PROPERTY_HINT_RESOURCE_TYPE, "TerrainGeneratorMaterial"), "set_material", "get_material");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "assets", PROPERTY_HINT_RESOURCE_TYPE, "TerrainGeneratorAssets"), "set_assets", "get_assets");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "collision", PROPERTY_HINT_NONE, "TerrainGeneratorCollision", PROPERTY_USAGE_NONE), "", "get_collision");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "instancer", PROPERTY_HINT_NONE, "TerrainGeneratorInstancer", PROPERTY_USAGE_NONE), "", "get_instancer");
 
 	ADD_GROUP("Regions", "");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "region_size", PROPERTY_HINT_ENUM, "64:64,128:128,256:256,512:512,1024:1024,2048:2048", PROPERTY_USAGE_EDITOR), "change_region_size", "get_region_size");

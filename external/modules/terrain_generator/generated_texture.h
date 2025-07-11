@@ -8,7 +8,7 @@
 
 
 class GeneratedTexture {
-	CLASS_NAME_STATIC("Terrain3DGenTex");
+	CLASS_NAME_STATIC("TerrainGeneratorGenTex");
 
 private:
 	RID _rid = RID();

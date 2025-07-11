@@ -9,8 +9,8 @@
 #include "terrain_generator_region.h"
 
 
-class Terrain3DEditor : public Object {
-	GDCLASS(Terrain3DEditor, Object);
+class TerrainGeneratorEditor : public Object {
+	GDCLASS(TerrainGeneratorEditor, Object);
 	CLASS_NAME();
 
 public: // Constants
@@ -65,7 +65,7 @@ public: // Constants
 	};
 
 private:
-	Terrain3D *_terrain = nullptr;
+	TerrainGenerator *_terrain = nullptr;
 
 	// Painter settings & variables
 	Tool _tool = REGION;
@@ -76,15 +76,15 @@ private:
 	Array _operation_movement_history;
 	bool _is_operating = false;
 	uint64_t _last_region_bounds_error = 0;
-	TypedArray<Terrain3DRegion> _original_regions; // Queue for undo
-	TypedArray<Terrain3DRegion> _edited_regions; // Queue for redo
+	TypedArray<TerrainGeneratorRegion> _original_regions; // Queue for undo
+	TypedArray<TerrainGeneratorRegion> _edited_regions; // Queue for redo
 	TypedArray<Vector2i> _added_removed_locations; // Queue for added/removed locations
 	AABB _modified_area;
 	Dictionary _undo_data; // See _get_undo_data for definition
 	uint64_t _last_pen_tick = 0;
 
 	void _send_region_aabb(const Vector2i &p_region_loc, const Vector2 &p_height_range = Vector2());
-	Ref<Terrain3DRegion> _operate_region(const Vector2i &p_region_loc);
+	Ref<TerrainGeneratorRegion> _operate_region(const Vector2i &p_region_loc);
 	void _operate_map(const Vector3 &p_global_position, const real_t p_camera_direction);
 	MapType _get_map_type() const;
 	bool _is_in_bounds(const Point2i &p_pixel, const Point2i &p_size) const;
@@ -94,11 +94,11 @@ private:
 	void _apply_undo(const Dictionary &p_data);
 
 public:
-	Terrain3DEditor() {}
-	~Terrain3DEditor() {}
+	TerrainGeneratorEditor() {}
+	~TerrainGeneratorEditor() {}
 
-	void set_terrain(Terrain3D *p_terrain) { _terrain = p_terrain; }
-	Terrain3D *get_terrain() const { return _terrain; }
+	void set_terrain(TerrainGenerator *p_terrain) { _terrain = p_terrain; }
+	TerrainGenerator *get_terrain() const { return _terrain; }
 
 	void set_brush_data(const Dictionary &p_data);
 	Dictionary get_brush_data() const { return _brush_data; };
@@ -110,19 +110,19 @@ public:
 	void start_operation(const Vector3 &p_global_position);
 	bool is_operating() const { return _is_operating; }
 	void operate(const Vector3 &p_global_position, const real_t p_camera_direction);
-	void backup_region(const Ref<Terrain3DRegion> &p_region);
+	void backup_region(const Ref<TerrainGeneratorRegion> &p_region);
 	void stop_operation();
 
 protected:
 	static void _bind_methods();
 };
 
-VARIANT_ENUM_CAST(Terrain3DEditor::Operation);
-VARIANT_ENUM_CAST(Terrain3DEditor::Tool);
+VARIANT_ENUM_CAST(TerrainGeneratorEditor::Operation);
+VARIANT_ENUM_CAST(TerrainGeneratorEditor::Tool);
 
 // Inline functions
 
-inline MapType Terrain3DEditor::_get_map_type() const {
+inline MapType TerrainGeneratorEditor::_get_map_type() const {
 	switch (_tool) {
 		case SCULPT:
 		case HEIGHT:
@@ -146,13 +146,13 @@ inline MapType Terrain3DEditor::_get_map_type() const {
 	}
 }
 
-inline bool Terrain3DEditor::_is_in_bounds(const Point2i &p_pixel, const Point2i &p_size) const {
+inline bool TerrainGeneratorEditor::_is_in_bounds(const Point2i &p_pixel, const Point2i &p_size) const {
 	bool positive = p_pixel.x >= 0 && p_pixel.y >= 0;
 	bool less_than_max = p_pixel.x < p_size.x && p_pixel.y < p_size.y;
 	return positive && less_than_max;
 }
 
-inline Vector2 Terrain3DEditor::_get_uv_position(const Vector3 &p_global_position, const int p_region_size, const real_t p_vertex_spacing) const {
+inline Vector2 TerrainGeneratorEditor::_get_uv_position(const Vector3 &p_global_position, const int p_region_size, const real_t p_vertex_spacing) const {
 	Vector2 descaled_position_2d = Vector2(p_global_position.x, p_global_position.z) / p_vertex_spacing;
 	Vector2 region_position = descaled_position_2d / real_t(p_region_size);
 	region_position = region_position.floor();
@@ -160,7 +160,7 @@ inline Vector2 Terrain3DEditor::_get_uv_position(const Vector3 &p_global_positio
 	return uv_position;
 }
 
-inline Vector2 Terrain3DEditor::_get_rotated_uv(const Vector2 &p_uv, const real_t p_angle) const {
+inline Vector2 TerrainGeneratorEditor::_get_rotated_uv(const Vector2 &p_uv, const real_t p_angle) const {
 	Vector2 rotation_offset = Vector2(0.5f, 0.5f);
 	Vector2 uv = (p_uv - rotation_offset).rotated(p_angle) + rotation_offset;
 	return uv.clamp(V2_ZERO, Vector2(1.f, 1.f));

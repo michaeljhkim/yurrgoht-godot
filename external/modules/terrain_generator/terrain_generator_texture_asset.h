@@ -8,10 +8,10 @@
 #include "terrain_generator_asset_resource.h"
 
 
-class Terrain3DTextureAsset : public Terrain3DAssetResource {
-	GDCLASS(Terrain3DTextureAsset, Terrain3DAssetResource);
+class TerrainGeneratorTextureAsset : public TerrainGeneratorAssetResource {
+	GDCLASS(TerrainGeneratorTextureAsset, TerrainGeneratorAssetResource);
 	CLASS_NAME();
-	friend class Terrain3DAssets;
+	friend class TerrainGeneratorAssets;
 
 	Color _albedo_color = Color(1.f, 1.f, 1.f, 1.f);
 	Ref<Texture2D> _albedo_texture;
@@ -27,8 +27,8 @@ class Terrain3DTextureAsset : public Terrain3DAssetResource {
 	bool _is_valid_format(const Ref<Texture2D> &p_texture) const;
 
 public:
-	Terrain3DTextureAsset() { clear(); }
-	~Terrain3DTextureAsset() {}
+	TerrainGeneratorTextureAsset() { clear(); }
+	~TerrainGeneratorTextureAsset() {}
 
 	void clear() override;
 

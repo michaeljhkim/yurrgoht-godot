@@ -15,7 +15,7 @@
 // Private Functions
 ///////////////////////////
 
-void Terrain3DData::_clear() {
+void TerrainGeneratorData::_clear() {
 	LOG(INFO, "Clearing data");
 	_region_map_dirty = true;
 	_region_map.clear();
@@ -29,7 +29,7 @@ void Terrain3DData::_clear() {
 }
 
 // Structured to work with do_for_regions. Should be renamed when copy_paste is expanded
-void Terrain3DData::_copy_paste_dfr(const Terrain3DRegion *p_src_region, const Rect2i &p_src_rect, const Rect2i &p_dst_rect, const Terrain3DRegion *p_dst_region) {
+void TerrainGeneratorData::_copy_paste_dfr(const TerrainGeneratorRegion *p_src_region, const Rect2i &p_src_rect, const Rect2i &p_dst_rect, const TerrainGeneratorRegion *p_dst_region) {
 	if (!p_src_region || !p_dst_region) {
 		return;
 	}
@@ -48,7 +48,7 @@ void Terrain3DData::_copy_paste_dfr(const Terrain3DRegion *p_src_region, const R
 // Public Functions
 ///////////////////////////
 
-void Terrain3DData::initialize(Terrain3D *p_terrain) {
+void TerrainGeneratorData::initialize(TerrainGenerator *p_terrain) {
 	if (!p_terrain) {
 		LOG(ERROR, "Initialization failed, p_terrain is null");
 		return;
@@ -65,7 +65,7 @@ void Terrain3DData::initialize(Terrain3D *p_terrain) {
 	_region_sizev = Vector2i(_region_size, _region_size);
 }
 
-void Terrain3DData::set_region_locations(const TypedArray<Vector2i> &p_locations) {
+void TerrainGeneratorData::set_region_locations(const TypedArray<Vector2i> &p_locations) {
 	LOG(INFO, "Setting _region_locations with array sized: ", p_locations.size());
 	_region_locations = p_locations;
 	_region_map_dirty = true;
@@ -73,11 +73,11 @@ void Terrain3DData::set_region_locations(const TypedArray<Vector2i> &p_locations
 }
 
 // Returns an array of active regions, optionally a shallow or deep copy
-TypedArray<Terrain3DRegion> Terrain3DData::get_regions_active(const bool p_copy, const bool p_deep) const {
-	TypedArray<Terrain3DRegion> region_arr;
+TypedArray<TerrainGeneratorRegion> TerrainGeneratorData::get_regions_active(const bool p_copy, const bool p_deep) const {
+	TypedArray<TerrainGeneratorRegion> region_arr;
 	for (int i = 0; i < _region_locations.size(); i++) {
 		Vector2i region_loc = _region_locations[i];
-		Ref<Terrain3DRegion> region = get_region(region_loc);
+		Ref<TerrainGeneratorRegion> region = get_region(region_loc);
 		if (region.is_valid()) {
 			region_arr.push_back(p_copy ? region->duplicate(p_deep) : region);
 		}
@@ -86,17 +86,17 @@ TypedArray<Terrain3DRegion> Terrain3DData::get_regions_active(const bool p_copy,
 }
 
 // Calls the callback function for every region within the given (descaled) area
-// The callable receives: source Terrain3DRegion, source Rect2i, dest Rect2i, (bindings)
-// Used with change_region_size, dest Terrain3DRegion is bound as the 4th parameter
-void Terrain3DData::do_for_regions(const Rect2i &p_area, const Callable &p_callback) {
+// The callable receives: source TerrainGeneratorRegion, source Rect2i, dest Rect2i, (bindings)
+// Used with change_region_size, dest TerrainGeneratorRegion is bound as the 4th parameter
+void TerrainGeneratorData::do_for_regions(const Rect2i &p_area, const Callable &p_callback) {
 	Rect2i location_bounds(V2I_DIVIDE_FLOOR(p_area.position, _region_size), V2I_DIVIDE_CEIL(p_area.size, _region_size));
 	LOG(DEBUG, "Processing global area: ", p_area, " -> ", location_bounds);
 	Point2i current_region_loc;
-	for (int y = location_bounds.position.y; y < location_bounds.get_end(0).y; y++) {
+	for (int y = location_bounds.position.y; y < location_bounds.get_end().y; y++) {
 		current_region_loc.y = y;
-		for (int x = location_bounds.position.x; x < location_bounds.get_end(0).x; x++) {
+		for (int x = location_bounds.position.x; x < location_bounds.get_end().x; x++) {
 			current_region_loc.x = x;
-			Terrain3DRegion *region = get_region_ptr(current_region_loc);
+			TerrainGeneratorRegion *region = get_region_ptr(current_region_loc);
 			if (region && !region->is_deleted()) {
 				LOG(DEBUG, "Current region: ", current_region_loc);
 				Rect2i region_area = p_area.intersection(Rect2i(current_region_loc * _region_size, _region_sizev));
@@ -112,7 +112,7 @@ void Terrain3DData::do_for_regions(const Rect2i &p_area, const Callable &p_callb
 	}
 }
 
-void Terrain3DData::change_region_size(int p_new_size) {
+void TerrainGeneratorData::change_region_size(int p_new_size) {
 	LOG(INFO, "Changing region size from: ", _region_size, " to ", p_new_size);
 	if (p_new_size < 64 || p_new_size > 2048 || !is_power_of_2(p_new_size)) {
 		LOG(ERROR, "Invalid region size: ", p_new_size, ". Must be 64, 128, 256, 512, 1024, 2048");
@@ -126,12 +126,12 @@ void Terrain3DData::change_region_size(int p_new_size) {
 	Dictionary new_region_points;
 	Array locs = _regions.keys();
 	for (int i = 0; i < locs.size(); i++) {
-		Terrain3DRegion *region = get_region_ptr(Vector2i(locs[i]));
+		TerrainGeneratorRegion *region = get_region_ptr(Vector2i(locs[i]));
 		if (region && !region->is_deleted()) {
 			Point2i region_position = region->get_location() * _region_size;
 			Rect2i location_bounds(V2I_DIVIDE_FLOOR(region_position, p_new_size), V2I_DIVIDE_CEIL(_region_sizev, p_new_size));
-			for (int y = location_bounds.position.y; y < location_bounds.get_end(0).y; y++) {
-				for (int x = location_bounds.position.x; x < location_bounds.get_end(0).x; x++) {
+			for (int y = location_bounds.position.y; y < location_bounds.get_end().y; y++) {
+				for (int x = location_bounds.position.x; x < location_bounds.get_end().x; x++) {
 					new_region_points[Point2i(x, y)] = 1;
 				}
 			}
@@ -139,11 +139,11 @@ void Terrain3DData::change_region_size(int p_new_size) {
 	}
 
 	// Make new regions to receive copied data
-	TypedArray<Terrain3DRegion> new_regions;
+	TypedArray<TerrainGeneratorRegion> new_regions;
 	Array keys = new_region_points.keys();
 	for (int i = 0; i < keys.size(); i++) {
 		Point2i loc = keys[i];
-		Ref<Terrain3DRegion> new_region;
+		Ref<TerrainGeneratorRegion> new_region;
 		new_region.instantiate();
 		new_region->set_location(loc);
 		new_region->set_region_size(p_new_size);
@@ -155,19 +155,19 @@ void Terrain3DData::change_region_size(int p_new_size) {
 		Rect2i area;
 		area.position = loc * p_new_size;
 		area.size = Vector2i(p_new_size, p_new_size);
-		do_for_regions(area, callable_mp(this, &Terrain3DData::_copy_paste_dfr).bind(new_region.ptr()));
+		do_for_regions(area, callable_mp(this, &TerrainGeneratorData::_copy_paste_dfr).bind(new_region.ptr()));
 		new_regions.push_back(new_region);
 	}
 
 	// Remove old data
 	_terrain->get_instancer()->destroy();
-	TypedArray<Terrain3DRegion> old_regions = get_regions_active();
+	TypedArray<TerrainGeneratorRegion> old_regions = get_regions_active();
 	for (int i = 0; i < old_regions.size(); i++) {
 		remove_region(old_regions[i], false);
 	}
 
 	// Change region size
-	_terrain->set_region_size((Terrain3D::RegionSize)p_new_size);
+	_terrain->set_region_size((TerrainGenerator::RegionSize)p_new_size);
 
 	// Add new regions and rebuild
 	for (int i = 0; i < new_regions.size(); i++) {
@@ -179,8 +179,8 @@ void Terrain3DData::change_region_size(int p_new_size) {
 	_terrain->get_instancer()->update_mmis(true);
 }
 
-void Terrain3DData::set_region_modified(const Vector2i &p_region_loc, const bool p_modified) {
-	Terrain3DRegion *region = get_region_ptr(p_region_loc);
+void TerrainGeneratorData::set_region_modified(const Vector2i &p_region_loc, const bool p_modified) {
+	TerrainGeneratorRegion *region = get_region_ptr(p_region_loc);
 	if (!region) {
 		LOG(ERROR, "Region not found at: ", p_region_loc);
 		return;
@@ -188,8 +188,8 @@ void Terrain3DData::set_region_modified(const Vector2i &p_region_loc, const bool
 	return region->set_modified(p_modified);
 }
 
-bool Terrain3DData::is_region_modified(const Vector2i &p_region_loc) const {
-	Terrain3DRegion *region = get_region_ptr(p_region_loc);
+bool TerrainGeneratorData::is_region_modified(const Vector2i &p_region_loc) const {
+	TerrainGeneratorRegion *region = get_region_ptr(p_region_loc);
 	if (!region) {
 		LOG(ERROR, "Region not found at: ", p_region_loc);
 		return false;
@@ -197,8 +197,8 @@ bool Terrain3DData::is_region_modified(const Vector2i &p_region_loc) const {
 	return region->is_modified();
 }
 
-void Terrain3DData::set_region_deleted(const Vector2i &p_region_loc, const bool p_deleted) {
-	Terrain3DRegion *region = get_region_ptr(p_region_loc);
+void TerrainGeneratorData::set_region_deleted(const Vector2i &p_region_loc, const bool p_deleted) {
+	TerrainGeneratorRegion *region = get_region_ptr(p_region_loc);
 	if (!region) {
 		LOG(ERROR, "Region not found at: ", p_region_loc);
 		return;
@@ -206,8 +206,8 @@ void Terrain3DData::set_region_deleted(const Vector2i &p_region_loc, const bool 
 	return region->set_deleted(p_deleted);
 }
 
-bool Terrain3DData::is_region_deleted(const Vector2i &p_region_loc) const {
-	Terrain3DRegion *region = get_region_ptr(p_region_loc);
+bool TerrainGeneratorData::is_region_deleted(const Vector2i &p_region_loc) const {
+	TerrainGeneratorRegion *region = get_region_ptr(p_region_loc);
 	if (!region) {
 		LOG(ERROR, "Region not found at: ", p_region_loc);
 		return true;
@@ -215,12 +215,12 @@ bool Terrain3DData::is_region_deleted(const Vector2i &p_region_loc) const {
 	return region->is_deleted();
 }
 
-Ref<Terrain3DRegion> Terrain3DData::add_region_blankp(const Vector3 &p_global_position, const bool p_update) {
+Ref<TerrainGeneratorRegion> TerrainGeneratorData::add_region_blankp(const Vector3 &p_global_position, const bool p_update) {
 	return add_region_blank(get_region_location(p_global_position));
 }
 
-Ref<Terrain3DRegion> Terrain3DData::add_region_blank(const Vector2i &p_region_loc, const bool p_update) {
-	Ref<Terrain3DRegion> region;
+Ref<TerrainGeneratorRegion> TerrainGeneratorData::add_region_blank(const Vector2i &p_region_loc, const bool p_update) {
+	Ref<TerrainGeneratorRegion> region;
 	region.instantiate();
 	region->set_location(p_region_loc);
 	region->set_region_size(_region_size);
@@ -229,14 +229,14 @@ Ref<Terrain3DRegion> Terrain3DData::add_region_blank(const Vector2i &p_region_lo
 		region->set_modified(true);
 		return region;
 	}
-	return Ref<Terrain3DRegion>();
+	return Ref<TerrainGeneratorRegion>();
 }
 
-/** Adds a Terrain3DRegion to the terrain
+/** Adds a TerrainGeneratorRegion to the terrain
  * Marks region as modified
  *	p_update - rebuild the maps if true. Set to false if bulk adding many regions.
  */
-Error Terrain3DData::add_region(const Ref<Terrain3DRegion> &p_region, const bool p_update) {
+Error TerrainGeneratorData::add_region(const Ref<TerrainGeneratorRegion> &p_region, const bool p_update) {
 	if (p_region.is_null()) {
 		LOG(ERROR, "Provided region is null. Returning");
 		return FAILED;
@@ -267,19 +267,19 @@ Error Terrain3DData::add_region(const Ref<Terrain3DRegion> &p_region, const bool
 	return OK;
 }
 
-void Terrain3DData::remove_regionp(const Vector3 &p_global_position, const bool p_update) {
-	Ref<Terrain3DRegion> region = get_region(get_region_location(p_global_position));
+void TerrainGeneratorData::remove_regionp(const Vector3 &p_global_position, const bool p_update) {
+	Ref<TerrainGeneratorRegion> region = get_region(get_region_location(p_global_position));
 	remove_region(region, p_update);
 }
 
-void Terrain3DData::remove_regionl(const Vector2i &p_region_loc, const bool p_update) {
-	Ref<Terrain3DRegion> region = get_region(p_region_loc);
+void TerrainGeneratorData::remove_regionl(const Vector2i &p_region_loc, const bool p_update) {
+	Ref<TerrainGeneratorRegion> region = get_region(p_region_loc);
 	remove_region(region, p_update);
 }
 
 // Remove region marks the region for deletion, and removes it from the active arrays indexed by ID
 // It remains stored in _regions and the file remains on disk until saved, when both are removed
-void Terrain3DData::remove_region(const Ref<Terrain3DRegion> &p_region, const bool p_update) {
+void TerrainGeneratorData::remove_region(const Ref<TerrainGeneratorRegion> &p_region, const bool p_update) {
 	if (p_region.is_null()) {
 		LOG(ERROR, "Region not found or is null. Returning");
 		return;
@@ -303,7 +303,7 @@ void Terrain3DData::remove_region(const Ref<Terrain3DRegion> &p_region, const bo
 	}
 }
 
-void Terrain3DData::save_directory(const String &p_dir) {
+void TerrainGeneratorData::save_directory(const String &p_dir) {
 	LOG(INFO, "Saving data files to ", p_dir);
 	Array locations = _regions.keys();
 	for (int i = 0; i < locations.size(); i++) {
@@ -315,8 +315,8 @@ void Terrain3DData::save_directory(const String &p_dir) {
 }
 
 // You may need to do a file system scan to update FileSystem panel
-void Terrain3DData::save_region(const Vector2i &p_region_loc, const String &p_dir, const bool p_16_bit) {
-	Ref<Terrain3DRegion> region = get_region(p_region_loc);
+void TerrainGeneratorData::save_region(const Vector2i &p_region_loc, const String &p_dir, const bool p_16_bit) {
+	Ref<TerrainGeneratorRegion> region = get_region(p_region_loc);
 	if (region.is_null()) {
 		LOG(ERROR, "No region found at: ", p_region_loc);
 		return;
@@ -346,20 +346,20 @@ void Terrain3DData::save_region(const Vector2i &p_region_loc, const String &p_di
 	}
 	Error err = region->save(path, p_16_bit);
 	if (!(err == OK || err == ERR_SKIP)) {
-		LOG(ERROR, "Could not save file: ", path, ", error: ", UtilityFunctions::error_string(err), " (", err, ")");
+		LOG(ERROR, "Could not save file: ", path, ", error: ", VariantUtilityFunctions::error_string(err), " (", err, ")");
 	}
 }
 
-void Terrain3DData::load_directory(const String &p_dir) {
+void TerrainGeneratorData::load_directory(const String &p_dir) {
 	if (p_dir.is_empty()) {
 		LOG(ERROR, "Specified directory name is blank");
 		return;
 	}
 
 	LOG(INFO, "Loading region files from ", p_dir);
-	PackedStringArray files = Util::get_files(p_dir, "terrain3d*.res");
+	PackedStringArray files = Util::get_files(p_dir, "TerrainGenerator*.res");
 	if (files.size() == 0) {
-		LOG(INFO, "No Terrain3D region files found in: ", p_dir);
+		LOG(INFO, "No TerrainGenerator region files found in: ", p_dir);
 		return;
 	}
 
@@ -373,16 +373,16 @@ void Terrain3DData::load_directory(const String &p_dir) {
 			LOG(ERROR, "Cannot get region location from file name: ", fname);
 			continue;
 		}
-		Ref<Terrain3DRegion> region = CoreBind::ResourceLoader::get_singleton()->load(path, "Terrain3DRegion", CoreBind::ResourceLoader::CACHE_MODE_IGNORE);
+		Ref<TerrainGeneratorRegion> region = CoreBind::ResourceLoader::get_singleton()->load(path, "TerrainGeneratorRegion", CoreBind::ResourceLoader::CACHE_MODE_IGNORE);
 		if (region.is_null()) {
 			LOG(ERROR, "Cannot load region at ", path);
 			continue;
 		}
 		LOG(INFO, "Loaded region: ", loc, " size: ", region->get_region_size());
 		if (_regions.is_empty()) {
-			_terrain->set_region_size((Terrain3D::RegionSize)region->get_region_size());
+			_terrain->set_region_size((TerrainGenerator::RegionSize)region->get_region_size());
 		} else {
-			if (_terrain->get_region_size() != (Terrain3D::RegionSize)region->get_region_size()) {
+			if (_terrain->get_region_size() != (TerrainGenerator::RegionSize)region->get_region_size()) {
 				LOG(ERROR, "Region size mismatch. First loaded: ", _terrain->get_region_size(), " next: ",
 						region->get_region_size(), " in file: ", path);
 				return;
@@ -397,22 +397,22 @@ void Terrain3DData::load_directory(const String &p_dir) {
 }
 
 //TODO have load_directory call load_region, or make a load_file that loads a specific path
-void Terrain3DData::load_region(const Vector2i &p_region_loc, const String &p_dir, const bool p_update) {
+void TerrainGeneratorData::load_region(const Vector2i &p_region_loc, const String &p_dir, const bool p_update) {
 	LOG(INFO, "Loading region from location ", p_region_loc);
 	String path = p_dir + String("/") + Util::location_to_filename(p_region_loc);
 	if (!FileAccess::exists(path)) {
 		LOG(ERROR, "File ", path, " doesn't exist");
 		return;
 	}
-	Ref<Terrain3DRegion> region = CoreBind::ResourceLoader::get_singleton()->load(path, "Terrain3DRegion", CoreBind::ResourceLoader::CACHE_MODE_IGNORE);
+	Ref<TerrainGeneratorRegion> region = CoreBind::ResourceLoader::get_singleton()->load(path, "TerrainGeneratorRegion", CoreBind::ResourceLoader::CACHE_MODE_IGNORE);
 	if (region.is_null()) {
 		LOG(ERROR, "Cannot load region at ", path);
 		return;
 	}
 	if (_regions.is_empty()) {
-		_terrain->set_region_size((Terrain3D::RegionSize)region->get_region_size());
+		_terrain->set_region_size((TerrainGenerator::RegionSize)region->get_region_size());
 	} else {
-		if (_terrain->get_region_size() != (Terrain3D::RegionSize)region->get_region_size()) {
+		if (_terrain->get_region_size() != (TerrainGenerator::RegionSize)region->get_region_size()) {
 			LOG(ERROR, "Region size mismatch. First loaded: ", _terrain->get_region_size(), " next: ",
 					region->get_region_size(), " in file: ", path);
 			return;
@@ -424,7 +424,7 @@ void Terrain3DData::load_region(const Vector2i &p_region_loc, const String &p_di
 	add_region(region, p_update);
 }
 
-TypedArray<Image> Terrain3DData::get_maps(const MapType p_map_type) const {
+TypedArray<Image> TerrainGeneratorData::get_maps(const MapType p_map_type) const {
 	if (p_map_type < 0 || p_map_type >= TYPE_MAX) {
 		LOG(ERROR, "Specified map type out of range");
 		return TypedArray<Image>();
@@ -445,13 +445,13 @@ TypedArray<Image> Terrain3DData::get_maps(const MapType p_map_type) const {
 	return TypedArray<Image>();
 }
 
-void Terrain3DData::update_maps(const MapType p_map_type, const bool p_all_regions, const bool p_generate_mipmaps) {
+void TerrainGeneratorData::update_maps(const MapType p_map_type, const bool p_all_regions, const bool p_generate_mipmaps) {
 	// Generate region color mipmaps
 	if (p_generate_mipmaps && (p_map_type == TYPE_COLOR || p_map_type == TYPE_MAX)) {
 		LOG(EXTREME, "Regenerating color mipmaps");
 		for (int i = 0; i < _region_locations.size(); i++) {
 			Vector2i region_loc = _region_locations[i];
-			Terrain3DRegion *region = get_region_ptr(region_loc);
+			TerrainGeneratorRegion *region = get_region_ptr(region_loc);
 			// Generate all or only those marked edited
 			if (region && (p_all_regions || region->is_edited())) {
 				region->get_color_map()->generate_mipmaps();
@@ -494,7 +494,7 @@ void Terrain3DData::update_maps(const MapType p_map_type, const bool p_all_regio
 		int region_id = 0;
 		for (int i = 0; i < locs.size(); i++) {
 			Vector2i region_loc = locs[i];
-			Terrain3DRegion *region = get_region_ptr(region_loc);
+			TerrainGeneratorRegion *region = get_region_ptr(region_loc);
 			if (region && !region->is_deleted()) {
 				region_id += 1; // Begin at 1 since 0 = no region
 				int map_index = get_region_map_index(region_loc);
@@ -514,7 +514,7 @@ void Terrain3DData::update_maps(const MapType p_map_type, const bool p_all_regio
 		_height_maps.clear();
 		for (int i = 0; i < _region_locations.size(); i++) {
 			Vector2i region_loc = _region_locations[i];
-			Terrain3DRegion *region = get_region_ptr(region_loc);
+			TerrainGeneratorRegion *region = get_region_ptr(region_loc);
 			if (region) {
 				_height_maps.push_back(region->get_height_map());
 			} else {
@@ -535,7 +535,7 @@ void Terrain3DData::update_maps(const MapType p_map_type, const bool p_all_regio
 		_control_maps.clear();
 		for (int i = 0; i < _region_locations.size(); i++) {
 			Vector2i region_loc = _region_locations[i];
-			Terrain3DRegion *region = get_region_ptr(region_loc);
+			TerrainGeneratorRegion *region = get_region_ptr(region_loc);
 			if (region) {
 				_control_maps.push_back(region->get_control_map());
 			}
@@ -551,7 +551,7 @@ void Terrain3DData::update_maps(const MapType p_map_type, const bool p_all_regio
 		_color_maps.clear();
 		for (int i = 0; i < _region_locations.size(); i++) {
 			Vector2i region_loc = _region_locations[i];
-			Terrain3DRegion *region = get_region_ptr(region_loc);
+			TerrainGeneratorRegion *region = get_region_ptr(region_loc);
 			if (region) {
 				_color_maps.push_back(region->get_color_map());
 			}
@@ -562,11 +562,11 @@ void Terrain3DData::update_maps(const MapType p_map_type, const bool p_all_regio
 	}
 
 	// If no maps have been rebuilt, update only individual regions in the array.
-	// Regions marked Edited have been changed by Terrain3DEditor::_operate_map or undo / redo processing.
+	// Regions marked Edited have been changed by TerrainGeneratorEditor::_operate_map or undo / redo processing.
 	if (!any_changed) {
 		for (int i = 0; i < _region_locations.size(); i++) {
 			Vector2i region_loc = _region_locations[i];
-			Terrain3DRegion *region = get_region_ptr(region_loc);
+			TerrainGeneratorRegion *region = get_region_ptr(region_loc);
 			if (region && region->is_edited()) {
 				int region_id = get_region_id(region_loc);
 				switch (p_map_type) {
@@ -597,13 +597,13 @@ void Terrain3DData::update_maps(const MapType p_map_type, const bool p_all_regio
 	emit_signal("maps_changed");
 }
 
-void Terrain3DData::set_pixel(const MapType p_map_type, const Vector3 &p_global_position, const Color &p_pixel) {
+void TerrainGeneratorData::set_pixel(const MapType p_map_type, const Vector3 &p_global_position, const Color &p_pixel) {
 	if (p_map_type < 0 || p_map_type >= TYPE_MAX) {
 		LOG(ERROR, "Specified map type out of range");
 		return;
 	}
 	Vector2i region_loc = get_region_location(p_global_position);
-	Terrain3DRegion *region = get_region_ptr(region_loc);
+	TerrainGeneratorRegion *region = get_region_ptr(region_loc);
 	if (!region) {
 		LOG(ERROR, "No active region found at: ", p_global_position);
 		return;
@@ -623,13 +623,13 @@ void Terrain3DData::set_pixel(const MapType p_map_type, const Vector3 &p_global_
 	}
 }
 
-Color Terrain3DData::get_pixel(const MapType p_map_type, const Vector3 &p_global_position) const {
+Color TerrainGeneratorData::get_pixel(const MapType p_map_type, const Vector3 &p_global_position) const {
 	if (p_map_type < 0 || p_map_type >= TYPE_MAX) {
 		LOG(ERROR, "Specified map type out of range");
 		return COLOR_NAN;
 	}
 	Vector2i region_loc = get_region_location(p_global_position);
-	Terrain3DRegion *region = get_region_ptr(region_loc);
+	TerrainGeneratorRegion *region = get_region_ptr(region_loc);
 	if (!region) {
 		return COLOR_NAN;
 	}
@@ -648,7 +648,7 @@ Color Terrain3DData::get_pixel(const MapType p_map_type, const Vector3 &p_global
 	}
 }
 
-real_t Terrain3DData::get_height(const Vector3 &p_global_position) const {
+real_t TerrainGeneratorData::get_height(const Vector3 &p_global_position) const {
 	if (is_hole(get_control(p_global_position))) {
 		return NAN;
 	}
@@ -674,7 +674,7 @@ real_t Terrain3DData::get_height(const Vector3 &p_global_position) const {
 	}
 }
 
-Vector3 Terrain3DData::get_normal(const Vector3 &p_global_position) const {
+Vector3 TerrainGeneratorData::get_normal(const Vector3 &p_global_position) const {
 	if (get_region_idp(p_global_position) < 0 || is_hole(get_control(p_global_position))) {
 		return Vector3(NAN, NAN, NAN);
 	}
@@ -686,7 +686,7 @@ Vector3 Terrain3DData::get_normal(const Vector3 &p_global_position) const {
 	return normal;
 }
 
-bool Terrain3DData::is_in_slope(const Vector3 &p_global_position, const Vector2 &p_slope_range, const bool p_invert) const {
+bool TerrainGeneratorData::is_in_slope(const Vector3 &p_global_position, const Vector2 &p_slope_range, const bool p_invert) const {
 	// If slope is full range, it's disabled
 	const Vector2 slope_range = CLAMP(p_slope_range, V2_ZERO, Vector2(90.f, 90.f));
 	if (slope_range.y - slope_range.x > 89.99f) {
@@ -733,7 +733,7 @@ bool Terrain3DData::is_in_slope(const Vector3 &p_global_position, const Vector2 
  * blending values look, then consider that the overlay texture is visible starting at a blend
  * value of .3-.5, otherwise it's the base texture.
  **/
-Vector3 Terrain3DData::get_texture_id(const Vector3 &p_global_position) const {
+Vector3 TerrainGeneratorData::get_texture_id(const Vector3 &p_global_position) const {
 	// Verify in a region
 	int region_id = get_region_idp(p_global_position);
 	if (region_id < 0) {
@@ -748,7 +748,7 @@ Vector3 Terrain3DData::get_texture_id(const Vector3 &p_global_position) const {
 
 	// If material available, autoshader enabled, and pixel set to auto
 	if (_terrain) {
-		Ref<Terrain3DMaterial> t_material = _terrain->get_material();
+		Ref<TerrainGeneratorMaterial> t_material = _terrain->get_material();
 		bool auto_enabled = t_material->get_auto_shader();
 		bool control_auto = is_auto(src);
 		if (auto_enabled && control_auto) {
@@ -779,7 +779,7 @@ Vector3 Terrain3DData::get_texture_id(const Vector3 &p_global_position) const {
  *  HEIGHT_FILTER_MINIMUM: Samples (1 << p_lod) ** 2 heights around the given coordinates and returns the lowest.
  * p_global_position: X and Z coordinates of the vertex. Heights will be sampled around these coordinates.
  */
-Vector3 Terrain3DData::get_mesh_vertex(const int32_t p_lod, const HeightFilter p_filter, const Vector3 &p_global_position) const {
+Vector3 TerrainGeneratorData::get_mesh_vertex(const int32_t p_lod, const HeightFilter p_filter, const Vector3 &p_global_position) const {
 	LOG(INFO, "Calculating vertex location");
 	int32_t step = 1 << CLAMP(p_lod, 0, 8);
 	real_t height = 0.0f;
@@ -812,7 +812,7 @@ Vector3 Terrain3DData::get_mesh_vertex(const int32_t p_lod, const HeightFilter p
 	return Vector3(p_global_position.x, height, p_global_position.z);
 }
 
-void Terrain3DData::add_edited_area(const AABB &p_area) {
+void TerrainGeneratorData::add_edited_area(const AABB &p_area) {
 	if (_edited_area.has_surface()) {
 		_edited_area = _edited_area.merge(p_area);
 	} else {
@@ -823,11 +823,11 @@ void Terrain3DData::add_edited_area(const AABB &p_area) {
 
 // Recalculates master height range from all active regions current height ranges
 // Recursive mode has all regions to recalculate from each heightmap pixel
-void Terrain3DData::calc_height_range(const bool p_recursive) {
+void TerrainGeneratorData::calc_height_range(const bool p_recursive) {
 	_master_height_range = V2_ZERO;
 	for (int i = 0; i < _region_locations.size(); i++) {
 		Vector2i region_loc = _region_locations[i];
-		Terrain3DRegion *region = get_region_ptr(region_loc);
+		TerrainGeneratorRegion *region = get_region_ptr(region_loc);
 		if (!region) {
 			continue;
 		}
@@ -840,7 +840,7 @@ void Terrain3DData::calc_height_range(const bool p_recursive) {
 }
 
 /**
- * Imports an Image set (Height, Control, Color) into Terrain3DData
+ * Imports an Image set (Height, Control, Color) into TerrainGeneratorData
  * It does NOT normalize values to 0-1. You must do that using get_min_max() and adjusting scale and offset.
  * Parameters:
  *	p_images - MapType.TYPE_MAX sized array of Images for Height, Control, Color. Images can be blank or null
@@ -848,7 +848,7 @@ void Terrain3DData::calc_height_range(const bool p_recursive) {
  *	p_offset - Add this factor to all height values, can be negative
  *	p_scale - Scale all height values by this factor (applied after offset)
  */
-void Terrain3DData::import_images(const TypedArray<Image> &p_images, const Vector3 &p_global_position, const real_t p_offset, const real_t p_scale) {
+void TerrainGeneratorData::import_images(const TypedArray<Image> &p_images, const Vector3 &p_global_position, const real_t p_offset, const real_t p_scale) {
 	IS_INIT_MESG("Data not initialized", VOID);
 	if (p_images.size() != TYPE_MAX) {
 		LOG(ERROR, "p_images.size() is ", p_images.size(), ". It should be ", TYPE_MAX, " even if some Images are blank or null");
@@ -878,7 +878,7 @@ void Terrain3DData::import_images(const TypedArray<Image> &p_images, const Vecto
 
 	Vector3 descaled_position = p_global_position / _vertex_spacing;
 	int max_dimension = _region_size * REGION_MAP_SIZE / 2;
-	if ((abs(descaled_position.x) > max_dimension) || (abs(descaled_position.z) > max_dimension)) {
+	if ((Math::abs(descaled_position.x) > max_dimension) || (Math::abs(descaled_position.z) > max_dimension)) {
 		LOG(ERROR, "Specify a position within +/-", Vector3(max_dimension, 0.f, max_dimension) * _vertex_spacing);
 		return;
 	}
@@ -955,7 +955,7 @@ void Terrain3DData::import_images(const TypedArray<Image> &p_images, const Vecto
 				images[i] = img_slice;
 			}
 			// Add the heightmap slice and only regenerate on the last one
-			Ref<Terrain3DRegion> region;
+			Ref<TerrainGeneratorRegion> region;
 			region.instantiate();
 			Vector3 position = Vector3(descaled_position.x + start_coords.x, 0.f, descaled_position.z + start_coords.y);
 			position *= _vertex_spacing;
@@ -971,7 +971,7 @@ void Terrain3DData::import_images(const TypedArray<Image> &p_images, const Vecto
  * r16 can be edited by Krita, however you must know the dimensions and min/max before reimporting
  * res/tres stores in Godot's native format.
  */
-Error Terrain3DData::export_image(const String &p_file_name, const MapType p_map_type) const {
+Error TerrainGeneratorData::export_image(const String &p_file_name, const MapType p_map_type) const {
 	if (p_map_type < 0 || p_map_type >= TYPE_MAX) {
 		LOG(ERROR, "Invalid map type specified: ", p_map_type, " max: ", TYPE_MAX - 1);
 		return FAILED;
@@ -1063,7 +1063,7 @@ Error Terrain3DData::export_image(const String &p_file_name, const MapType p_map
 	return FAILED;
 }
 
-Ref<Image> Terrain3DData::layered_to_image(const MapType p_map_type) const {
+Ref<Image> TerrainGeneratorData::layered_to_image(const MapType p_map_type) const {
 	LOG(INFO, "Generating a full sized image for all regions including empty regions");
 	MapType map_type = p_map_type;
 	if (map_type >= TYPE_MAX) {
@@ -1095,7 +1095,7 @@ Ref<Image> Terrain3DData::layered_to_image(const MapType p_map_type) const {
 		Vector2i region_loc = _region_locations[i];
 		Vector2i img_location = (region_loc - top_left) * _region_size;
 		LOG(DEBUG, "Region to blit: ", region_loc, " Export image coords: ", img_location);
-		Terrain3DRegion *region = get_region_ptr(region_loc);
+		TerrainGeneratorRegion *region = get_region_ptr(region_loc);
 		if (region) {
 			img->blit_rect(region->get_map(map_type), Rect2i(V2I_ZERO, _region_sizev), img_location);
 		}
@@ -1103,7 +1103,7 @@ Ref<Image> Terrain3DData::layered_to_image(const MapType p_map_type) const {
 	return img;
 }
 
-void Terrain3DData::print_audit_data() const {
+void TerrainGeneratorData::print_audit_data() const {
 	LOG(INFO, "Dumping data");
 	LOG(INFO, "Region_locations size: ", _region_locations.size(), " ", _region_locations);
 	LOG(INFO, "Region map");
@@ -1125,97 +1125,97 @@ void Terrain3DData::print_audit_data() const {
 // Protected Functions
 ///////////////////////////
 
-void Terrain3DData::_bind_methods() {
+void TerrainGeneratorData::_bind_methods() {
 	BIND_ENUM_CONSTANT(HEIGHT_FILTER_NEAREST);
 	BIND_ENUM_CONSTANT(HEIGHT_FILTER_MINIMUM);
 
 	BIND_CONSTANT(REGION_MAP_SIZE);
 
-	ClassDB::bind_method(D_METHOD("get_region_count"), &Terrain3DData::get_region_count);
-	ClassDB::bind_method(D_METHOD("set_region_locations", "region_locations"), &Terrain3DData::set_region_locations);
-	ClassDB::bind_method(D_METHOD("get_region_locations"), &Terrain3DData::get_region_locations);
-	ClassDB::bind_method(D_METHOD("get_regions_active", "copy", "deep"), &Terrain3DData::get_regions_active, DEFVAL(false), DEFVAL(false));
-	ClassDB::bind_method(D_METHOD("get_regions_all"), &Terrain3DData::get_regions_all);
-	ClassDB::bind_method(D_METHOD("get_region_map"), &Terrain3DData::get_region_map);
-	ClassDB::bind_static_method("Terrain3DData", D_METHOD("get_region_map_index", "region_location"), &Terrain3DData::get_region_map_index);
+	ClassDB::bind_method(D_METHOD("get_region_count"), &TerrainGeneratorData::get_region_count);
+	ClassDB::bind_method(D_METHOD("set_region_locations", "region_locations"), &TerrainGeneratorData::set_region_locations);
+	ClassDB::bind_method(D_METHOD("get_region_locations"), &TerrainGeneratorData::get_region_locations);
+	ClassDB::bind_method(D_METHOD("get_regions_active", "copy", "deep"), &TerrainGeneratorData::get_regions_active, DEFVAL(false), DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("get_regions_all"), &TerrainGeneratorData::get_regions_all);
+	ClassDB::bind_method(D_METHOD("get_region_map"), &TerrainGeneratorData::get_region_map);
+	ClassDB::bind_static_method("TerrainGeneratorData", D_METHOD("get_region_map_index", "region_location"), &TerrainGeneratorData::get_region_map_index);
 
-	ClassDB::bind_method(D_METHOD("do_for_regions", "area", "callback"), &Terrain3DData::do_for_regions);
-	ClassDB::bind_method(D_METHOD("change_region_size", "region_size"), &Terrain3DData::change_region_size);
+	ClassDB::bind_method(D_METHOD("do_for_regions", "area", "callback"), &TerrainGeneratorData::do_for_regions);
+	ClassDB::bind_method(D_METHOD("change_region_size", "region_size"), &TerrainGeneratorData::change_region_size);
 
-	ClassDB::bind_method(D_METHOD("get_region_location", "global_position"), &Terrain3DData::get_region_location);
-	ClassDB::bind_method(D_METHOD("get_region_id", "region_location"), &Terrain3DData::get_region_id);
-	ClassDB::bind_method(D_METHOD("get_region_idp", "global_position"), &Terrain3DData::get_region_idp);
+	ClassDB::bind_method(D_METHOD("get_region_location", "global_position"), &TerrainGeneratorData::get_region_location);
+	ClassDB::bind_method(D_METHOD("get_region_id", "region_location"), &TerrainGeneratorData::get_region_id);
+	ClassDB::bind_method(D_METHOD("get_region_idp", "global_position"), &TerrainGeneratorData::get_region_idp);
 
-	ClassDB::bind_method(D_METHOD("has_region", "region_location"), &Terrain3DData::has_region);
-	ClassDB::bind_method(D_METHOD("has_regionp", "global_position"), &Terrain3DData::has_regionp);
-	ClassDB::bind_method(D_METHOD("get_region", "region_location"), &Terrain3DData::get_region);
-	ClassDB::bind_method(D_METHOD("get_regionp", "global_position"), &Terrain3DData::get_regionp);
+	ClassDB::bind_method(D_METHOD("has_region", "region_location"), &TerrainGeneratorData::has_region);
+	ClassDB::bind_method(D_METHOD("has_regionp", "global_position"), &TerrainGeneratorData::has_regionp);
+	ClassDB::bind_method(D_METHOD("get_region", "region_location"), &TerrainGeneratorData::get_region);
+	ClassDB::bind_method(D_METHOD("get_regionp", "global_position"), &TerrainGeneratorData::get_regionp);
 
-	ClassDB::bind_method(D_METHOD("set_region_modified", "region_location", "modified"), &Terrain3DData::set_region_modified);
-	ClassDB::bind_method(D_METHOD("is_region_modified", "region_location"), &Terrain3DData::is_region_modified);
-	ClassDB::bind_method(D_METHOD("set_region_deleted", "region_location", "deleted"), &Terrain3DData::set_region_deleted);
-	ClassDB::bind_method(D_METHOD("is_region_deleted", "region_location"), &Terrain3DData::is_region_deleted);
+	ClassDB::bind_method(D_METHOD("set_region_modified", "region_location", "modified"), &TerrainGeneratorData::set_region_modified);
+	ClassDB::bind_method(D_METHOD("is_region_modified", "region_location"), &TerrainGeneratorData::is_region_modified);
+	ClassDB::bind_method(D_METHOD("set_region_deleted", "region_location", "deleted"), &TerrainGeneratorData::set_region_deleted);
+	ClassDB::bind_method(D_METHOD("is_region_deleted", "region_location"), &TerrainGeneratorData::is_region_deleted);
 
-	ClassDB::bind_method(D_METHOD("add_region_blankp", "global_position", "update"), &Terrain3DData::add_region_blankp, DEFVAL(true));
-	ClassDB::bind_method(D_METHOD("add_region_blank", "region_location", "update"), &Terrain3DData::add_region_blank, DEFVAL(true));
-	ClassDB::bind_method(D_METHOD("add_region", "region", "update"), &Terrain3DData::add_region, DEFVAL(true));
-	ClassDB::bind_method(D_METHOD("remove_regionp", "global_position", "update"), &Terrain3DData::remove_regionp, DEFVAL(true));
-	ClassDB::bind_method(D_METHOD("remove_regionl", "region_location", "update"), &Terrain3DData::remove_regionl, DEFVAL(true));
-	ClassDB::bind_method(D_METHOD("remove_region", "region", "update"), &Terrain3DData::remove_region, DEFVAL(true));
+	ClassDB::bind_method(D_METHOD("add_region_blankp", "global_position", "update"), &TerrainGeneratorData::add_region_blankp, DEFVAL(true));
+	ClassDB::bind_method(D_METHOD("add_region_blank", "region_location", "update"), &TerrainGeneratorData::add_region_blank, DEFVAL(true));
+	ClassDB::bind_method(D_METHOD("add_region", "region", "update"), &TerrainGeneratorData::add_region, DEFVAL(true));
+	ClassDB::bind_method(D_METHOD("remove_regionp", "global_position", "update"), &TerrainGeneratorData::remove_regionp, DEFVAL(true));
+	ClassDB::bind_method(D_METHOD("remove_regionl", "region_location", "update"), &TerrainGeneratorData::remove_regionl, DEFVAL(true));
+	ClassDB::bind_method(D_METHOD("remove_region", "region", "update"), &TerrainGeneratorData::remove_region, DEFVAL(true));
 
-	ClassDB::bind_method(D_METHOD("save_directory", "directory"), &Terrain3DData::save_directory);
-	ClassDB::bind_method(D_METHOD("save_region", "region_location", "directory", "save_16_bit"), &Terrain3DData::save_region, DEFVAL(false));
-	ClassDB::bind_method(D_METHOD("load_directory", "directory"), &Terrain3DData::load_directory);
-	ClassDB::bind_method(D_METHOD("load_region", "region_location", "directory", "update"), &Terrain3DData::load_region, DEFVAL(true));
+	ClassDB::bind_method(D_METHOD("save_directory", "directory"), &TerrainGeneratorData::save_directory);
+	ClassDB::bind_method(D_METHOD("save_region", "region_location", "directory", "save_16_bit"), &TerrainGeneratorData::save_region, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("load_directory", "directory"), &TerrainGeneratorData::load_directory);
+	ClassDB::bind_method(D_METHOD("load_region", "region_location", "directory", "update"), &TerrainGeneratorData::load_region, DEFVAL(true));
 
-	ClassDB::bind_method(D_METHOD("get_height_maps"), &Terrain3DData::get_height_maps);
-	ClassDB::bind_method(D_METHOD("get_control_maps"), &Terrain3DData::get_control_maps);
-	ClassDB::bind_method(D_METHOD("get_color_maps"), &Terrain3DData::get_color_maps);
-	ClassDB::bind_method(D_METHOD("get_maps", "map_type"), &Terrain3DData::get_maps);
-	ClassDB::bind_method(D_METHOD("update_maps", "map_type", "all_regions", "generate_mipmaps"), &Terrain3DData::update_maps, DEFVAL(TYPE_MAX), DEFVAL(true), DEFVAL(false));
-	ClassDB::bind_method(D_METHOD("get_height_maps_rid"), &Terrain3DData::get_height_maps_rid);
-	ClassDB::bind_method(D_METHOD("get_control_maps_rid"), &Terrain3DData::get_control_maps_rid);
-	ClassDB::bind_method(D_METHOD("get_color_maps_rid"), &Terrain3DData::get_color_maps_rid);
+	ClassDB::bind_method(D_METHOD("get_height_maps"), &TerrainGeneratorData::get_height_maps);
+	ClassDB::bind_method(D_METHOD("get_control_maps"), &TerrainGeneratorData::get_control_maps);
+	ClassDB::bind_method(D_METHOD("get_color_maps"), &TerrainGeneratorData::get_color_maps);
+	ClassDB::bind_method(D_METHOD("get_maps", "map_type"), &TerrainGeneratorData::get_maps);
+	ClassDB::bind_method(D_METHOD("update_maps", "map_type", "all_regions", "generate_mipmaps"), &TerrainGeneratorData::update_maps, DEFVAL(TYPE_MAX), DEFVAL(true), DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("get_height_maps_rid"), &TerrainGeneratorData::get_height_maps_rid);
+	ClassDB::bind_method(D_METHOD("get_control_maps_rid"), &TerrainGeneratorData::get_control_maps_rid);
+	ClassDB::bind_method(D_METHOD("get_color_maps_rid"), &TerrainGeneratorData::get_color_maps_rid);
 
-	ClassDB::bind_method(D_METHOD("set_pixel", "map_type", "global_position", "pixel"), &Terrain3DData::set_pixel);
-	ClassDB::bind_method(D_METHOD("get_pixel", "map_type", "global_position"), &Terrain3DData::get_pixel);
-	ClassDB::bind_method(D_METHOD("set_height", "global_position", "height"), &Terrain3DData::set_height);
-	ClassDB::bind_method(D_METHOD("get_height", "global_position"), &Terrain3DData::get_height);
-	ClassDB::bind_method(D_METHOD("set_color", "global_position", "color"), &Terrain3DData::set_color);
-	ClassDB::bind_method(D_METHOD("get_color", "global_position"), &Terrain3DData::get_color);
-	ClassDB::bind_method(D_METHOD("set_control", "global_position", "control"), &Terrain3DData::set_control);
-	ClassDB::bind_method(D_METHOD("get_control", "global_position"), &Terrain3DData::get_control);
-	ClassDB::bind_method(D_METHOD("set_roughness", "global_position", "roughness"), &Terrain3DData::set_roughness);
-	ClassDB::bind_method(D_METHOD("get_roughness", "global_position"), &Terrain3DData::get_roughness);
+	ClassDB::bind_method(D_METHOD("set_pixel", "map_type", "global_position", "pixel"), &TerrainGeneratorData::set_pixel);
+	ClassDB::bind_method(D_METHOD("get_pixel", "map_type", "global_position"), &TerrainGeneratorData::get_pixel);
+	ClassDB::bind_method(D_METHOD("set_height", "global_position", "height"), &TerrainGeneratorData::set_height);
+	ClassDB::bind_method(D_METHOD("get_height", "global_position"), &TerrainGeneratorData::get_height);
+	ClassDB::bind_method(D_METHOD("set_color", "global_position", "color"), &TerrainGeneratorData::set_color);
+	ClassDB::bind_method(D_METHOD("get_color", "global_position"), &TerrainGeneratorData::get_color);
+	ClassDB::bind_method(D_METHOD("set_control", "global_position", "control"), &TerrainGeneratorData::set_control);
+	ClassDB::bind_method(D_METHOD("get_control", "global_position"), &TerrainGeneratorData::get_control);
+	ClassDB::bind_method(D_METHOD("set_roughness", "global_position", "roughness"), &TerrainGeneratorData::set_roughness);
+	ClassDB::bind_method(D_METHOD("get_roughness", "global_position"), &TerrainGeneratorData::get_roughness);
 
-	ClassDB::bind_method(D_METHOD("set_control_base_id", "global_position", "texture_id"), &Terrain3DData::set_control_base_id);
-	ClassDB::bind_method(D_METHOD("get_control_base_id", "global_position"), &Terrain3DData::get_control_base_id);
-	ClassDB::bind_method(D_METHOD("set_control_overlay_id", "global_position", "texture_id"), &Terrain3DData::set_control_overlay_id);
-	ClassDB::bind_method(D_METHOD("get_control_overlay_id", "global_position"), &Terrain3DData::get_control_overlay_id);
-	ClassDB::bind_method(D_METHOD("set_control_blend", "global_position", "blend_value"), &Terrain3DData::set_control_blend);
-	ClassDB::bind_method(D_METHOD("get_control_blend", "global_position"), &Terrain3DData::get_control_blend);
-	ClassDB::bind_method(D_METHOD("set_control_angle", "global_position", "degrees"), &Terrain3DData::set_control_angle);
-	ClassDB::bind_method(D_METHOD("get_control_angle", "global_position"), &Terrain3DData::get_control_angle);
-	ClassDB::bind_method(D_METHOD("set_control_scale", "global_position", "percentage_modifier"), &Terrain3DData::set_control_scale);
-	ClassDB::bind_method(D_METHOD("get_control_scale", "global_position"), &Terrain3DData::get_control_scale);
-	ClassDB::bind_method(D_METHOD("set_control_hole", "global_position", "enable"), &Terrain3DData::set_control_hole);
-	ClassDB::bind_method(D_METHOD("get_control_hole", "global_position"), &Terrain3DData::get_control_hole);
-	ClassDB::bind_method(D_METHOD("set_control_navigation", "global_position", "enable"), &Terrain3DData::set_control_navigation);
-	ClassDB::bind_method(D_METHOD("get_control_navigation", "global_position"), &Terrain3DData::get_control_navigation);
-	ClassDB::bind_method(D_METHOD("set_control_auto", "global_position", "enable"), &Terrain3DData::set_control_auto);
-	ClassDB::bind_method(D_METHOD("get_control_auto", "global_position"), &Terrain3DData::get_control_auto);
+	ClassDB::bind_method(D_METHOD("set_control_base_id", "global_position", "texture_id"), &TerrainGeneratorData::set_control_base_id);
+	ClassDB::bind_method(D_METHOD("get_control_base_id", "global_position"), &TerrainGeneratorData::get_control_base_id);
+	ClassDB::bind_method(D_METHOD("set_control_overlay_id", "global_position", "texture_id"), &TerrainGeneratorData::set_control_overlay_id);
+	ClassDB::bind_method(D_METHOD("get_control_overlay_id", "global_position"), &TerrainGeneratorData::get_control_overlay_id);
+	ClassDB::bind_method(D_METHOD("set_control_blend", "global_position", "blend_value"), &TerrainGeneratorData::set_control_blend);
+	ClassDB::bind_method(D_METHOD("get_control_blend", "global_position"), &TerrainGeneratorData::get_control_blend);
+	ClassDB::bind_method(D_METHOD("set_control_angle", "global_position", "degrees"), &TerrainGeneratorData::set_control_angle);
+	ClassDB::bind_method(D_METHOD("get_control_angle", "global_position"), &TerrainGeneratorData::get_control_angle);
+	ClassDB::bind_method(D_METHOD("set_control_scale", "global_position", "percentage_modifier"), &TerrainGeneratorData::set_control_scale);
+	ClassDB::bind_method(D_METHOD("get_control_scale", "global_position"), &TerrainGeneratorData::get_control_scale);
+	ClassDB::bind_method(D_METHOD("set_control_hole", "global_position", "enable"), &TerrainGeneratorData::set_control_hole);
+	ClassDB::bind_method(D_METHOD("get_control_hole", "global_position"), &TerrainGeneratorData::get_control_hole);
+	ClassDB::bind_method(D_METHOD("set_control_navigation", "global_position", "enable"), &TerrainGeneratorData::set_control_navigation);
+	ClassDB::bind_method(D_METHOD("get_control_navigation", "global_position"), &TerrainGeneratorData::get_control_navigation);
+	ClassDB::bind_method(D_METHOD("set_control_auto", "global_position", "enable"), &TerrainGeneratorData::set_control_auto);
+	ClassDB::bind_method(D_METHOD("get_control_auto", "global_position"), &TerrainGeneratorData::get_control_auto);
 
-	ClassDB::bind_method(D_METHOD("get_normal", "global_position"), &Terrain3DData::get_normal);
-	ClassDB::bind_method(D_METHOD("is_in_slope", "global_position", "slope_range", "invert"), &Terrain3DData::is_in_slope, DEFVAL(false));
-	ClassDB::bind_method(D_METHOD("get_texture_id", "global_position"), &Terrain3DData::get_texture_id);
-	ClassDB::bind_method(D_METHOD("get_mesh_vertex", "lod", "filter", "global_position"), &Terrain3DData::get_mesh_vertex);
+	ClassDB::bind_method(D_METHOD("get_normal", "global_position"), &TerrainGeneratorData::get_normal);
+	ClassDB::bind_method(D_METHOD("is_in_slope", "global_position", "slope_range", "invert"), &TerrainGeneratorData::is_in_slope, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("get_texture_id", "global_position"), &TerrainGeneratorData::get_texture_id);
+	ClassDB::bind_method(D_METHOD("get_mesh_vertex", "lod", "filter", "global_position"), &TerrainGeneratorData::get_mesh_vertex);
 
-	ClassDB::bind_method(D_METHOD("get_height_range"), &Terrain3DData::get_height_range);
-	ClassDB::bind_method(D_METHOD("calc_height_range", "recursive"), &Terrain3DData::calc_height_range, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("get_height_range"), &TerrainGeneratorData::get_height_range);
+	ClassDB::bind_method(D_METHOD("calc_height_range", "recursive"), &TerrainGeneratorData::calc_height_range, DEFVAL(false));
 
-	ClassDB::bind_method(D_METHOD("import_images", "images", "global_position", "offset", "scale"), &Terrain3DData::import_images, DEFVAL(Vector3(0, 0, 0)), DEFVAL(0.0), DEFVAL(1.0));
-	ClassDB::bind_method(D_METHOD("export_image", "file_name", "map_type"), &Terrain3DData::export_image);
-	ClassDB::bind_method(D_METHOD("layered_to_image", "map_type"), &Terrain3DData::layered_to_image);
+	ClassDB::bind_method(D_METHOD("import_images", "images", "global_position", "offset", "scale"), &TerrainGeneratorData::import_images, DEFVAL(Vector3(0, 0, 0)), DEFVAL(0.0), DEFVAL(1.0));
+	ClassDB::bind_method(D_METHOD("export_image", "file_name", "map_type"), &TerrainGeneratorData::export_image);
+	ClassDB::bind_method(D_METHOD("layered_to_image", "map_type"), &TerrainGeneratorData::layered_to_image);
 
 	int ro_flags = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY;
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "region_locations", PROPERTY_HINT_ARRAY_TYPE, "Vector2i", ro_flags), "set_region_locations", "get_region_locations");

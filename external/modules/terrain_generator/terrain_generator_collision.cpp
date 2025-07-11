@@ -19,9 +19,9 @@
 ///////////////////////////
 
 // Calculates shape data from top left position. Assumes descaled and snapped.
-Dictionary Terrain3DCollision::_get_shape_data(const Vector2i &p_position, const int p_size) {
+Dictionary TerrainGeneratorCollision::_get_shape_data(const Vector2i &p_position, const int p_size) {
 	IS_DATA_INIT_MESG("Terrain not initialized", Dictionary());
-	Terrain3DData *data = _terrain->get_data();
+	TerrainGeneratorData *data = _terrain->get_data();
 	int region_size = _terrain->get_region_size();
 
 	int hshape_size = p_size + 1; // Calculate last vertex at end
@@ -35,7 +35,7 @@ Dictionary Terrain3DCollision::_get_shape_data(const Vector2i &p_position, const
 
 	// Get region_loc of top left corner of descaled and grid snapped collision shape position
 	Vector2i region_loc = V2I_DIVIDE_FLOOR(p_position, region_size);
-	Ref<Terrain3DRegion> region = data->get_region(region_loc);
+	Ref<TerrainGeneratorRegion> region = data->get_region(region_loc);
 	if (region.is_null() || (region.is_valid() && region->is_deleted())) {
 		LOG(EXTREME, "Region not found at: ", region_loc, ". Returning blank");
 		return Dictionary();
@@ -121,7 +121,7 @@ Dictionary Terrain3DCollision::_get_shape_data(const Vector2i &p_position, const
 	return shape_data;
 }
 
-void Terrain3DCollision::_shape_set_disabled(const int p_shape_id, const bool p_disabled) {
+void TerrainGeneratorCollision::_shape_set_disabled(const int p_shape_id, const bool p_disabled) {
 	if (is_editor_mode()) {
 		CollisionShape3D *shape = _shapes[p_shape_id];
 		shape->set_disabled(p_disabled);
@@ -131,7 +131,7 @@ void Terrain3DCollision::_shape_set_disabled(const int p_shape_id, const bool p_
 	}
 }
 
-void Terrain3DCollision::_shape_set_transform(const int p_shape_id, const Transform3D &p_xform) {
+void TerrainGeneratorCollision::_shape_set_transform(const int p_shape_id, const Transform3D &p_xform) {
 	if (is_editor_mode()) {
 		CollisionShape3D *shape = _shapes[p_shape_id];
 		shape->set_transform(p_xform);
@@ -140,7 +140,7 @@ void Terrain3DCollision::_shape_set_transform(const int p_shape_id, const Transf
 	}
 }
 
-Vector3 Terrain3DCollision::_shape_get_position(const int p_shape_id) const {
+Vector3 TerrainGeneratorCollision::_shape_get_position(const int p_shape_id) const {
 	if (is_editor_mode()) {
 		CollisionShape3D *shape = _shapes[p_shape_id];
 		return shape->get_global_position();
@@ -149,7 +149,7 @@ Vector3 Terrain3DCollision::_shape_get_position(const int p_shape_id) const {
 	}
 }
 
-void Terrain3DCollision::_shape_set_data(const int p_shape_id, const Dictionary &p_dict) {
+void TerrainGeneratorCollision::_shape_set_data(const int p_shape_id, const Dictionary &p_dict) {
 	if (is_editor_mode()) {
 		CollisionShape3D *shape = _shapes[p_shape_id];
 		Ref<HeightMapShape3D> hshape = shape->get_shape();
@@ -160,7 +160,7 @@ void Terrain3DCollision::_shape_set_data(const int p_shape_id, const Dictionary 
 	}
 }
 
-void Terrain3DCollision::_reload_physics_material() {
+void TerrainGeneratorCollision::_reload_physics_material() {
 	if (is_editor_mode()) {
 		if (_static_body) {
 			_static_body->set_physics_material_override(_physics_material);
@@ -187,7 +187,7 @@ void Terrain3DCollision::_reload_physics_material() {
 // Public Functions
 ///////////////////////////
 
-void Terrain3DCollision::initialize(Terrain3D *p_terrain) {
+void TerrainGeneratorCollision::initialize(TerrainGenerator *p_terrain) {
 	if (p_terrain) {
 		_terrain = p_terrain;
 	} else {
@@ -199,7 +199,7 @@ void Terrain3DCollision::initialize(Terrain3D *p_terrain) {
 	build();
 }
 
-void Terrain3DCollision::build() {
+void TerrainGeneratorCollision::build() {
 	IS_DATA_INIT(VOID);
 	if (!_terrain->is_inside_world()) {
 		LOG(ERROR, "Terrain isn't inside world. Returning.");
@@ -283,7 +283,7 @@ void Terrain3DCollision::build() {
 	update();
 }
 
-void Terrain3DCollision::update(const bool p_rebuild) {
+void TerrainGeneratorCollision::update(const bool p_rebuild) {
 	IS_INIT(VOID);
 	if (!_initialized) {
 		return;
@@ -414,7 +414,7 @@ void Terrain3DCollision::update(const bool p_rebuild) {
 	LOG(EXTREME, "Collision update time: ", Time::get_singleton()->get_ticks_usec() - time, " us");
 }
 
-void Terrain3DCollision::destroy() {
+void TerrainGeneratorCollision::destroy() {
 	_initialized = false;
 	_last_snapped_pos = V2I_MAX;
 
@@ -447,7 +447,7 @@ void Terrain3DCollision::destroy() {
 	}
 }
 
-void Terrain3DCollision::set_mode(const CollisionMode p_mode) {
+void TerrainGeneratorCollision::set_mode(const CollisionMode p_mode) {
 	LOG(INFO, "Setting collision mode: ", p_mode);
 	if (p_mode != _mode) {
 		_mode = p_mode;
@@ -459,7 +459,7 @@ void Terrain3DCollision::set_mode(const CollisionMode p_mode) {
 	}
 }
 
-void Terrain3DCollision::set_shape_size(const uint16_t p_size) {
+void TerrainGeneratorCollision::set_shape_size(const uint16_t p_size) {
 	int size = CLAMP(p_size, 8, 64);
 	size = int_round_mult(size, 8);
 	LOG(INFO, "Setting collision dynamic shape size: ", size);
@@ -472,7 +472,7 @@ void Terrain3DCollision::set_shape_size(const uint16_t p_size) {
 	}
 }
 
-void Terrain3DCollision::set_radius(const uint16_t p_radius) {
+void TerrainGeneratorCollision::set_radius(const uint16_t p_radius) {
 	int radius = CLAMP(p_radius, 16, 256);
 	radius = int_ceil_pow2(radius, 16);
 	LOG(INFO, "Setting collision dynamic radius: ", radius);
@@ -487,7 +487,7 @@ void Terrain3DCollision::set_radius(const uint16_t p_radius) {
 	}
 }
 
-void Terrain3DCollision::set_layer(const uint32_t p_layers) {
+void TerrainGeneratorCollision::set_layer(const uint32_t p_layers) {
 	LOG(INFO, "Setting collision layers: ", p_layers);
 	_layer = p_layers;
 	if (is_editor_mode()) {
@@ -501,7 +501,7 @@ void Terrain3DCollision::set_layer(const uint32_t p_layers) {
 	}
 }
 
-void Terrain3DCollision::set_mask(const uint32_t p_mask) {
+void TerrainGeneratorCollision::set_mask(const uint32_t p_mask) {
 	LOG(INFO, "Setting collision mask: ", p_mask);
 	_mask = p_mask;
 	if (is_editor_mode()) {
@@ -515,7 +515,7 @@ void Terrain3DCollision::set_mask(const uint32_t p_mask) {
 	}
 }
 
-void Terrain3DCollision::set_priority(const real_t p_priority) {
+void TerrainGeneratorCollision::set_priority(const real_t p_priority) {
 	LOG(INFO, "Setting collision priority: ", p_priority);
 	_priority = p_priority;
 	if (is_editor_mode()) {
@@ -529,23 +529,23 @@ void Terrain3DCollision::set_priority(const real_t p_priority) {
 	}
 }
 
-void Terrain3DCollision::set_physics_material(const Ref<PhysicsMaterial> &p_mat) {
+void TerrainGeneratorCollision::set_physics_material(const Ref<PhysicsMaterial> &p_mat) {
 	LOG(INFO, "Setting physics material: ", p_mat);
 	if (_physics_material.is_valid()) {
-		if (_physics_material->is_connected("changed", callable_mp(this, &Terrain3DCollision::_reload_physics_material))) {
+		if (_physics_material->is_connected("changed", callable_mp(this, &TerrainGeneratorCollision::_reload_physics_material))) {
 			LOG(DEBUG, "Disconnecting _physics_material::changed signal to _reload_physics_material()");
-			_physics_material->disconnect("changed", callable_mp(this, &Terrain3DCollision::_reload_physics_material));
+			_physics_material->disconnect("changed", callable_mp(this, &TerrainGeneratorCollision::_reload_physics_material));
 		}
 	}
 	_physics_material = p_mat;
 	if (_physics_material.is_valid()) {
 		LOG(DEBUG, "Connecting _physics_material::changed signal to _reload_physics_material()");
-		_physics_material->connect("changed", callable_mp(this, &Terrain3DCollision::_reload_physics_material));
+		_physics_material->connect("changed", callable_mp(this, &TerrainGeneratorCollision::_reload_physics_material));
 	}
 	_reload_physics_material();
 }
 
-RID Terrain3DCollision::get_rid() const {
+RID TerrainGeneratorCollision::get_rid() const {
 	if (!is_editor_mode()) {
 		return _static_body_rid;
 	} else {
@@ -560,35 +560,35 @@ RID Terrain3DCollision::get_rid() const {
 // Protected Functions
 ///////////////////////////
 
-void Terrain3DCollision::_bind_methods() {
+void TerrainGeneratorCollision::_bind_methods() {
 	BIND_ENUM_CONSTANT(DISABLED);
 	BIND_ENUM_CONSTANT(DYNAMIC_GAME);
 	BIND_ENUM_CONSTANT(DYNAMIC_EDITOR);
 	BIND_ENUM_CONSTANT(FULL_GAME);
 	BIND_ENUM_CONSTANT(FULL_EDITOR);
 
-	ClassDB::bind_method(D_METHOD("build"), &Terrain3DCollision::build);
-	ClassDB::bind_method(D_METHOD("update", "rebuild"), &Terrain3DCollision::update, DEFVAL(false));
-	ClassDB::bind_method(D_METHOD("destroy"), &Terrain3DCollision::destroy);
-	ClassDB::bind_method(D_METHOD("set_mode", "mode"), &Terrain3DCollision::set_mode);
-	ClassDB::bind_method(D_METHOD("get_mode"), &Terrain3DCollision::get_mode);
-	ClassDB::bind_method(D_METHOD("is_enabled"), &Terrain3DCollision::is_enabled);
-	ClassDB::bind_method(D_METHOD("is_editor_mode"), &Terrain3DCollision::is_editor_mode);
-	ClassDB::bind_method(D_METHOD("is_dynamic_mode"), &Terrain3DCollision::is_dynamic_mode);
+	ClassDB::bind_method(D_METHOD("build"), &TerrainGeneratorCollision::build);
+	ClassDB::bind_method(D_METHOD("update", "rebuild"), &TerrainGeneratorCollision::update, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("destroy"), &TerrainGeneratorCollision::destroy);
+	ClassDB::bind_method(D_METHOD("set_mode", "mode"), &TerrainGeneratorCollision::set_mode);
+	ClassDB::bind_method(D_METHOD("get_mode"), &TerrainGeneratorCollision::get_mode);
+	ClassDB::bind_method(D_METHOD("is_enabled"), &TerrainGeneratorCollision::is_enabled);
+	ClassDB::bind_method(D_METHOD("is_editor_mode"), &TerrainGeneratorCollision::is_editor_mode);
+	ClassDB::bind_method(D_METHOD("is_dynamic_mode"), &TerrainGeneratorCollision::is_dynamic_mode);
 
-	ClassDB::bind_method(D_METHOD("set_shape_size", "size"), &Terrain3DCollision::set_shape_size);
-	ClassDB::bind_method(D_METHOD("get_shape_size"), &Terrain3DCollision::get_shape_size);
-	ClassDB::bind_method(D_METHOD("set_radius", "radius"), &Terrain3DCollision::set_radius);
-	ClassDB::bind_method(D_METHOD("get_radius"), &Terrain3DCollision::get_radius);
-	ClassDB::bind_method(D_METHOD("set_layer", "layers"), &Terrain3DCollision::set_layer);
-	ClassDB::bind_method(D_METHOD("get_layer"), &Terrain3DCollision::get_layer);
-	ClassDB::bind_method(D_METHOD("set_mask", "mask"), &Terrain3DCollision::set_mask);
-	ClassDB::bind_method(D_METHOD("get_mask"), &Terrain3DCollision::get_mask);
-	ClassDB::bind_method(D_METHOD("set_priority", "priority"), &Terrain3DCollision::set_priority);
-	ClassDB::bind_method(D_METHOD("get_priority"), &Terrain3DCollision::get_priority);
-	ClassDB::bind_method(D_METHOD("set_physics_material", "material"), &Terrain3DCollision::set_physics_material);
-	ClassDB::bind_method(D_METHOD("get_physics_material"), &Terrain3DCollision::get_physics_material);
-	ClassDB::bind_method(D_METHOD("get_rid"), &Terrain3DCollision::get_rid);
+	ClassDB::bind_method(D_METHOD("set_shape_size", "size"), &TerrainGeneratorCollision::set_shape_size);
+	ClassDB::bind_method(D_METHOD("get_shape_size"), &TerrainGeneratorCollision::get_shape_size);
+	ClassDB::bind_method(D_METHOD("set_radius", "radius"), &TerrainGeneratorCollision::set_radius);
+	ClassDB::bind_method(D_METHOD("get_radius"), &TerrainGeneratorCollision::get_radius);
+	ClassDB::bind_method(D_METHOD("set_layer", "layers"), &TerrainGeneratorCollision::set_layer);
+	ClassDB::bind_method(D_METHOD("get_layer"), &TerrainGeneratorCollision::get_layer);
+	ClassDB::bind_method(D_METHOD("set_mask", "mask"), &TerrainGeneratorCollision::set_mask);
+	ClassDB::bind_method(D_METHOD("get_mask"), &TerrainGeneratorCollision::get_mask);
+	ClassDB::bind_method(D_METHOD("set_priority", "priority"), &TerrainGeneratorCollision::set_priority);
+	ClassDB::bind_method(D_METHOD("get_priority"), &TerrainGeneratorCollision::get_priority);
+	ClassDB::bind_method(D_METHOD("set_physics_material", "material"), &TerrainGeneratorCollision::set_physics_material);
+	ClassDB::bind_method(D_METHOD("get_physics_material"), &TerrainGeneratorCollision::get_physics_material);
+	ClassDB::bind_method(D_METHOD("get_rid"), &TerrainGeneratorCollision::get_rid);
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Disabled,Dynamic / Game,Dynamic / Editor,Full / Game,Full / Editor"), "set_mode", "get_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "shape_size", PROPERTY_HINT_RANGE, "8,64,8"), "set_shape_size", "get_shape_size");

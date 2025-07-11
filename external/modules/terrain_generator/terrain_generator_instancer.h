@@ -10,21 +10,21 @@
 #include "terrain_generator_region.h"
 
 
-class Terrain3D;
-class Terrain3DAssets;
+class TerrainGenerator;
+class TerrainGeneratorAssets;
 
-class Terrain3DInstancer : public Object {
-	GDCLASS(Terrain3DInstancer, Object);
+class TerrainGeneratorInstancer : public Object {
+	GDCLASS(TerrainGeneratorInstancer, Object);
 	CLASS_NAME();
-	friend Terrain3D;
+	friend TerrainGenerator;
 
 public: // Constants
 	static inline const int CELL_SIZE = 32;
 
 private:
-	Terrain3D *_terrain = nullptr;
+	TerrainGenerator *_terrain = nullptr;
 
-	// MM Resources stored in Terrain3DRegion::_instances as
+	// MM Resources stored in TerrainGeneratorRegion::_instances as
 	// Region::_instances{mesh_id:int} -> cell{v2i} -> [ TypedArray<Transform3D>, PackedColorArray, modified:bool ]
 
 	// MMI Objects attached to tree, freed in destructor, stored as
@@ -33,7 +33,7 @@ private:
 	typedef std::unordered_map<Vector2i, CellMMIDict, Vector2iHash> MeshMMIDict;
 	std::unordered_map<Vector2i, MeshMMIDict, Vector2iHash> _mmi_nodes;
 
-	// Region MMI containers named Terrain3D/MMI/Region* are stored here as
+	// Region MMI containers named TerrainGenerator/MMI/Region* are stored here as
 	// _mmi_containers{region_loc} -> Node3D
 	std::unordered_map<Vector2i, Node3D *, Vector2iHash> _mmi_containers;
 
@@ -41,25 +41,25 @@ private:
 	uint32_t _get_density_count(const real_t p_density);
 
 	void _update_mmis(const Vector2i &p_region_loc = V2I_MAX, const int p_mesh_id = -1);
-	void _setup_mmi_lod_ranges(MultiMeshInstance3D *p_mmi, const Ref<Terrain3DMeshAsset> &p_ma, const int p_lod);
+	void _setup_mmi_lod_ranges(MultiMeshInstance3D *p_mmi, const Ref<TerrainGeneratorMeshAsset> &p_ma, const int p_lod);
 	void _update_vertex_spacing(const real_t p_vertex_spacing);
 	void _destroy_mmi_by_cell(const Vector2i &p_region_loc, const int p_mesh_id, const Vector2i p_cell);
 	void _destroy_mmi_by_location(const Vector2i &p_region_loc, const int p_mesh_id);
-	void _backup_region(const Ref<Terrain3DRegion> &p_region);
+	void _backup_region(const Ref<TerrainGeneratorRegion> &p_region);
 	Ref<MultiMesh> _create_multimesh(const int p_mesh_id, const int p_lod, const TypedArray<Transform3D> &p_xforms = TypedArray<Transform3D>(), const PackedColorArray &p_colors = PackedColorArray()) const;
 	Vector2i _get_cell(const Vector3 &p_global_position, const int p_region_size);
 	Array _get_usable_height(const Vector3 &p_global_position, const Vector2 &p_slope_range, const bool p_invert, const bool p_on_collision) const;
 
 public:
-	Terrain3DInstancer() {}
-	~Terrain3DInstancer() { destroy(); }
+	TerrainGeneratorInstancer() {}
+	~TerrainGeneratorInstancer() { destroy(); }
 
-	void initialize(Terrain3D *p_terrain);
+	void initialize(TerrainGenerator *p_terrain);
 	void destroy();
 
 	void clear_by_mesh(const int p_mesh_id);
 	void clear_by_location(const Vector2i &p_region_loc, const int p_mesh_id);
-	void clear_by_region(const Ref<Terrain3DRegion> &p_region, const int p_mesh_id);
+	void clear_by_region(const Ref<TerrainGeneratorRegion> &p_region, const int p_mesh_id);
 
 	void add_instances(const Vector3 &p_global_position, const Dictionary &p_params);
 	void remove_instances(const Vector3 &p_global_position, const Dictionary &p_params);
@@ -67,10 +67,10 @@ public:
 	void add_transforms(const int p_mesh_id, const TypedArray<Transform3D> &p_xforms, const PackedColorArray &p_colors = PackedColorArray(), const bool p_update = true);
 	void append_location(const Vector2i &p_region_loc, const int p_mesh_id, const TypedArray<Transform3D> &p_xforms,
 			const PackedColorArray &p_colors, const bool p_update = true);
-	void append_region(const Ref<Terrain3DRegion> &p_region, const int p_mesh_id, const TypedArray<Transform3D> &p_xforms,
+	void append_region(const Ref<TerrainGeneratorRegion> &p_region, const int p_mesh_id, const TypedArray<Transform3D> &p_xforms,
 			const PackedColorArray &p_colors, const bool p_update = true);
 	void update_transforms(const AABB &p_aabb);
-	void copy_paste_dfr(const Terrain3DRegion *p_src_region, const Rect2i &p_src_rect, const Terrain3DRegion *p_dst_region);
+	void copy_paste_dfr(const TerrainGeneratorRegion *p_src_region, const Rect2i &p_src_rect, const TerrainGeneratorRegion *p_dst_region);
 
 	void swap_ids(const int p_src_id, const int p_dst_id);
 	void update_mmis(const bool p_rebuild = false);
@@ -85,7 +85,7 @@ protected:
 
 // Allows us to instance every X function calls for sparse placement
 // Modifies _density_counter, not const!
-inline uint32_t Terrain3DInstancer::_get_density_count(const real_t p_density) {
+inline uint32_t TerrainGeneratorInstancer::_get_density_count(const real_t p_density) {
 	uint32_t count = 0;
 	if (p_density < 1.f && _density_counter++ % uint32_t(1.f / p_density) == 0) {
 		count = 1;

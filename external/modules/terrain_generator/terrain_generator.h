@@ -21,8 +21,8 @@
 #include "terrain_generator_material.h"
 #include "terrain_generator_mesher.h"
 
-class Terrain3D : public Node3D {
-	GDCLASS(Terrain3D, Node3D);
+class TerrainGenerator : public Node3D {
+	GDCLASS(TerrainGenerator, Node3D);
 	CLASS_NAME();
 
 public: // Constants
@@ -52,13 +52,13 @@ private:
 	uint8_t _warnings = 0;
 
 	// Object references
-	Terrain3DData *_data = nullptr;
-	Ref<Terrain3DMaterial> _material;
-	Ref<Terrain3DAssets> _assets;
-	Terrain3DInstancer *_instancer = nullptr;
-	Terrain3DCollision *_collision = nullptr;
-	Terrain3DMesher *_mesher = nullptr;
-	Terrain3DEditor *_editor = nullptr;
+	TerrainGeneratorData *_data = nullptr;
+	Ref<TerrainGeneratorMaterial> _material;
+	Ref<TerrainGeneratorAssets> _assets;
+	TerrainGeneratorInstancer *_instancer = nullptr;
+	TerrainGeneratorCollision *_collision = nullptr;
+	TerrainGeneratorMesher *_mesher = nullptr;
+	TerrainGeneratorEditor *_editor = nullptr;
 	EditorPlugin *_plugin = nullptr;
 
 	// Tracked Targets
@@ -67,7 +67,7 @@ private:
 	TargetNode3D _camera; // Fallback target for clipmap and collision
 
 	// Regions
-	RegionSize _region_size = SIZE_256;
+	RegionSize _region_size = SIZE_1024;
 	bool _save_16_bit = false;
 	real_t _label_distance = 0.f;
 	int _label_size = 48;
@@ -111,15 +111,15 @@ private:
 	void _destroy_mouse_picking();
 
 	void _generate_triangles(PackedVector3Array &p_vertices, PackedVector2Array *p_uvs, const int32_t p_lod,
-			const Terrain3DData::HeightFilter p_filter, const bool require_nav, const AABB &p_global_aabb) const;
+			const TerrainGeneratorData::HeightFilter p_filter, const bool require_nav, const AABB &p_global_aabb) const;
 	void _generate_triangle_pair(PackedVector3Array &p_vertices, PackedVector2Array *p_uvs, const int32_t p_lod,
-			const Terrain3DData::HeightFilter p_filter, const bool require_nav, const int32_t x, const int32_t z) const;
+			const TerrainGeneratorData::HeightFilter p_filter, const bool require_nav, const int32_t x, const int32_t z) const;
 
 public:
 	static DebugLevel debug_level; // Initialized in terrain_generator.cpp
 
-	Terrain3D();
-	~Terrain3D() {}
+	TerrainGenerator();
+	~TerrainGenerator() {}
 	bool is_inside_world() const { return _is_inside_world; }
 
 	// Terrain
@@ -130,16 +130,16 @@ public:
 	String get_data_directory() const { return _data ? _data_directory : ""; }
 
 	// Object references
-	Terrain3DData *get_data() const { return _data; }
-	void set_material(const Ref<Terrain3DMaterial> &p_material);
-	Ref<Terrain3DMaterial> get_material() const { return _material; }
-	void set_assets(const Ref<Terrain3DAssets> &p_assets);
-	Ref<Terrain3DAssets> get_assets() const { return _assets; }
-	Terrain3DCollision *get_collision() const { return _collision; }
-	Terrain3DInstancer *get_instancer() const { return _instancer; }
+	TerrainGeneratorData *get_data() const { return _data; }
+	void set_material(const Ref<TerrainGeneratorMaterial> &p_material);
+	Ref<TerrainGeneratorMaterial> get_material() const { return _material; }
+	void set_assets(const Ref<TerrainGeneratorAssets> &p_assets);
+	Ref<TerrainGeneratorAssets> get_assets() const { return _assets; }
+	TerrainGeneratorCollision *get_collision() const { return _collision; }
+	TerrainGeneratorInstancer *get_instancer() const { return _instancer; }
 	Node *get_mmi_parent() const { return _mmi_parent; }
-	void set_editor(Terrain3DEditor *p_editor);
-	Terrain3DEditor *get_editor() const { return _editor; }
+	void set_editor(TerrainGeneratorEditor *p_editor);
+	TerrainGeneratorEditor *get_editor() const { return _editor; }
 	void set_plugin(EditorPlugin *p_plugin);
 	EditorPlugin *get_plugin() const { return _plugin; }
 
@@ -192,7 +192,7 @@ public:
 	// Utility
 	Vector3 get_intersection(const Vector3 &p_src_pos, const Vector3 &p_direction, const bool p_gpu_mode = false);
 	Dictionary get_raycast_result(const Vector3 &p_src_pos, const Vector3 &p_destination, const bool p_exclude_self = true) const;
-	Ref<Mesh> bake_mesh(const int p_lod, const Terrain3DData::HeightFilter p_filter = Terrain3DData::HEIGHT_FILTER_NEAREST) const;
+	Ref<Mesh> bake_mesh(const int p_lod, const TerrainGeneratorData::HeightFilter p_filter = TerrainGeneratorData::HEIGHT_FILTER_NEAREST) const;
 	PackedVector3Array generate_nav_mesh_source_geometry(const AABB &p_global_aabb, const bool p_require_nav = true) const;
 
 	// Warnings
@@ -263,12 +263,12 @@ protected:
 	static void _bind_methods();
 };
 
-VARIANT_ENUM_CAST(Terrain3D::RegionSize);
-VARIANT_ENUM_CAST(Terrain3D::DebugLevel);
+VARIANT_ENUM_CAST(TerrainGenerator::RegionSize);
+VARIANT_ENUM_CAST(TerrainGenerator::DebugLevel);
 
-constexpr Terrain3D::DebugLevel MESG = Terrain3D::DebugLevel::MESG;
-constexpr Terrain3D::DebugLevel WARN = Terrain3D::DebugLevel::WARN;
-constexpr Terrain3D::DebugLevel ERROR = Terrain3D::DebugLevel::ERROR;
-constexpr Terrain3D::DebugLevel INFO = Terrain3D::DebugLevel::INFO;
-constexpr Terrain3D::DebugLevel DEBUG = Terrain3D::DebugLevel::DEBUG;
-constexpr Terrain3D::DebugLevel EXTREME = Terrain3D::DebugLevel::EXTREME;
+constexpr TerrainGenerator::DebugLevel MESG = TerrainGenerator::DebugLevel::MESG;
+constexpr TerrainGenerator::DebugLevel WARN = TerrainGenerator::DebugLevel::WARN;
+constexpr TerrainGenerator::DebugLevel ERROR = TerrainGenerator::DebugLevel::ERROR;
+constexpr TerrainGenerator::DebugLevel INFO = TerrainGenerator::DebugLevel::INFO;
+constexpr TerrainGenerator::DebugLevel DEBUG = TerrainGenerator::DebugLevel::DEBUG;
+constexpr TerrainGenerator::DebugLevel EXTREME = TerrainGenerator::DebugLevel::EXTREME;

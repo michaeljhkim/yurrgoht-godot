@@ -6,8 +6,8 @@
 #include "terrain_generator_util.h"
 
 
-class Terrain3DRegion : public Resource {
-	GDCLASS(Terrain3DRegion, Resource);
+class TerrainGeneratorRegion : public Resource {
+	GDCLASS(TerrainGeneratorRegion, Resource);
 	CLASS_NAME();
 
 public: // Constants
@@ -59,8 +59,8 @@ private:
 	Vector2i _location = V2I_MAX;
 
 public:
-	Terrain3DRegion() {}
-	~Terrain3DRegion() {}
+	TerrainGeneratorRegion() {}
+	~TerrainGeneratorRegion() {}
 
 	void set_version(const real_t p_version);
 	real_t get_version() const { return _version; }
@@ -113,25 +113,25 @@ public:
 	// Utility
 	void set_data(const Dictionary &p_data);
 	Dictionary get_data() const;
-	Ref<Terrain3DRegion> duplicate(const bool p_deep = false);
+	Ref<TerrainGeneratorRegion> duplicate(const bool p_deep = false);
 
 protected:
 	static void _bind_methods();
 };
 
-typedef Terrain3DRegion::MapType MapType;
-VARIANT_ENUM_CAST(Terrain3DRegion::MapType);
-constexpr Terrain3DRegion::MapType TYPE_HEIGHT = Terrain3DRegion::MapType::TYPE_HEIGHT;
-constexpr Terrain3DRegion::MapType TYPE_CONTROL = Terrain3DRegion::MapType::TYPE_CONTROL;
-constexpr Terrain3DRegion::MapType TYPE_COLOR = Terrain3DRegion::MapType::TYPE_COLOR;
-constexpr Terrain3DRegion::MapType TYPE_MAX = Terrain3DRegion::MapType::TYPE_MAX;
-constexpr inline const Image::Format *FORMAT = Terrain3DRegion::FORMAT;
-constexpr inline const char **TYPESTR = Terrain3DRegion::TYPESTR;
-constexpr inline const Color *COLOR = Terrain3DRegion::COLOR;
+typedef TerrainGeneratorRegion::MapType MapType;
+VARIANT_ENUM_CAST(TerrainGeneratorRegion::MapType);
+constexpr TerrainGeneratorRegion::MapType TYPE_HEIGHT = TerrainGeneratorRegion::MapType::TYPE_HEIGHT;
+constexpr TerrainGeneratorRegion::MapType TYPE_CONTROL = TerrainGeneratorRegion::MapType::TYPE_CONTROL;
+constexpr TerrainGeneratorRegion::MapType TYPE_COLOR = TerrainGeneratorRegion::MapType::TYPE_COLOR;
+constexpr TerrainGeneratorRegion::MapType TYPE_MAX = TerrainGeneratorRegion::MapType::TYPE_MAX;
+constexpr inline const Image::Format *FORMAT = TerrainGeneratorRegion::FORMAT;
+constexpr inline const char **TYPESTR = TerrainGeneratorRegion::TYPESTR;
+constexpr inline const Color *COLOR = TerrainGeneratorRegion::COLOR;
 
 // Inline functions
 
-inline void Terrain3DRegion::update_height(const real_t p_height) {
+inline void TerrainGeneratorRegion::update_height(const real_t p_height) {
 	if (p_height < _height_range.x) {
 		_height_range.x = p_height;
 		_modified = true;
@@ -141,7 +141,7 @@ inline void Terrain3DRegion::update_height(const real_t p_height) {
 	}
 }
 
-inline void Terrain3DRegion::update_heights(const Vector2 &p_low_high) {
+inline void TerrainGeneratorRegion::update_heights(const Vector2 &p_low_high) {
 	if (p_low_high.x < _height_range.x) {
 		_height_range.x = p_low_high.x;
 		_modified = true;

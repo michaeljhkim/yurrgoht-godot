@@ -10,17 +10,17 @@ void initialize_terrain_generator_module(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
-	ClassDB::register_class<Terrain3D>();
-	ClassDB::register_class<Terrain3DAssets>();
-	ClassDB::register_class<Terrain3DData>();
-	ClassDB::register_class<Terrain3DEditor>();
-	ClassDB::register_class<Terrain3DCollision>();
-	ClassDB::register_class<Terrain3DInstancer>();
-	ClassDB::register_class<Terrain3DMaterial>();
-	ClassDB::register_class<Terrain3DMeshAsset>();
-	ClassDB::register_class<Terrain3DRegion>();
-	ClassDB::register_class<Terrain3DTextureAsset>();
-	ClassDB::register_class<Terrain3DUtil>();
+	ClassDB::register_class<TerrainGenerator>();
+	ClassDB::register_class<TerrainGeneratorAssets>();
+	ClassDB::register_class<TerrainGeneratorData>();
+	ClassDB::register_class<TerrainGeneratorEditor>();
+	ClassDB::register_class<TerrainGeneratorCollision>();
+	ClassDB::register_class<TerrainGeneratorInstancer>();
+	ClassDB::register_class<TerrainGeneratorMaterial>();
+	ClassDB::register_class<TerrainGeneratorMeshAsset>();
+	ClassDB::register_class<TerrainGeneratorRegion>();
+	ClassDB::register_class<TerrainGeneratorTextureAsset>();
+	ClassDB::register_class<TerrainGeneratorUtil>();
 }
 
 void uninitialize_terrain_generator_module(ModuleInitializationLevel p_level) {

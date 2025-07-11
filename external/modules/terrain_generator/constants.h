@@ -6,6 +6,7 @@
 #include "godot/core/math/vector2i.h"
 #include "godot/core/math/vector3.h"
 
+#include <godot/core/variant/variant_utility.h>
 template <typename... Args>
 static void UtilityFunctions_push_error(const Variant &p_arg1, const Args &...p_args) {
 	std::array<Variant, 1 + sizeof...(Args)> variant_args{{ p_arg1, Variant(p_args)... }};
@@ -40,9 +41,8 @@ static void UtilityFunctions_print(const Variant &p_arg1, const Args &...p_args)
 }
 
 
-
 // Macros
-#define RS RenderingServer::get_singleton()
+//#define RS RenderingServer::get_singleton()
 #define PS PhysicsServer3D::get_singleton()
 #define IS_EDITOR Engine::get_singleton()->is_editor_hint()
 
@@ -74,7 +74,7 @@ static void UtilityFunctions_print(const Variant &p_arg1, const Args &...p_args)
 #define V3_ZERO Vector3(0.f, 0.f, 0.f)
 #define V3_MAX Vector3(FLT_MAX, FLT_MAX, FLT_MAX)
 
-// Terrain3D::_warnings is uint8_t
+// TerrainGenerator::_warnings is uint8_t
 #define WARN_MISMATCHED_SIZE 0x01
 #define WARN_MISMATCHED_FORMAT 0x02
 #define WARN_MISMATCHED_MIPMAPS 0x04

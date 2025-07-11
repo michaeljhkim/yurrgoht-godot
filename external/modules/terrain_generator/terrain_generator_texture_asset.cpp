@@ -11,7 +11,7 @@
 ///////////////////////////
 
 // Note a null texture is considered a valid format
-bool Terrain3DTextureAsset::_is_valid_format(const Ref<Texture2D> &p_texture) const {
+bool TerrainGeneratorTextureAsset::_is_valid_format(const Ref<Texture2D> &p_texture) const {
 	if (p_texture.is_null()) {
 		LOG(DEBUG, "Provided texture is null.");
 		return true;
@@ -34,7 +34,7 @@ bool Terrain3DTextureAsset::_is_valid_format(const Ref<Texture2D> &p_texture) co
 // Public Functions
 ///////////////////////////
 
-void Terrain3DTextureAsset::clear() {
+void TerrainGeneratorTextureAsset::clear() {
 	_name = "New Texture";
 	_id = 0;
 	_albedo_color = Color(1.0f, 1.0f, 1.0f, 1.0f);
@@ -46,26 +46,26 @@ void Terrain3DTextureAsset::clear() {
 	_detiling_shift = 0.0f;
 }
 
-void Terrain3DTextureAsset::set_name(const String &p_name) {
+void TerrainGeneratorTextureAsset::set_name(const String &p_name) {
 	LOG(INFO, "Setting name: ", p_name);
 	_name = p_name;
 	emit_signal("setting_changed");
 }
 
-void Terrain3DTextureAsset::set_id(const int p_new_id) {
+void TerrainGeneratorTextureAsset::set_id(const int p_new_id) {
 	int old_id = _id;
-	_id = CLAMP(p_new_id, 0, Terrain3DAssets::MAX_TEXTURES);
+	_id = CLAMP(p_new_id, 0, TerrainGeneratorAssets::MAX_TEXTURES);
 	LOG(INFO, "Setting texture id: ", _id);
-	emit_signal("id_changed", Terrain3DAssets::TYPE_TEXTURE, old_id, _id);
+	emit_signal("id_changed", TerrainGeneratorAssets::TYPE_TEXTURE, old_id, _id);
 }
 
-void Terrain3DTextureAsset::set_albedo_color(const Color &p_color) {
+void TerrainGeneratorTextureAsset::set_albedo_color(const Color &p_color) {
 	LOG(INFO, "Setting color: ", p_color);
 	_albedo_color = p_color;
 	emit_signal("setting_changed");
 }
 
-void Terrain3DTextureAsset::set_albedo_texture(const Ref<Texture2D> &p_texture) {
+void TerrainGeneratorTextureAsset::set_albedo_texture(const Ref<Texture2D> &p_texture) {
 	LOG(INFO, "Setting albedo texture: ", p_texture);
 	if (_is_valid_format(p_texture)) {
 		_albedo_texture = p_texture;
@@ -90,7 +90,7 @@ void Terrain3DTextureAsset::set_albedo_texture(const Ref<Texture2D> &p_texture) 
 	}
 }
 
-void Terrain3DTextureAsset::set_normal_texture(const Ref<Texture2D> &p_texture) {
+void TerrainGeneratorTextureAsset::set_normal_texture(const Ref<Texture2D> &p_texture) {
 	LOG(INFO, "Setting normal texture: ", p_texture);
 	if (_is_valid_format(p_texture)) {
 		_normal_texture = p_texture;
@@ -111,43 +111,43 @@ void Terrain3DTextureAsset::set_normal_texture(const Ref<Texture2D> &p_texture) 
 	}
 }
 
-void Terrain3DTextureAsset::set_normal_depth(const real_t p_normal_depth) {
+void TerrainGeneratorTextureAsset::set_normal_depth(const real_t p_normal_depth) {
 	_normal_depth = CLAMP(p_normal_depth, 0.0f, 2.0f);
 	LOG(INFO, "Setting normal_depth: ", _normal_depth);
 	emit_signal("setting_changed");
 }
 
-void Terrain3DTextureAsset::set_ao_strength(const real_t p_ao_strength) {
+void TerrainGeneratorTextureAsset::set_ao_strength(const real_t p_ao_strength) {
 	_ao_strength = CLAMP(p_ao_strength, 0.0f, 2.0f);
 	LOG(INFO, "Setting ao_strength: ", _ao_strength);
 	emit_signal("setting_changed");
 }
 
-void Terrain3DTextureAsset::set_roughness(const real_t p_roughness) {
+void TerrainGeneratorTextureAsset::set_roughness(const real_t p_roughness) {
 	_roughness = CLAMP(p_roughness, -1.f, 1.0f);
 	LOG(INFO, "Setting roughness modifier: ", _roughness);
 	emit_signal("setting_changed");
 }
 
-void Terrain3DTextureAsset::set_uv_scale(const real_t p_scale) {
+void TerrainGeneratorTextureAsset::set_uv_scale(const real_t p_scale) {
 	_uv_scale = CLAMP(p_scale, .001f, 2.f);
 	LOG(INFO, "Setting uv_scale: ", _uv_scale);
 	emit_signal("setting_changed");
 }
 
-void Terrain3DTextureAsset::set_vertical_projection(const bool p_projection) {
+void TerrainGeneratorTextureAsset::set_vertical_projection(const bool p_projection) {
 	_vertical_projection = p_projection;
 	LOG(INFO, "Setting uv projection: ", _vertical_projection);
 	emit_signal("setting_changed");
 }
 
-void Terrain3DTextureAsset::set_detiling_rotation(const real_t p_detiling_rotation) {
+void TerrainGeneratorTextureAsset::set_detiling_rotation(const real_t p_detiling_rotation) {
 	_detiling_rotation = CLAMP(p_detiling_rotation, 0.0f, 1.0f);
 	LOG(INFO, "Setting detiling_rotation: ", _detiling_rotation);
 	emit_signal("setting_changed");
 }
 
-void Terrain3DTextureAsset::set_detiling_shift(const real_t p_detiling_shift) {
+void TerrainGeneratorTextureAsset::set_detiling_shift(const real_t p_detiling_shift) {
 	_detiling_shift = CLAMP(p_detiling_shift, 0.0f, 1.0f);
 	LOG(INFO, "Setting detiling_shift: ", _detiling_shift);
 	emit_signal("setting_changed");
@@ -157,36 +157,36 @@ void Terrain3DTextureAsset::set_detiling_shift(const real_t p_detiling_shift) {
 // Protected Functions
 ///////////////////////////
 
-void Terrain3DTextureAsset::_bind_methods() {
+void TerrainGeneratorTextureAsset::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("id_changed"));
 	ADD_SIGNAL(MethodInfo("file_changed"));
 	ADD_SIGNAL(MethodInfo("setting_changed"));
 
-	ClassDB::bind_method(D_METHOD("clear"), &Terrain3DTextureAsset::clear);
-	ClassDB::bind_method(D_METHOD("set_name", "name"), &Terrain3DTextureAsset::set_name);
-	ClassDB::bind_method(D_METHOD("get_name"), &Terrain3DTextureAsset::get_name);
-	ClassDB::bind_method(D_METHOD("set_id", "id"), &Terrain3DTextureAsset::set_id);
-	ClassDB::bind_method(D_METHOD("get_id"), &Terrain3DTextureAsset::get_id);
-	ClassDB::bind_method(D_METHOD("set_albedo_color", "color"), &Terrain3DTextureAsset::set_albedo_color);
-	ClassDB::bind_method(D_METHOD("get_albedo_color"), &Terrain3DTextureAsset::get_albedo_color);
-	ClassDB::bind_method(D_METHOD("set_albedo_texture", "texture"), &Terrain3DTextureAsset::set_albedo_texture);
-	ClassDB::bind_method(D_METHOD("get_albedo_texture"), &Terrain3DTextureAsset::get_albedo_texture);
-	ClassDB::bind_method(D_METHOD("set_normal_texture", "texture"), &Terrain3DTextureAsset::set_normal_texture);
-	ClassDB::bind_method(D_METHOD("get_normal_texture"), &Terrain3DTextureAsset::get_normal_texture);
-	ClassDB::bind_method(D_METHOD("set_normal_depth", "normal_depth"), &Terrain3DTextureAsset::set_normal_depth);
-	ClassDB::bind_method(D_METHOD("get_normal_depth"), &Terrain3DTextureAsset::get_normal_depth);
-	ClassDB::bind_method(D_METHOD("set_ao_strength", "ao_strength"), &Terrain3DTextureAsset::set_ao_strength);
-	ClassDB::bind_method(D_METHOD("get_ao_strength"), &Terrain3DTextureAsset::get_ao_strength);
-	ClassDB::bind_method(D_METHOD("set_roughness", "roughness"), &Terrain3DTextureAsset::set_roughness);
-	ClassDB::bind_method(D_METHOD("get_roughness"), &Terrain3DTextureAsset::get_roughness);
-	ClassDB::bind_method(D_METHOD("set_uv_scale", "scale"), &Terrain3DTextureAsset::set_uv_scale);
-	ClassDB::bind_method(D_METHOD("get_uv_scale"), &Terrain3DTextureAsset::get_uv_scale);
-	ClassDB::bind_method(D_METHOD("set_vertical_projection", "projection"), &Terrain3DTextureAsset::set_vertical_projection);
-	ClassDB::bind_method(D_METHOD("get_vertical_projection"), &Terrain3DTextureAsset::get_vertical_projection);
-	ClassDB::bind_method(D_METHOD("set_detiling_rotation", "detiling_rotation"), &Terrain3DTextureAsset::set_detiling_rotation);
-	ClassDB::bind_method(D_METHOD("get_detiling_rotation"), &Terrain3DTextureAsset::get_detiling_rotation);
-	ClassDB::bind_method(D_METHOD("set_detiling_shift", "detiling_shift"), &Terrain3DTextureAsset::set_detiling_shift);
-	ClassDB::bind_method(D_METHOD("get_detiling_shift"), &Terrain3DTextureAsset::get_detiling_shift);
+	ClassDB::bind_method(D_METHOD("clear"), &TerrainGeneratorTextureAsset::clear);
+	ClassDB::bind_method(D_METHOD("set_name", "name"), &TerrainGeneratorTextureAsset::set_name);
+	ClassDB::bind_method(D_METHOD("get_name"), &TerrainGeneratorTextureAsset::get_name);
+	ClassDB::bind_method(D_METHOD("set_id", "id"), &TerrainGeneratorTextureAsset::set_id);
+	ClassDB::bind_method(D_METHOD("get_id"), &TerrainGeneratorTextureAsset::get_id);
+	ClassDB::bind_method(D_METHOD("set_albedo_color", "color"), &TerrainGeneratorTextureAsset::set_albedo_color);
+	ClassDB::bind_method(D_METHOD("get_albedo_color"), &TerrainGeneratorTextureAsset::get_albedo_color);
+	ClassDB::bind_method(D_METHOD("set_albedo_texture", "texture"), &TerrainGeneratorTextureAsset::set_albedo_texture);
+	ClassDB::bind_method(D_METHOD("get_albedo_texture"), &TerrainGeneratorTextureAsset::get_albedo_texture);
+	ClassDB::bind_method(D_METHOD("set_normal_texture", "texture"), &TerrainGeneratorTextureAsset::set_normal_texture);
+	ClassDB::bind_method(D_METHOD("get_normal_texture"), &TerrainGeneratorTextureAsset::get_normal_texture);
+	ClassDB::bind_method(D_METHOD("set_normal_depth", "normal_depth"), &TerrainGeneratorTextureAsset::set_normal_depth);
+	ClassDB::bind_method(D_METHOD("get_normal_depth"), &TerrainGeneratorTextureAsset::get_normal_depth);
+	ClassDB::bind_method(D_METHOD("set_ao_strength", "ao_strength"), &TerrainGeneratorTextureAsset::set_ao_strength);
+	ClassDB::bind_method(D_METHOD("get_ao_strength"), &TerrainGeneratorTextureAsset::get_ao_strength);
+	ClassDB::bind_method(D_METHOD("set_roughness", "roughness"), &TerrainGeneratorTextureAsset::set_roughness);
+	ClassDB::bind_method(D_METHOD("get_roughness"), &TerrainGeneratorTextureAsset::get_roughness);
+	ClassDB::bind_method(D_METHOD("set_uv_scale", "scale"), &TerrainGeneratorTextureAsset::set_uv_scale);
+	ClassDB::bind_method(D_METHOD("get_uv_scale"), &TerrainGeneratorTextureAsset::get_uv_scale);
+	ClassDB::bind_method(D_METHOD("set_vertical_projection", "projection"), &TerrainGeneratorTextureAsset::set_vertical_projection);
+	ClassDB::bind_method(D_METHOD("get_vertical_projection"), &TerrainGeneratorTextureAsset::get_vertical_projection);
+	ClassDB::bind_method(D_METHOD("set_detiling_rotation", "detiling_rotation"), &TerrainGeneratorTextureAsset::set_detiling_rotation);
+	ClassDB::bind_method(D_METHOD("get_detiling_rotation"), &TerrainGeneratorTextureAsset::get_detiling_rotation);
+	ClassDB::bind_method(D_METHOD("set_detiling_shift", "detiling_shift"), &TerrainGeneratorTextureAsset::set_detiling_shift);
+	ClassDB::bind_method(D_METHOD("get_detiling_shift"), &TerrainGeneratorTextureAsset::get_detiling_shift);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "name", PROPERTY_HINT_NONE), "set_name", "get_name");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "id", PROPERTY_HINT_NONE), "set_id", "get_id");

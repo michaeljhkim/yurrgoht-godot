@@ -17,8 +17,8 @@
 ///////////////////////////
 
 // Sends the whole region aabb to edited_area
-void Terrain3DEditor::_send_region_aabb(const Vector2i &p_region_loc, const Vector2 &p_height_range) {
-	Terrain3D::RegionSize region_size = _terrain->get_region_size();
+void TerrainGeneratorEditor::_send_region_aabb(const Vector2i &p_region_loc, const Vector2 &p_height_range) {
+	TerrainGenerator::RegionSize region_size = _terrain->get_region_size();
 	AABB edited_area;
 	edited_area.position = Vector3(p_region_loc.x * region_size, p_height_range.x, p_region_loc.y * region_size);
 	edited_area.size = Vector3(region_size, p_height_range.y - p_height_range.x, region_size);
@@ -28,10 +28,10 @@ void Terrain3DEditor::_send_region_aabb(const Vector2i &p_region_loc, const Vect
 }
 
 // Process location to add new region, mark as deleted, or just retrieve
-Ref<Terrain3DRegion> Terrain3DEditor::_operate_region(const Vector2i &p_region_loc) {
+Ref<TerrainGeneratorRegion> TerrainGeneratorEditor::_operate_region(const Vector2i &p_region_loc) {
 	bool changed = false;
 	Vector2 height_range;
-	Terrain3DData *data = _terrain->get_data();
+	TerrainGeneratorData *data = _terrain->get_data();
 
 	// Check if in bounds, limiting errors
 	bool can_print = false;
@@ -43,13 +43,13 @@ Ref<Terrain3DRegion> Terrain3DEditor::_operate_region(const Vector2i &p_region_l
 	if (data->get_region_map_index(p_region_loc) < 0) {
 		if (can_print) {
 			LOG(INFO, "Location ", p_region_loc, " out of bounds. Max: ",
-					-Terrain3DData::REGION_MAP_SIZE / 2, " to ", Terrain3DData::REGION_MAP_SIZE / 2 - 1);
+					-TerrainGeneratorData::REGION_MAP_SIZE / 2, " to ", TerrainGeneratorData::REGION_MAP_SIZE / 2 - 1);
 		}
-		return Ref<Terrain3DRegion>();
+		return Ref<TerrainGeneratorRegion>();
 	}
 
 	// Get Region & dump data if debug
-	Ref<Terrain3DRegion> region = data->get_region(p_region_loc);
+	Ref<TerrainGeneratorRegion> region = data->get_region(p_region_loc);
 	if (can_print) {
 		LOG(DEBUG, "Tool: ", _tool, " Op: ", _operation, " processing region ", p_region_loc, ": ", ptr_to_str(*region));
 	}
@@ -86,7 +86,7 @@ Ref<Terrain3DRegion> Terrain3DEditor::_operate_region(const Vector2i &p_region_l
 	return region;
 }
 
-void Terrain3DEditor::_operate_map(const Vector3 &p_global_position, const real_t p_camera_direction) {
+void TerrainGeneratorEditor::_operate_map(const Vector3 &p_global_position, const real_t p_camera_direction) {
 	LOG(EXTREME, "Operating at ", p_global_position, " tool type ", _tool, " op ", _operation);
 
 	MapType map_type = _get_map_type();
@@ -99,7 +99,7 @@ void Terrain3DEditor::_operate_map(const Vector3 &p_global_position, const real_
 	Vector2i region_vsize = Vector2i(region_size, region_size);
 
 	// If no region and can't add one, skip whole function. Checked again later
-	Terrain3DData *data = _terrain->get_data();
+	TerrainGeneratorData *data = _terrain->get_data();
 	if (!data->has_regionp(p_global_position) && (!_brush_data["auto_regions"] || (_tool != SCULPT && _tool != HEIGHT))) {
 		return;
 	}
@@ -192,7 +192,7 @@ void Terrain3DEditor::_operate_map(const Vector3 &p_global_position, const real_
 
 			// Get region for current brush pixel global position
 			Vector2i region_loc = data->get_region_location(brush_global_position);
-			Ref<Terrain3DRegion> region = _operate_region(region_loc);
+			Ref<TerrainGeneratorRegion> region = _operate_region(region_loc);
 			// If no region and can't make one, skip
 			if (region.is_null()) {
 				continue;
@@ -530,7 +530,7 @@ void Terrain3DEditor::_operate_map(const Vector3 &p_global_position, const real_
 	// Regenerate color mipmaps for edited regions
 	if (map_type == TYPE_COLOR) {
 		for (int i = 0; i < _edited_regions.size(); i++) {
-			Ref<Terrain3DRegion> region = _edited_regions[i];
+			Ref<TerrainGeneratorRegion> region = _edited_regions[i];
 			if (region.is_valid()) {
 				region->get_map(map_type)->generate_mipmaps();
 			}
@@ -549,12 +549,12 @@ void Terrain3DEditor::_operate_map(const Vector3 &p_global_position, const real_
 		_terrain->get_instancer()->update_transforms(edited_area);
 	}
 	// Update Dynamic / Editor collision
-	if (_terrain->get_collision_mode() == Terrain3DCollision::DYNAMIC_EDITOR) {
+	if (_terrain->get_collision_mode() == TerrainGeneratorCollision::DYNAMIC_EDITOR) {
 		_terrain->get_collision()->update(true);
 	}
 }
 
-void Terrain3DEditor::_store_undo() {
+void TerrainGeneratorEditor::_store_undo() {
 	IS_INIT_COND_MESG(!_terrain->get_plugin(), "_terrain isn't initialized, returning", VOID);
 	if (_tool < 0 || _tool >= TOOL_MAX) {
 		return;
@@ -590,7 +590,7 @@ void Terrain3DEditor::_store_undo() {
 	//EditorUndoRedoManager *undo_redo = _terrain->get_plugin()->get_undo_redo();
 	EditorUndoRedoManager *undo_redo = EditorUndoRedoManager::get_singleton();
 	LOG(INFO, "Storing undo snapshot");
-	String action_name = String("Terrain3D ") + OPNAME[_operation] + String(" ") + TOOLNAME[_tool];
+	String action_name = String("TerrainGenerator ") + OPNAME[_operation] + String(" ") + TOOLNAME[_tool];
 	LOG(DEBUG, "Creating undo action: '", action_name, "'");
 	undo_redo->create_action(action_name, UndoRedo::MERGE_DISABLE, _terrain);
 
@@ -604,18 +604,18 @@ void Terrain3DEditor::_store_undo() {
 	undo_redo->commit_action(false);
 }
 
-void Terrain3DEditor::_apply_undo(const Dictionary &p_data) {
+void TerrainGeneratorEditor::_apply_undo(const Dictionary &p_data) {
 	IS_INIT_COND_MESG(!_terrain->get_plugin(), "_terrain isn't initialized, returning", VOID);
 	LOG(INFO, "Applying Undo/Redo data");
 
-	Terrain3DData *data = _terrain->get_data();
+	TerrainGeneratorData *data = _terrain->get_data();
 
 	if (p_data.has("edited_regions")) {
 		Util::print_arr("Edited regions", p_data["edited_regions"]);
-		TypedArray<Terrain3DRegion> undo_regions = p_data["edited_regions"];
+		TypedArray<TerrainGeneratorRegion> undo_regions = p_data["edited_regions"];
 		LOG(DEBUG, "Backup has ", undo_regions.size(), " edited regions");
 		for (int i = 0; i < undo_regions.size(); i++) {
-			Ref<Terrain3DRegion> region = undo_regions[i];
+			Ref<TerrainGeneratorRegion> region = undo_regions[i];
 			if (region.is_null()) {
 				LOG(ERROR, "Null region saved in undo data. Please report this error.");
 				continue;
@@ -638,7 +638,7 @@ void Terrain3DEditor::_apply_undo(const Dictionary &p_data) {
 		LOG(DEBUG, "Added regions: ", p_data["added_regions"]);
 		TypedArray<Vector2i> region_locs = p_data["added_regions"];
 		for (int i = 0; i < region_locs.size(); i++) {
-			Ref<Terrain3DRegion> region = data->get_region(region_locs[i]);
+			Ref<TerrainGeneratorRegion> region = data->get_region(region_locs[i]);
 			if (region.is_valid()) {
 				LOG(DEBUG, "Marking region: ", region_locs[i], " +deleted, +modified, ", ptr_to_str(*region));
 				region->set_deleted(true);
@@ -650,7 +650,7 @@ void Terrain3DEditor::_apply_undo(const Dictionary &p_data) {
 		LOG(DEBUG, "Removed regions: ", p_data["removed_regions"]);
 		TypedArray<Vector2i> region_locs = p_data["removed_regions"];
 		for (int i = 0; i < region_locs.size(); i++) {
-			Ref<Terrain3DRegion> region = data->get_region(region_locs[i]);
+			Ref<TerrainGeneratorRegion> region = data->get_region(region_locs[i]);
 			if (region.is_valid()) {
 				LOG(DEBUG, "Marking region: ", region_locs[i], " -deleted, +modified, ", ptr_to_str(*region));
 				region->set_deleted(false);
@@ -675,9 +675,9 @@ void Terrain3DEditor::_apply_undo(const Dictionary &p_data) {
 	}
 	// After TextureArray updates clear edited regions flag.
 	if (p_data.has("edited_regions")) {
-		TypedArray<Terrain3DRegion> undo_regions = p_data["edited_regions"];
+		TypedArray<TerrainGeneratorRegion> undo_regions = p_data["edited_regions"];
 		for (int i = 0; i < undo_regions.size(); i++) {
-			Ref<Terrain3DRegion> region = undo_regions[i];
+			Ref<TerrainGeneratorRegion> region = undo_regions[i];
 			if (region.is_valid()) {
 				region->set_edited(false);
 			}
@@ -696,7 +696,7 @@ void Terrain3DEditor::_apply_undo(const Dictionary &p_data) {
 
 // Santize and set incoming brush data w/ defaults and clamps
 // Only santizes data needed for the editor, other parameters (eg instancer) untouched here
-void Terrain3DEditor::set_brush_data(const Dictionary &p_data) {
+void TerrainGeneratorEditor::set_brush_data(const Dictionary &p_data) {
 	_brush_data = p_data; // Same instance. Anything could be inserted after this, eg mouse_pressure
 
 	// Sanitize image and textures
@@ -740,7 +740,7 @@ void Terrain3DEditor::set_brush_data(const Dictionary &p_data) {
 
 	_brush_data["enable_texture"] = p_data.get("enable_texture", true);
 	_brush_data["texture_filter"] = p_data.get("texture_filter", false);
-	_brush_data["asset_id"] = CLAMP(int(p_data.get("asset_id", 0)), 0, ((_tool == INSTANCER) ? Terrain3DAssets::MAX_MESHES : Terrain3DAssets::MAX_TEXTURES) - 1);
+	_brush_data["asset_id"] = CLAMP(int(p_data.get("asset_id", 0)), 0, ((_tool == INSTANCER) ? TerrainGeneratorAssets::MAX_MESHES : TerrainGeneratorAssets::MAX_TEXTURES) - 1);
 	_brush_data["margin"] = CLAMP(int(p_data.get("margin", 0)), -100, 100);
 
 	_brush_data["enable_angle"] = p_data.get("enable_angle", true);
@@ -759,7 +759,7 @@ void Terrain3DEditor::set_brush_data(const Dictionary &p_data) {
 	Util::print_dict("set_brush_data() Santized brush data:", _brush_data, EXTREME);
 }
 
-void Terrain3DEditor::set_tool(const Tool p_tool) {
+void TerrainGeneratorEditor::set_tool(const Tool p_tool) {
 	if (_terrain && _tool != p_tool && (_tool == Tool::NAVIGATION || p_tool == Tool::NAVIGATION)) {
 		_tool = CLAMP(p_tool, Tool(0), TOOL_MAX);
 		_terrain->get_material()->update();
@@ -769,14 +769,14 @@ void Terrain3DEditor::set_tool(const Tool p_tool) {
 }
 
 // Called on mouse click
-void Terrain3DEditor::start_operation(const Vector3 &p_global_position) {
+void TerrainGeneratorEditor::start_operation(const Vector3 &p_global_position) {
 	IS_DATA_INIT_MESG("Terrain isn't initialized", VOID);
 	LOG(INFO, "Setting up undo snapshot");
 	_undo_data.clear();
 	_undo_data["region_locations"] = _terrain->get_data()->get_region_locations().duplicate();
 	_is_operating = true;
-	_original_regions = TypedArray<Terrain3DRegion>(); // New pointers instead of clear
-	_edited_regions = TypedArray<Terrain3DRegion>();
+	_original_regions = TypedArray<TerrainGeneratorRegion>(); // New pointers instead of clear
+	_edited_regions = TypedArray<TerrainGeneratorRegion>();
 	_added_removed_locations = TypedArray<Vector2i>();
 	// Reset counter at start to ensure first click places an instance
 	_terrain->get_instancer()->reset_density_counter();
@@ -786,7 +786,7 @@ void Terrain3DEditor::start_operation(const Vector3 &p_global_position) {
 }
 
 // Called on mouse movement with left mouse button down
-void Terrain3DEditor::operate(const Vector3 &p_global_position, const real_t p_camera_direction) {
+void TerrainGeneratorEditor::operate(const Vector3 &p_global_position, const real_t p_camera_direction) {
 	IS_DATA_INIT_MESG("Terrain isn't initialized", VOID);
 	if (!_is_operating) {
 		LOG(ERROR, "Run start_operation() before operating");
@@ -814,7 +814,7 @@ void Terrain3DEditor::operate(const Vector3 &p_global_position, const real_t p_c
 	}
 }
 
-void Terrain3DEditor::backup_region(const Ref<Terrain3DRegion> &p_region) {
+void TerrainGeneratorEditor::backup_region(const Ref<TerrainGeneratorRegion> &p_region) {
 	// Backup region once at the start of an operation. Once Edited is set, this is skipped
 	if (_is_operating && p_region.is_valid() && !p_region->is_edited()) {
 		LOG(DEBUG, "Storing original copy of region: ", p_region->get_location());
@@ -826,14 +826,14 @@ void Terrain3DEditor::backup_region(const Ref<Terrain3DRegion> &p_region) {
 }
 
 // Called on left mouse button released
-void Terrain3DEditor::stop_operation() {
+void TerrainGeneratorEditor::stop_operation() {
 	IS_DATA_INIT_MESG("Terrain isn't initialized", VOID);
 	// If undo was created and terrain actually modified, store it
 	LOG(DEBUG, "Backed up regions: ", _original_regions.size(), ", Edited regions: ", _edited_regions.size(),
 			", Added/Removed regions: ", _added_removed_locations.size());
 	if (_is_operating && (!_added_removed_locations.is_empty() || !_edited_regions.is_empty())) {
 		for (int i = 0; i < _edited_regions.size(); i++) {
-			Ref<Terrain3DRegion> region = _edited_regions[i];
+			Ref<TerrainGeneratorRegion> region = _edited_regions[i];
 			region->set_edited(false);
 			// Make duplicate for redo backup
 			_edited_regions[i] = region->duplicate(true);
@@ -841,8 +841,8 @@ void Terrain3DEditor::stop_operation() {
 		_store_undo();
 	}
 	_undo_data.clear();
-	_original_regions = TypedArray<Terrain3DRegion>(); //New pointers instead of clear
-	_edited_regions = TypedArray<Terrain3DRegion>();
+	_original_regions = TypedArray<TerrainGeneratorRegion>(); //New pointers instead of clear
+	_edited_regions = TypedArray<TerrainGeneratorRegion>();
 	_added_removed_locations = TypedArray<Vector2i>();
 	_terrain->get_data()->clear_edited_area();
 	_is_operating = false;
@@ -852,7 +852,7 @@ void Terrain3DEditor::stop_operation() {
 // Protected Functions
 ///////////////////////////
 
-void Terrain3DEditor::_bind_methods() {
+void TerrainGeneratorEditor::_bind_methods() {
 	BIND_ENUM_CONSTANT(ADD);
 	BIND_ENUM_CONSTANT(SUBTRACT);
 	BIND_ENUM_CONSTANT(REPLACE);
@@ -874,19 +874,19 @@ void Terrain3DEditor::_bind_methods() {
 	BIND_ENUM_CONSTANT(REGION);
 	BIND_ENUM_CONSTANT(TOOL_MAX);
 
-	ClassDB::bind_method(D_METHOD("set_terrain", "terrain"), &Terrain3DEditor::set_terrain);
-	ClassDB::bind_method(D_METHOD("get_terrain"), &Terrain3DEditor::get_terrain);
+	ClassDB::bind_method(D_METHOD("set_terrain", "terrain"), &TerrainGeneratorEditor::set_terrain);
+	ClassDB::bind_method(D_METHOD("get_terrain"), &TerrainGeneratorEditor::get_terrain);
 
-	ClassDB::bind_method(D_METHOD("set_brush_data", "data"), &Terrain3DEditor::set_brush_data);
-	ClassDB::bind_method(D_METHOD("set_tool", "tool"), &Terrain3DEditor::set_tool);
-	ClassDB::bind_method(D_METHOD("get_tool"), &Terrain3DEditor::get_tool);
-	ClassDB::bind_method(D_METHOD("set_operation", "operation"), &Terrain3DEditor::set_operation);
-	ClassDB::bind_method(D_METHOD("get_operation"), &Terrain3DEditor::get_operation);
-	ClassDB::bind_method(D_METHOD("start_operation", "position"), &Terrain3DEditor::start_operation);
-	ClassDB::bind_method(D_METHOD("is_operating"), &Terrain3DEditor::is_operating);
-	ClassDB::bind_method(D_METHOD("operate", "position", "camera_direction"), &Terrain3DEditor::operate);
-	ClassDB::bind_method(D_METHOD("backup_region", "region"), &Terrain3DEditor::backup_region);
-	ClassDB::bind_method(D_METHOD("stop_operation"), &Terrain3DEditor::stop_operation);
+	ClassDB::bind_method(D_METHOD("set_brush_data", "data"), &TerrainGeneratorEditor::set_brush_data);
+	ClassDB::bind_method(D_METHOD("set_tool", "tool"), &TerrainGeneratorEditor::set_tool);
+	ClassDB::bind_method(D_METHOD("get_tool"), &TerrainGeneratorEditor::get_tool);
+	ClassDB::bind_method(D_METHOD("set_operation", "operation"), &TerrainGeneratorEditor::set_operation);
+	ClassDB::bind_method(D_METHOD("get_operation"), &TerrainGeneratorEditor::get_operation);
+	ClassDB::bind_method(D_METHOD("start_operation", "position"), &TerrainGeneratorEditor::start_operation);
+	ClassDB::bind_method(D_METHOD("is_operating"), &TerrainGeneratorEditor::is_operating);
+	ClassDB::bind_method(D_METHOD("operate", "position", "camera_direction"), &TerrainGeneratorEditor::operate);
+	ClassDB::bind_method(D_METHOD("backup_region", "region"), &TerrainGeneratorEditor::backup_region);
+	ClassDB::bind_method(D_METHOD("stop_operation"), &TerrainGeneratorEditor::stop_operation);
 
-	ClassDB::bind_method(D_METHOD("apply_undo", "data"), &Terrain3DEditor::_apply_undo);
+	ClassDB::bind_method(D_METHOD("apply_undo", "data"), &TerrainGeneratorEditor::_apply_undo);
 }

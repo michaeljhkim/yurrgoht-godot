@@ -15,7 +15,7 @@
 // Private Functions
 ///////////////////////////
 
-void Terrain3DAssets::_swap_ids(const AssetType p_type, const int p_src_id, const int p_dst_id) {
+void TerrainGeneratorAssets::_swap_ids(const AssetType p_type, const int p_src_id, const int p_dst_id) {
 	LOG(INFO, "Swapping asset id: ", p_src_id, " and id: ", p_dst_id);
 	Array list;
 	switch (p_type) {
@@ -33,7 +33,7 @@ void Terrain3DAssets::_swap_ids(const AssetType p_type, const int p_src_id, cons
 		LOG(ERROR, "Source id out of range: ", p_src_id);
 		return;
 	}
-	Ref<Terrain3DAssetResource> res_a = list[p_src_id];
+	Ref<TerrainGeneratorAssetResource> res_a = list[p_src_id];
 	int dst_id = CLAMP(p_dst_id, 0, list.size() - 1);
 	if (dst_id == p_src_id) {
 		// Res_a new id was likely out of range, reset it
@@ -41,7 +41,7 @@ void Terrain3DAssets::_swap_ids(const AssetType p_type, const int p_src_id, cons
 		return;
 	}
 
-	Ref<Terrain3DAssetResource> res_b = list[dst_id];
+	Ref<TerrainGeneratorAssetResource> res_b = list[dst_id];
 	res_a->_id = dst_id;
 	res_b->_id = p_src_id;
 	list[dst_id] = res_a;
@@ -64,7 +64,7 @@ void Terrain3DAssets::_swap_ids(const AssetType p_type, const int p_src_id, cons
  * _set_asset_list attempts to keep the asset id as saved in the resource file.
  * But if an ID is invalid or already taken, the new ID is changed to the next available one
  */
-void Terrain3DAssets::_set_asset_list(const AssetType p_type, const TypedArray<Terrain3DAssetResource> &p_list) {
+void TerrainGeneratorAssets::_set_asset_list(const AssetType p_type, const TypedArray<TerrainGeneratorAssetResource> &p_list) {
 	Array list;
 	int max_size;
 	switch (p_type) {
@@ -85,7 +85,7 @@ void Terrain3DAssets::_set_asset_list(const AssetType p_type, const TypedArray<T
 	int filled_id = -1;
 	// For all provided textures up to MAX SIZE
 	for (int i = 0; i < array_size; i++) {
-		Ref<Terrain3DAssetResource> res = p_list[i];
+		Ref<TerrainGeneratorAssetResource> res = p_list[i];
 		int id = res->get_id();
 		// If saved texture id is in range and doesn't exist, add it
 		if (id >= 0 && id < array_size && !list[id]) {
@@ -101,14 +101,14 @@ void Terrain3DAssets::_set_asset_list(const AssetType p_type, const TypedArray<T
 				}
 			}
 		}
-		if (!res->is_connected("id_changed", callable_mp(this, &Terrain3DAssets::_swap_ids))) {
+		if (!res->is_connected("id_changed", callable_mp(this, &TerrainGeneratorAssets::_swap_ids))) {
 			LOG(DEBUG, "Connecting to id_changed");
-			res->connect("id_changed", callable_mp(this, &Terrain3DAssets::_swap_ids));
+			res->connect("id_changed", callable_mp(this, &TerrainGeneratorAssets::_swap_ids));
 		}
 	}
 }
 
-void Terrain3DAssets::_set_asset(const AssetType p_type, const int p_id, const Ref<Terrain3DAssetResource> &p_asset) {
+void TerrainGeneratorAssets::_set_asset(const AssetType p_type, const int p_id, const Ref<TerrainGeneratorAssetResource> &p_asset) {
 	Array list;
 	int max_size;
 	switch (p_type) {
@@ -136,7 +136,7 @@ void Terrain3DAssets::_set_asset(const AssetType p_type, const int p_id, const R
 			list.pop_back();
 		} else if (p_id < list.size()) {
 			// Else just clear it
-			Ref<Terrain3DAssetResource> res = list[p_id];
+			Ref<TerrainGeneratorAssetResource> res = list[p_id];
 			res->clear();
 			res->_id = p_id;
 		}
@@ -145,9 +145,9 @@ void Terrain3DAssets::_set_asset(const AssetType p_type, const int p_id, const R
 		if (p_id >= list.size()) {
 			p_asset->_id = list.size();
 			list.push_back(p_asset);
-			if (!p_asset->is_connected("id_changed", callable_mp(this, &Terrain3DAssets::_swap_ids))) {
+			if (!p_asset->is_connected("id_changed", callable_mp(this, &TerrainGeneratorAssets::_swap_ids))) {
 				LOG(DEBUG, "Connecting to id_changed");
-				p_asset->connect("id_changed", callable_mp(this, &Terrain3DAssets::_swap_ids));
+				p_asset->connect("id_changed", callable_mp(this, &TerrainGeneratorAssets::_swap_ids));
 			}
 		} else {
 			// Else overwrite an existing slot
@@ -156,7 +156,7 @@ void Terrain3DAssets::_set_asset(const AssetType p_type, const int p_id, const R
 	}
 }
 
-void Terrain3DAssets::_update_texture_files() {
+void TerrainGeneratorAssets::_update_texture_files() {
 	IS_INIT(VOID);
 	LOG(DEBUG, "Received texture_changed signal");
 	_generated_albedo_textures.clear();
@@ -177,7 +177,7 @@ void Terrain3DAssets::_update_texture_files() {
 	_terrain->set_warning(WARN_ALL, false);
 
 	for (int i = 0; i < _texture_list.size(); i++) {
-		Ref<Terrain3DTextureAsset> texture_set = _texture_list[i];
+		Ref<TerrainGeneratorTextureAsset> texture_set = _texture_list[i];
 		if (texture_set.is_null()) {
 			continue;
 		}
@@ -259,7 +259,7 @@ void Terrain3DAssets::_update_texture_files() {
 		LOG(INFO, "Regenerating albedo texture array");
 		Array albedo_texture_array;
 		for (int i = 0; i < _texture_list.size(); i++) {
-			Ref<Terrain3DTextureAsset> texture_set = _texture_list[i];
+			Ref<TerrainGeneratorTextureAsset> texture_set = _texture_list[i];
 			if (texture_set.is_null()) {
 				continue;
 			}
@@ -290,7 +290,7 @@ void Terrain3DAssets::_update_texture_files() {
 		Array normal_texture_array;
 
 		for (int i = 0; i < _texture_list.size(); i++) {
-			Ref<Terrain3DTextureAsset> texture_set = _texture_list[i];
+			Ref<TerrainGeneratorTextureAsset> texture_set = _texture_list[i];
 			if (texture_set.is_null()) {
 				continue;
 			}
@@ -317,7 +317,7 @@ void Terrain3DAssets::_update_texture_files() {
 	emit_signal("textures_changed");
 }
 
-void Terrain3DAssets::_update_texture_settings() {
+void TerrainGeneratorAssets::_update_texture_settings() {
 	LOG(DEBUG, "Received setting_changed signal");
 	if (!_texture_list.is_empty()) {
 		LOG(INFO, "Updating terrain color and scale arrays");
@@ -330,7 +330,7 @@ void Terrain3DAssets::_update_texture_settings() {
 		_texture_detiles.clear();
 
 		for (int i = 0; i < _texture_list.size(); i++) {
-			Ref<Terrain3DTextureAsset> texture_set = _texture_list[i];
+			Ref<TerrainGeneratorTextureAsset> texture_set = _texture_list[i];
 			if (texture_set.is_null()) {
 				continue;
 			}
@@ -346,42 +346,42 @@ void Terrain3DAssets::_update_texture_settings() {
 	emit_signal("textures_changed");
 }
 
-void Terrain3DAssets::_setup_thumbnail_creation() {
+void TerrainGeneratorAssets::_setup_thumbnail_creation() {
 	IS_INIT(VOID);
 	if (_scenario.is_valid()) {
 		return;
 	}
 	LOG(INFO, "Setting up mesh thumbnail creation viewports");
 	// Setup Mesh preview environment
-	_scenario = RS->scenario_create();
+	_scenario = RS::get_singleton()->scenario_create();
 
-	_viewport = RS->viewport_create();
-	RS->viewport_set_update_mode(_viewport, RenderingServer::VIEWPORT_UPDATE_DISABLED);
-	RS->viewport_set_scenario(_viewport, _scenario);
-	RS->viewport_set_size(_viewport, 128, 128);
-	RS->viewport_set_transparent_background(_viewport, true);
-	RS->viewport_set_active(_viewport, true);
-	_viewport_texture = RS->viewport_get_texture(_viewport);
+	_viewport = RS::get_singleton()->viewport_create();
+	RS::get_singleton()->viewport_set_update_mode(_viewport, RenderingServer::VIEWPORT_UPDATE_DISABLED);
+	RS::get_singleton()->viewport_set_scenario(_viewport, _scenario);
+	RS::get_singleton()->viewport_set_size(_viewport, 128, 128);
+	RS::get_singleton()->viewport_set_transparent_background(_viewport, true);
+	RS::get_singleton()->viewport_set_active(_viewport, true);
+	_viewport_texture = RS::get_singleton()->viewport_get_texture(_viewport);
 
-	_camera = RS->camera_create();
-	RS->viewport_attach_camera(_viewport, _camera);
-	RS->camera_set_transform(_camera, Transform3D(Basis(), Vector3(0, 0, 3)));
-	RS->camera_set_orthogonal(_camera, 1.0, 0.01, 1000.0);
+	_camera = RS::get_singleton()->camera_create();
+	RS::get_singleton()->viewport_attach_camera(_viewport, _camera);
+	RS::get_singleton()->camera_set_transform(_camera, Transform3D(Basis(), Vector3(0, 0, 3)));
+	RS::get_singleton()->camera_set_orthogonal(_camera, 1.0, 0.01, 1000.0);
 
-	_key_light = RS->directional_light_create();
-	_key_light_instance = RS->instance_create2(_key_light, _scenario);
-	RS->instance_set_transform(_key_light_instance, Transform3D().looking_at(Vector3(-1, -1, -1), Vector3(0, 1, 0)));
+	_key_light = RS::get_singleton()->directional_light_create();
+	_key_light_instance = RS::get_singleton()->instance_create2(_key_light, _scenario);
+	RS::get_singleton()->instance_set_transform(_key_light_instance, Transform3D().looking_at(Vector3(-1, -1, -1), Vector3(0, 1, 0)));
 
-	_fill_light = RS->directional_light_create();
-	RS->light_set_color(_fill_light, Color(0.3, 0.3, 0.3));
-	_fill_light_instance = RS->instance_create2(_fill_light, _scenario);
-	RS->instance_set_transform(_fill_light_instance, Transform3D().looking_at(Vector3(0, 1, 0), Vector3(0, 0, 1)));
+	_fill_light = RS::get_singleton()->directional_light_create();
+	RS::get_singleton()->light_set_color(_fill_light, Color(0.3, 0.3, 0.3));
+	_fill_light_instance = RS::get_singleton()->instance_create2(_fill_light, _scenario);
+	RS::get_singleton()->instance_set_transform(_fill_light_instance, Transform3D().looking_at(Vector3(0, 1, 0), Vector3(0, 0, 1)));
 
-	_mesh_instance = RS->instance_create();
-	RS->instance_set_scenario(_mesh_instance, _scenario);
+	_mesh_instance = RS::get_singleton()->instance_create();
+	RS::get_singleton()->instance_set_scenario(_mesh_instance, _scenario);
 }
 
-void Terrain3DAssets::_update_thumbnail(const Ref<Terrain3DMeshAsset> &p_mesh_asset) {
+void TerrainGeneratorAssets::_update_thumbnail(const Ref<TerrainGeneratorMeshAsset> &p_mesh_asset) {
 	if (p_mesh_asset.is_valid()) {
 		create_mesh_thumbnails(p_mesh_asset->get_id());
 	}
@@ -391,7 +391,7 @@ void Terrain3DAssets::_update_thumbnail(const Ref<Terrain3DMeshAsset> &p_mesh_as
 // Public Functions
 ///////////////////////////
 
-void Terrain3DAssets::initialize(Terrain3D *p_terrain) {
+void TerrainGeneratorAssets::initialize(TerrainGenerator *p_terrain) {
 	if (p_terrain) {
 		_terrain = p_terrain;
 	} else {
@@ -408,12 +408,12 @@ void Terrain3DAssets::initialize(Terrain3D *p_terrain) {
 	update_mesh_list();
 }
 
-void Terrain3DAssets::uninitialize() {
+void TerrainGeneratorAssets::uninitialize() {
 	LOG(INFO, "Uninitializing assets");
 	_terrain = nullptr;
 }
 
-void Terrain3DAssets::destroy() {
+void TerrainGeneratorAssets::destroy() {
 	LOG(INFO, "Destroying assets");
 	_terrain = nullptr;
 	_generated_albedo_textures.clear();
@@ -428,14 +428,14 @@ void Terrain3DAssets::destroy() {
 	_texture_detiles.clear();
 
 	if (_scenario.is_valid()) {
-		RS->free(_mesh_instance);
-		RS->free(_fill_light_instance);
-		RS->free(_fill_light);
-		RS->free(_key_light_instance);
-		RS->free(_key_light);
-		RS->free(_camera);
-		RS->free(_viewport);
-		RS->free(_scenario);
+		RS::get_singleton()->free(_mesh_instance);
+		RS::get_singleton()->free(_fill_light_instance);
+		RS::get_singleton()->free(_fill_light);
+		RS::get_singleton()->free(_key_light_instance);
+		RS::get_singleton()->free(_key_light);
+		RS::get_singleton()->free(_camera);
+		RS::get_singleton()->free(_viewport);
+		RS::get_singleton()->free(_scenario);
 		_mesh_instance = RID();
 		_fill_light_instance = RID();
 		_fill_light = RID();
@@ -447,7 +447,7 @@ void Terrain3DAssets::destroy() {
 	}
 }
 
-void Terrain3DAssets::set_texture(const int p_id, const Ref<Terrain3DTextureAsset> &p_texture) {
+void TerrainGeneratorAssets::set_texture(const int p_id, const Ref<TerrainGeneratorTextureAsset> &p_texture) {
 	if (_texture_list.size() <= p_id || p_texture != _texture_list[p_id]) {
 		LOG(INFO, "Setting texture id: ", p_id);
 		_set_asset(TYPE_TEXTURE, p_id, p_texture);
@@ -455,13 +455,13 @@ void Terrain3DAssets::set_texture(const int p_id, const Ref<Terrain3DTextureAsse
 	}
 }
 
-void Terrain3DAssets::set_texture_list(const TypedArray<Terrain3DTextureAsset> &p_texture_list) {
+void TerrainGeneratorAssets::set_texture_list(const TypedArray<TerrainGeneratorTextureAsset> &p_texture_list) {
 	LOG(INFO, "Setting texture list with ", p_texture_list.size(), " entries");
 	_set_asset_list(TYPE_TEXTURE, p_texture_list);
 	update_texture_list();
 }
 
-void Terrain3DAssets::clear_textures(const bool p_update) {
+void TerrainGeneratorAssets::clear_textures(const bool p_update) {
 	LOG(INFO, "Clearing texture list");
 	_texture_list.clear();
 	if (p_update) {
@@ -469,21 +469,21 @@ void Terrain3DAssets::clear_textures(const bool p_update) {
 	}
 }
 
-void Terrain3DAssets::update_texture_list() {
+void TerrainGeneratorAssets::update_texture_list() {
 	LOG(INFO, "Reconnecting texture signals");
 	for (int i = 0; i < _texture_list.size(); i++) {
-		Ref<Terrain3DTextureAsset> texture_set = _texture_list[i];
+		Ref<TerrainGeneratorTextureAsset> texture_set = _texture_list[i];
 		if (texture_set.is_null()) {
 			LOG(ERROR, "Texture id ", i, " is null, but shouldn't be.");
 			continue;
 		}
-		if (!texture_set->is_connected("file_changed", callable_mp(this, &Terrain3DAssets::_update_texture_files))) {
+		if (!texture_set->is_connected("file_changed", callable_mp(this, &TerrainGeneratorAssets::_update_texture_files))) {
 			LOG(DEBUG, "Connecting file_changed signal");
-			texture_set->connect("file_changed", callable_mp(this, &Terrain3DAssets::_update_texture_files));
+			texture_set->connect("file_changed", callable_mp(this, &TerrainGeneratorAssets::_update_texture_files));
 		}
-		if (!texture_set->is_connected("setting_changed", callable_mp(this, &Terrain3DAssets::_update_texture_settings))) {
+		if (!texture_set->is_connected("setting_changed", callable_mp(this, &TerrainGeneratorAssets::_update_texture_settings))) {
 			LOG(DEBUG, "Connecting setting_changed signal");
-			texture_set->connect("setting_changed", callable_mp(this, &Terrain3DAssets::_update_texture_settings));
+			texture_set->connect("setting_changed", callable_mp(this, &TerrainGeneratorAssets::_update_texture_settings));
 		}
 	}
 	_generated_albedo_textures.clear();
@@ -492,7 +492,7 @@ void Terrain3DAssets::update_texture_list() {
 	_update_texture_settings();
 }
 
-void Terrain3DAssets::set_mesh_asset(const int p_id, const Ref<Terrain3DMeshAsset> &p_mesh_asset) {
+void TerrainGeneratorAssets::set_mesh_asset(const int p_id, const Ref<TerrainGeneratorMeshAsset> &p_mesh_asset) {
 	LOG(INFO, "Setting mesh id: ", p_id, ", ", p_mesh_asset);
 	_set_asset(TYPE_MESH, p_id, p_mesh_asset);
 	if (p_mesh_asset.is_null()) {
@@ -502,14 +502,14 @@ void Terrain3DAssets::set_mesh_asset(const int p_id, const Ref<Terrain3DMeshAsse
 	update_mesh_list();
 }
 
-Ref<Terrain3DMeshAsset> Terrain3DAssets::get_mesh_asset(const int p_id) const {
+Ref<TerrainGeneratorMeshAsset> TerrainGeneratorAssets::get_mesh_asset(const int p_id) const {
 	if (p_id >= 0 && p_id < _mesh_list.size()) {
 		return _mesh_list[p_id];
 	}
-	return Ref<Terrain3DMeshAsset>();
+	return Ref<TerrainGeneratorMeshAsset>();
 }
 
-void Terrain3DAssets::set_mesh_list(const TypedArray<Terrain3DMeshAsset> &p_mesh_list) {
+void TerrainGeneratorAssets::set_mesh_list(const TypedArray<TerrainGeneratorMeshAsset> &p_mesh_list) {
 	LOG(INFO, "Setting mesh list with ", p_mesh_list.size(), " entries");
 	_set_asset_list(TYPE_MESH, p_mesh_list);
 	update_mesh_list();
@@ -517,7 +517,7 @@ void Terrain3DAssets::set_mesh_list(const TypedArray<Terrain3DMeshAsset> &p_mesh
 
 // p_id = -1 for all meshes
 // Adapted from godot\editor\plugins\editor_preview_plugins.cpp:EditorMeshPreviewPlugin
-void Terrain3DAssets::create_mesh_thumbnails(const int p_id, const Vector2i &p_size) {
+void TerrainGeneratorAssets::create_mesh_thumbnails(const int p_id, const Vector2i &p_size) {
 	LOG(INFO, "Creating mesh thumbnails");
 	int start, end;
 	int max = get_mesh_count();
@@ -532,28 +532,28 @@ void Terrain3DAssets::create_mesh_thumbnails(const int p_id, const Vector2i &p_s
 
 	LOG(INFO, "Creating thumbnails for ids: ", start, " through ", end - 1);
 	for (int i = start; i < end; i++) {
-		Ref<Terrain3DMeshAsset> ma = get_mesh_asset(i);
+		Ref<TerrainGeneratorMeshAsset> ma = get_mesh_asset(i);
 		if (ma.is_null()) {
-			LOG(WARN, i, ": Terrain3DMeshAsset is null");
+			LOG(WARN, i, ": TerrainGeneratorMeshAsset is null");
 			continue;
 		}
 		// Setup mesh
-		LOG(DEBUG, i, ": Getting Terrain3DMeshAsset: ", String::num_uint64(ma->get_instance_id()));
+		LOG(DEBUG, i, ": Getting TerrainGeneratorMeshAsset: ", String::num_uint64(ma->get_instance_id()));
 		Ref<Mesh> mesh = ma->get_mesh(0);
 		LOG(DEBUG, i, ": Getting Mesh 0: ", mesh);
 		if (mesh.is_null()) {
 			LOG(WARN, i, ": Mesh is null");
 			continue;
 		}
-		RS->instance_set_base(_mesh_instance, mesh->get_rid());
+		RS::get_singleton()->instance_set_base(_mesh_instance, mesh->get_rid());
 
 		// Setup material
 		Ref<Material> mat = ma->get_material_override();
 		RID rid = mat.is_valid() ? mat->get_rid() : RID();
-		RS->instance_geometry_set_material_override(_mesh_instance, rid);
+		RS::get_singleton()->instance_geometry_set_material_override(_mesh_instance, rid);
 		mat = ma->get_material_overlay();
 		rid = mat.is_valid() ? mat->get_rid() : RID();
-		RS->instance_geometry_set_material_overlay(_mesh_instance, rid);
+		RS::get_singleton()->instance_geometry_set_material_overlay(_mesh_instance, rid);
 
 		// Setup scene
 		AABB aabb = mesh->get_aabb();
@@ -571,14 +571,14 @@ void Terrain3DAssets::create_mesh_thumbnails(const int p_id, const Vector2i &p_s
 		xform.basis.scale(Vector3(m, m, m));
 		xform.origin = -xform.basis.xform(ofs);
 		xform.origin.z -= rot_aabb.size.z * 2.f;
-		RS->instance_set_transform(_mesh_instance, xform);
+		RS::get_singleton()->instance_set_transform(_mesh_instance, xform);
 
-		RS->viewport_set_size(_viewport, size.x, size.y);
-		RS->viewport_set_update_mode(_viewport, RenderingServer::VIEWPORT_UPDATE_ONCE);
-		RS->draw();
+		RS::get_singleton()->viewport_set_size(_viewport, size.x, size.y);
+		RS::get_singleton()->viewport_set_update_mode(_viewport, RenderingServer::VIEWPORT_UPDATE_ONCE);
+		RS::get_singleton()->draw();
 
-		Ref<Image> img = RS->texture_2d_get(_viewport_texture);
-		RS->instance_set_base(_mesh_instance, RID());
+		Ref<Image> img = RS::get_singleton()->texture_2d_get(_viewport_texture);
+		RS::get_singleton()->instance_set_base(_mesh_instance, RID());
 
 		if (img.is_valid()) {
 			LOG(DEBUG, i, ": Retrieving image: ", img, " size: ", img->get_size(), " format: ", img->get_format());
@@ -592,54 +592,54 @@ void Terrain3DAssets::create_mesh_thumbnails(const int p_id, const Vector2i &p_s
 	return;
 }
 
-void Terrain3DAssets::update_mesh_list() {
+void TerrainGeneratorAssets::update_mesh_list() {
 	IS_INSTANCER_INIT(VOID);
 	LOG(INFO, "Updating mesh list");
 	if (_mesh_list.size() == 0) {
 		LOG(DEBUG, "Mesh list empty, clearing instancer and adding a default mesh");
 		_terrain->get_instancer()->destroy();
-		Ref<Terrain3DMeshAsset> new_mesh;
+		Ref<TerrainGeneratorMeshAsset> new_mesh;
 		new_mesh.instantiate();
-		new_mesh->set_generated_type(Terrain3DMeshAsset::TYPE_TEXTURE_CARD);
+		new_mesh->set_generated_type(TerrainGeneratorMeshAsset::TYPE_TEXTURE_CARD);
 		set_mesh_asset(0, new_mesh);
 	}
 	LOG(DEBUG, "Reconnecting mesh instance signals");
 	for (int i = 0; i < _mesh_list.size(); i++) {
-		Ref<Terrain3DMeshAsset> mesh_asset = _mesh_list[i];
+		Ref<TerrainGeneratorMeshAsset> mesh_asset = _mesh_list[i];
 		if (mesh_asset.is_null()) {
-			LOG(ERROR, "Terrain3DMeshAsset id ", i, " is null, but shouldn't be.");
+			LOG(ERROR, "TerrainGeneratorMeshAsset id ", i, " is null, but shouldn't be.");
 			continue;
 		}
 		if (mesh_asset->get_mesh().is_null()) {
-			LOG(DEBUG, "Terrain3DMeshAsset has no mesh, adding a default");
-			mesh_asset->set_generated_type(Terrain3DMeshAsset::TYPE_TEXTURE_CARD);
+			LOG(DEBUG, "TerrainGeneratorMeshAsset has no mesh, adding a default");
+			mesh_asset->set_generated_type(TerrainGeneratorMeshAsset::TYPE_TEXTURE_CARD);
 		}
-		if (!mesh_asset->is_connected("file_changed", callable_mp(this, &Terrain3DAssets::update_mesh_list))) {
+		if (!mesh_asset->is_connected("file_changed", callable_mp(this, &TerrainGeneratorAssets::update_mesh_list))) {
 			LOG(DEBUG, "Connecting file_changed signal to self");
-			mesh_asset->connect("file_changed", callable_mp(this, &Terrain3DAssets::update_mesh_list));
+			mesh_asset->connect("file_changed", callable_mp(this, &TerrainGeneratorAssets::update_mesh_list));
 		}
-		if (!mesh_asset->is_connected("setting_changed", callable_mp(this, &Terrain3DAssets::update_mesh_list))) {
+		if (!mesh_asset->is_connected("setting_changed", callable_mp(this, &TerrainGeneratorAssets::update_mesh_list))) {
 			LOG(DEBUG, "Connecting setting_changed signal to self");
-			mesh_asset->connect("setting_changed", callable_mp(this, &Terrain3DAssets::update_mesh_list));
+			mesh_asset->connect("setting_changed", callable_mp(this, &TerrainGeneratorAssets::update_mesh_list));
 		}
-		if (!mesh_asset->is_connected("file_changed", callable_mp(this, &Terrain3DAssets::_update_thumbnail).bind(mesh_asset))) {
+		if (!mesh_asset->is_connected("file_changed", callable_mp(this, &TerrainGeneratorAssets::_update_thumbnail).bind(mesh_asset))) {
 			LOG(DEBUG, "Connecting file_changed signal to _update_thumbnail");
-			mesh_asset->connect("file_changed", callable_mp(this, &Terrain3DAssets::_update_thumbnail).bind(mesh_asset));
+			mesh_asset->connect("file_changed", callable_mp(this, &TerrainGeneratorAssets::_update_thumbnail).bind(mesh_asset));
 		}
-		if (!mesh_asset->is_connected("setting_changed", callable_mp(this, &Terrain3DAssets::_update_thumbnail).bind(mesh_asset))) {
+		if (!mesh_asset->is_connected("setting_changed", callable_mp(this, &TerrainGeneratorAssets::_update_thumbnail).bind(mesh_asset))) {
 			LOG(DEBUG, "Connecting setting_changed signal to _update_thumbnail");
-			mesh_asset->connect("setting_changed", callable_mp(this, &Terrain3DAssets::_update_thumbnail).bind(mesh_asset));
+			mesh_asset->connect("setting_changed", callable_mp(this, &TerrainGeneratorAssets::_update_thumbnail).bind(mesh_asset));
 		}
-		if (!mesh_asset->is_connected("instancer_setting_changed", callable_mp(_terrain->get_instancer(), &Terrain3DInstancer::update_mmis).bind(true))) {
+		if (!mesh_asset->is_connected("instancer_setting_changed", callable_mp(_terrain->get_instancer(), &TerrainGeneratorInstancer::update_mmis).bind(true))) {
 			LOG(DEBUG, "Connecting instancer_setting_changed signal to _update_mmis");
-			mesh_asset->connect("instancer_setting_changed", callable_mp(_terrain->get_instancer(), &Terrain3DInstancer::update_mmis).bind(true));
+			mesh_asset->connect("instancer_setting_changed", callable_mp(_terrain->get_instancer(), &TerrainGeneratorInstancer::update_mmis).bind(true));
 		}
 	}
 	LOG(DEBUG, "Emitting meshes_changed");
 	emit_signal("meshes_changed");
 }
 
-Error Terrain3DAssets::save(const String &p_path) {
+Error TerrainGeneratorAssets::save(const String &p_path) {
 	if (p_path.is_empty() && get_path().is_empty()) {
 		return ERR_FILE_NOT_FOUND;
 	}
@@ -666,42 +666,42 @@ Error Terrain3DAssets::save(const String &p_path) {
 // Protected Functions
 ///////////////////////////
 
-void Terrain3DAssets::_bind_methods() {
+void TerrainGeneratorAssets::_bind_methods() {
 	BIND_ENUM_CONSTANT(TYPE_TEXTURE);
 	BIND_ENUM_CONSTANT(TYPE_MESH);
 	BIND_CONSTANT(MAX_TEXTURES);
 	BIND_CONSTANT(MAX_MESHES);
 
-	ClassDB::bind_method(D_METHOD("set_texture", "id", "texture"), &Terrain3DAssets::set_texture);
-	ClassDB::bind_method(D_METHOD("get_texture", "id"), &Terrain3DAssets::get_texture);
-	ClassDB::bind_method(D_METHOD("set_texture_list", "texture_list"), &Terrain3DAssets::set_texture_list);
-	ClassDB::bind_method(D_METHOD("get_texture_list"), &Terrain3DAssets::get_texture_list);
-	ClassDB::bind_method(D_METHOD("get_texture_count"), &Terrain3DAssets::get_texture_count);
-	ClassDB::bind_method(D_METHOD("get_albedo_array_rid"), &Terrain3DAssets::get_albedo_array_rid);
-	ClassDB::bind_method(D_METHOD("get_normal_array_rid"), &Terrain3DAssets::get_normal_array_rid);
-	ClassDB::bind_method(D_METHOD("get_texture_colors"), &Terrain3DAssets::get_texture_colors);
-	ClassDB::bind_method(D_METHOD("get_texture_normal_depths"), &Terrain3DAssets::get_texture_normal_depths);
-	ClassDB::bind_method(D_METHOD("get_texture_ao_strengths"), &Terrain3DAssets::get_texture_ao_strengths);
-	ClassDB::bind_method(D_METHOD("get_texture_roughness_mods"), &Terrain3DAssets::get_texture_roughness_mods);
-	ClassDB::bind_method(D_METHOD("get_texture_uv_scales"), &Terrain3DAssets::get_texture_uv_scales);
-	ClassDB::bind_method(D_METHOD("get_texture_vertical_projections"), &Terrain3DAssets::get_texture_vertical_projections);
-	ClassDB::bind_method(D_METHOD("get_texture_detiles"), &Terrain3DAssets::get_texture_detiles);
-	ClassDB::bind_method(D_METHOD("clear_textures", "update"), &Terrain3DAssets::clear_textures, DEFVAL(false));
-	ClassDB::bind_method(D_METHOD("update_texture_list"), &Terrain3DAssets::update_texture_list);
+	ClassDB::bind_method(D_METHOD("set_texture", "id", "texture"), &TerrainGeneratorAssets::set_texture);
+	ClassDB::bind_method(D_METHOD("get_texture", "id"), &TerrainGeneratorAssets::get_texture);
+	ClassDB::bind_method(D_METHOD("set_texture_list", "texture_list"), &TerrainGeneratorAssets::set_texture_list);
+	ClassDB::bind_method(D_METHOD("get_texture_list"), &TerrainGeneratorAssets::get_texture_list);
+	ClassDB::bind_method(D_METHOD("get_texture_count"), &TerrainGeneratorAssets::get_texture_count);
+	ClassDB::bind_method(D_METHOD("get_albedo_array_rid"), &TerrainGeneratorAssets::get_albedo_array_rid);
+	ClassDB::bind_method(D_METHOD("get_normal_array_rid"), &TerrainGeneratorAssets::get_normal_array_rid);
+	ClassDB::bind_method(D_METHOD("get_texture_colors"), &TerrainGeneratorAssets::get_texture_colors);
+	ClassDB::bind_method(D_METHOD("get_texture_normal_depths"), &TerrainGeneratorAssets::get_texture_normal_depths);
+	ClassDB::bind_method(D_METHOD("get_texture_ao_strengths"), &TerrainGeneratorAssets::get_texture_ao_strengths);
+	ClassDB::bind_method(D_METHOD("get_texture_roughness_mods"), &TerrainGeneratorAssets::get_texture_roughness_mods);
+	ClassDB::bind_method(D_METHOD("get_texture_uv_scales"), &TerrainGeneratorAssets::get_texture_uv_scales);
+	ClassDB::bind_method(D_METHOD("get_texture_vertical_projections"), &TerrainGeneratorAssets::get_texture_vertical_projections);
+	ClassDB::bind_method(D_METHOD("get_texture_detiles"), &TerrainGeneratorAssets::get_texture_detiles);
+	ClassDB::bind_method(D_METHOD("clear_textures", "update"), &TerrainGeneratorAssets::clear_textures, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("update_texture_list"), &TerrainGeneratorAssets::update_texture_list);
 
-	ClassDB::bind_method(D_METHOD("set_mesh_asset", "id", "mesh"), &Terrain3DAssets::set_mesh_asset);
-	ClassDB::bind_method(D_METHOD("get_mesh_asset", "id"), &Terrain3DAssets::get_mesh_asset);
-	ClassDB::bind_method(D_METHOD("set_mesh_list", "mesh_list"), &Terrain3DAssets::set_mesh_list);
-	ClassDB::bind_method(D_METHOD("get_mesh_list"), &Terrain3DAssets::get_mesh_list);
-	ClassDB::bind_method(D_METHOD("get_mesh_count"), &Terrain3DAssets::get_mesh_count);
-	ClassDB::bind_method(D_METHOD("create_mesh_thumbnails", "id", "size"), &Terrain3DAssets::create_mesh_thumbnails, DEFVAL(-1), DEFVAL(Vector2i(128, 128)));
-	ClassDB::bind_method(D_METHOD("update_mesh_list"), &Terrain3DAssets::update_mesh_list);
+	ClassDB::bind_method(D_METHOD("set_mesh_asset", "id", "mesh"), &TerrainGeneratorAssets::set_mesh_asset);
+	ClassDB::bind_method(D_METHOD("get_mesh_asset", "id"), &TerrainGeneratorAssets::get_mesh_asset);
+	ClassDB::bind_method(D_METHOD("set_mesh_list", "mesh_list"), &TerrainGeneratorAssets::set_mesh_list);
+	ClassDB::bind_method(D_METHOD("get_mesh_list"), &TerrainGeneratorAssets::get_mesh_list);
+	ClassDB::bind_method(D_METHOD("get_mesh_count"), &TerrainGeneratorAssets::get_mesh_count);
+	ClassDB::bind_method(D_METHOD("create_mesh_thumbnails", "id", "size"), &TerrainGeneratorAssets::create_mesh_thumbnails, DEFVAL(-1), DEFVAL(Vector2i(128, 128)));
+	ClassDB::bind_method(D_METHOD("update_mesh_list"), &TerrainGeneratorAssets::update_mesh_list);
 
-	ClassDB::bind_method(D_METHOD("save", "path"), &Terrain3DAssets::save, DEFVAL(""));
+	ClassDB::bind_method(D_METHOD("save", "path"), &TerrainGeneratorAssets::save, DEFVAL(""));
 
 	int ro_flags = PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY;
-	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "mesh_list", PROPERTY_HINT_ARRAY_TYPE, "Terrain3DMeshAsset", ro_flags), "set_mesh_list", "get_mesh_list");
-	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "texture_list", PROPERTY_HINT_ARRAY_TYPE, "Terrain3DTextureAsset", ro_flags), "set_texture_list", "get_texture_list");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "mesh_list", PROPERTY_HINT_ARRAY_TYPE, "TerrainGeneratorMeshAsset", ro_flags), "set_mesh_list", "get_mesh_list");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "texture_list", PROPERTY_HINT_ARRAY_TYPE, "TerrainGeneratorTextureAsset", ro_flags), "set_texture_list", "get_texture_list");
 
 	ADD_SIGNAL(MethodInfo("meshes_changed"));
 	ADD_SIGNAL(MethodInfo("textures_changed"));

@@ -7,12 +7,12 @@
 #include "terrain_generator.h"
 #include "terrain_generator_region.h"
 
-class Terrain3D;
+class TerrainGenerator;
 
-class Terrain3DData : public Object {
-	GDCLASS(Terrain3DData, Object);
+class TerrainGeneratorData : public Object {
+	GDCLASS(TerrainGeneratorData, Object);
 	CLASS_NAME();
-	friend Terrain3D;
+	friend TerrainGenerator;
 
 public: // Constants
 	static inline const real_t CURRENT_VERSION = 0.93f;
@@ -25,18 +25,18 @@ public: // Constants
 	};
 
 private:
-	Terrain3D *_terrain = nullptr;
+	TerrainGenerator *_terrain = nullptr;
 
 	// Data Settings & flags
-	int _region_size = 0; // Set by Terrain3D::set_region_size
+	int _region_size = 0; // Set by TerrainGenerator::set_region_size
 	Vector2i _region_sizev = Vector2i(_region_size, _region_size);
-	real_t _vertex_spacing = 1.f; // Set by Terrain3D::set_vertex_spacing
+	real_t _vertex_spacing = 1.f; // Set by TerrainGenerator::set_vertex_spacing
 
 	AABB _edited_area;
 	Vector2 _master_height_range = V2_ZERO;
 
 	/////////
-	// Terrain3DRegions house the maps, instances, and other data for each region.
+	// TerrainGeneratorRegions house the maps, instances, and other data for each region.
 	// Regions are dual indexed:
 	// 1) By `region_location:Vector2i` as the primary key. This is the only stable index
 	// so should be the main index for users.
@@ -46,10 +46,10 @@ private:
 	// Private functions should be indexed by region_id or region_location
 	// Public functions by region_location or global_position
 
-	// `_regions` stores all loaded Terrain3DRegions, indexed by region_location. If marked for
+	// `_regions` stores all loaded TerrainGeneratorRegions, indexed by region_location. If marked for
 	// deletion they are removed from here upon saving, however they may stay in memory if tracked
 	// by the Undo system.
-	Dictionary _regions; // Dict[region_location:Vector2i] -> Terrain3DRegion
+	Dictionary _regions; // Dict[region_location:Vector2i] -> TerrainGeneratorRegion
 
 	// All _active_ region maps are maintained in these secondary indices.
 	// Regions are considered active if and only if they exist in `_region_locations`. The other
@@ -75,19 +75,19 @@ private:
 
 	// Functions
 	void _clear();
-	void _copy_paste_dfr(const Terrain3DRegion *p_src_region, const Rect2i &p_src_rect, const Rect2i &p_dst_rect, const Terrain3DRegion *p_dst_region);
+	void _copy_paste_dfr(const TerrainGeneratorRegion *p_src_region, const Rect2i &p_src_rect, const Rect2i &p_dst_rect, const TerrainGeneratorRegion *p_dst_region);
 
 public:
-	Terrain3DData() {}
-	void initialize(Terrain3D *p_terrain);
-	~Terrain3DData() { _clear(); }
+	TerrainGeneratorData() {}
+	void initialize(TerrainGenerator *p_terrain);
+	~TerrainGeneratorData() { _clear(); }
 
 	// Regions
 
 	int get_region_count() const { return _region_locations.size(); }
 	void set_region_locations(const TypedArray<Vector2i> &p_locations);
 	TypedArray<Vector2i> get_region_locations() const { return _region_locations; }
-	TypedArray<Terrain3DRegion> get_regions_active(const bool p_copy = false, const bool p_deep = false) const;
+	TypedArray<TerrainGeneratorRegion> get_regions_active(const bool p_copy = false, const bool p_deep = false) const;
 	Dictionary get_regions_all() const { return _regions; }
 	PackedInt32Array get_region_map() const { return _region_map; }
 	static int get_region_map_index(const Vector2i &p_region_loc);
@@ -101,23 +101,23 @@ public:
 
 	bool has_region(const Vector2i &p_region_loc) const { return get_region_id(p_region_loc) != -1; }
 	bool has_regionp(const Vector3 &p_global_position) const { return get_region_idp(p_global_position) != -1; }
-	Ref<Terrain3DRegion> get_region(const Vector2i &p_region_loc) const;
-	Terrain3DRegion *get_region_ptr(const Vector2i &p_region_loc) const;
+	Ref<TerrainGeneratorRegion> get_region(const Vector2i &p_region_loc) const;
+	TerrainGeneratorRegion *get_region_ptr(const Vector2i &p_region_loc) const;
 	template <typename T> // Catch invalid types. See note below in implementation.
-	Terrain3DRegion *get_region_ptr(const T &p_region_loc) const = delete;
-	Ref<Terrain3DRegion> get_regionp(const Vector3 &p_global_position) const;
+	TerrainGeneratorRegion *get_region_ptr(const T &p_region_loc) const = delete;
+	Ref<TerrainGeneratorRegion> get_regionp(const Vector3 &p_global_position) const;
 
 	void set_region_modified(const Vector2i &p_region_loc, const bool p_modified = true);
 	bool is_region_modified(const Vector2i &p_region_loc) const;
 	void set_region_deleted(const Vector2i &p_region_loc, const bool p_deleted = true);
 	bool is_region_deleted(const Vector2i &p_region_loc) const;
 
-	Ref<Terrain3DRegion> add_region_blankp(const Vector3 &p_global_position, const bool p_update = true);
-	Ref<Terrain3DRegion> add_region_blank(const Vector2i &p_region_loc, const bool p_update = true);
-	Error add_region(const Ref<Terrain3DRegion> &p_region, const bool p_update = true);
+	Ref<TerrainGeneratorRegion> add_region_blankp(const Vector3 &p_global_position, const bool p_update = true);
+	Ref<TerrainGeneratorRegion> add_region_blank(const Vector2i &p_region_loc, const bool p_update = true);
+	Error add_region(const Ref<TerrainGeneratorRegion> &p_region, const bool p_update = true);
 	void remove_regionp(const Vector3 &p_global_position, const bool p_update = true);
 	void remove_regionl(const Vector2i &p_region_loc, const bool p_update = true);
-	void remove_region(const Ref<Terrain3DRegion> &p_region, const bool p_update = true);
+	void remove_region(const Ref<TerrainGeneratorRegion> &p_region, const bool p_update = true);
 
 	// File I/O
 	void save_directory(const String &p_dir);
@@ -190,7 +190,7 @@ protected:
 	static void _bind_methods();
 };
 
-VARIANT_ENUM_CAST(Terrain3DData::HeightFilter);
+VARIANT_ENUM_CAST(TerrainGeneratorData::HeightFilter);
 
 // Inline Region Functions
 
@@ -198,7 +198,7 @@ VARIANT_ENUM_CAST(Terrain3DData::HeightFilter);
 // the world, returning the _region_map index, which contains the region_id.
 // Valid region locations are -16, -16 to 15, 15, or when offset: 0, 0 to 31, 31
 // If any bits other than 0x1F are set, it's out of bounds and returns -1
-inline int Terrain3DData::get_region_map_index(const Vector2i &p_region_loc) {
+inline int TerrainGeneratorData::get_region_map_index(const Vector2i &p_region_loc) {
 	// Offset world to positive values only
 	Vector2i loc = p_region_loc + (REGION_MAP_VSIZE / 2);
 	// Catch values > 31
@@ -209,13 +209,13 @@ inline int Terrain3DData::get_region_map_index(const Vector2i &p_region_loc) {
 }
 
 // Returns a region location given a global position. No bounds checking nor data access.
-inline Vector2i Terrain3DData::get_region_location(const Vector3 &p_global_position) const {
+inline Vector2i TerrainGeneratorData::get_region_location(const Vector3 &p_global_position) const {
 	Vector2 descaled_position = v3v2(p_global_position) / _vertex_spacing;
 	return Vector2i((descaled_position / real_t(_region_size)).floor());
 }
 
 // Returns id of any active region. -1 if out of bounds or no region, or region id
-inline int Terrain3DData::get_region_id(const Vector2i &p_region_loc) const {
+inline int TerrainGeneratorData::get_region_id(const Vector2i &p_region_loc) const {
 	int map_index = get_region_map_index(p_region_loc);
 	if (map_index >= 0) {
 		int region_id = _region_map[map_index] - 1; // 0 = no region
@@ -226,7 +226,7 @@ inline int Terrain3DData::get_region_id(const Vector2i &p_region_loc) const {
 	return -1;
 }
 
-inline int Terrain3DData::get_region_idp(const Vector3 &p_global_position) const {
+inline int TerrainGeneratorData::get_region_idp(const Vector3 &p_global_position) const {
 	return get_region_id(get_region_location(p_global_position));
 }
 
@@ -236,10 +236,10 @@ inline int Terrain3DData::get_region_idp(const Vector3 &p_global_position) const
 // pointer is already tracked and increments the reference counter.
 // Passing the pointer to a function with a Ref<> parameter works, and there's an implicit conversion to Ref.
 // However, let's require explicit conversions for clarity, so wrap a Ref around it:
-// eg. backup_region(Ref<Terrain3D>(raw_ptr));
+// eg. backup_region(Ref<TerrainGenerator>(raw_ptr));
 // Should be used for most functions in Editor and Instancer.
-inline Ref<Terrain3DRegion> Terrain3DData::get_region(const Vector2i &p_region_loc) const {
-	return _regions.get(p_region_loc, Ref<Terrain3DRegion>());
+inline Ref<TerrainGeneratorRegion> TerrainGeneratorData::get_region(const Vector2i &p_region_loc) const {
+	return _regions.get(p_region_loc, Ref<TerrainGeneratorRegion>());
 }
 
 // Using the raw pointer is faster than creating a Ref<>. It can also safely be converted to a Ref as needed
@@ -250,148 +250,148 @@ inline Ref<Terrain3DRegion> Terrain3DData::get_region(const Vector2i &p_region_l
 // However it also worked for Variant::Object, which silently sent invalid data.
 // The overloaded template was added to catch this. Pulling out of a dictionary/array gives a Variant,
 // so now explicit conversion is required, eg. get_region_ptr(Vector2i(locs[i])).
-inline Terrain3DRegion *Terrain3DData::get_region_ptr(const Vector2i &p_region_loc) const {
+inline TerrainGeneratorRegion *TerrainGeneratorData::get_region_ptr(const Vector2i &p_region_loc) const {
 	if (_regions.has(p_region_loc)) {
-		return cast_to<Terrain3DRegion>(_regions[p_region_loc]);
+		return cast_to<TerrainGeneratorRegion>(_regions[p_region_loc]);
 	}
 	return nullptr;
 }
 
-inline Ref<Terrain3DRegion> Terrain3DData::get_regionp(const Vector3 &p_global_position) const {
-	return _regions.get(get_region_location(p_global_position), Ref<Terrain3DRegion>());
+inline Ref<TerrainGeneratorRegion> TerrainGeneratorData::get_regionp(const Vector3 &p_global_position) const {
+	return _regions.get(get_region_location(p_global_position), Ref<TerrainGeneratorRegion>());
 }
 
 // Inline Map Functions
 
-inline void Terrain3DData::set_height(const Vector3 &p_global_position, const real_t p_height) {
+inline void TerrainGeneratorData::set_height(const Vector3 &p_global_position, const real_t p_height) {
 	set_pixel(TYPE_HEIGHT, p_global_position, Color(p_height, 0.f, 0.f, 1.f));
 }
 
-inline void Terrain3DData::set_color(const Vector3 &p_global_position, const Color &p_color) {
+inline void TerrainGeneratorData::set_color(const Vector3 &p_global_position, const Color &p_color) {
 	Color clr = p_color;
 	clr.a = get_roughness(p_global_position);
 	set_pixel(TYPE_COLOR, p_global_position, clr);
 }
 
-inline Color Terrain3DData::get_color(const Vector3 &p_global_position) const {
+inline Color TerrainGeneratorData::get_color(const Vector3 &p_global_position) const {
 	Color clr = get_pixel(TYPE_COLOR, p_global_position);
 	clr.a = 1.0f;
 	return clr;
 }
 
-inline void Terrain3DData::set_control(const Vector3 &p_global_position, const uint32_t p_control) {
+inline void TerrainGeneratorData::set_control(const Vector3 &p_global_position, const uint32_t p_control) {
 	set_pixel(TYPE_CONTROL, p_global_position, Color(as_float(p_control), 0.f, 0.f, 1.f));
 }
 
-inline uint32_t Terrain3DData::get_control(const Vector3 &p_global_position) const {
+inline uint32_t TerrainGeneratorData::get_control(const Vector3 &p_global_position) const {
 	real_t val = get_pixel(TYPE_CONTROL, p_global_position).r;
 	return (std::isnan(val)) ? UINT32_MAX : as_uint(val);
 }
 
-inline void Terrain3DData::set_control_base_id(const Vector3 &p_global_position, const uint8_t p_base) {
+inline void TerrainGeneratorData::set_control_base_id(const Vector3 &p_global_position, const uint8_t p_base) {
 	uint32_t control = get_control(p_global_position);
 	uint8_t base = CLAMP(p_base, uint8_t(0), uint8_t(31));
 	set_control(p_global_position, (control & ~(0x1F << 27)) | enc_base(base));
 }
 
-inline uint32_t Terrain3DData::get_control_base_id(const Vector3 &p_global_position) const {
+inline uint32_t TerrainGeneratorData::get_control_base_id(const Vector3 &p_global_position) const {
 	uint32_t control = get_control(p_global_position);
 	return control == UINT32_MAX ? UINT32_MAX : get_base(control);
 }
 
-inline void Terrain3DData::set_control_overlay_id(const Vector3 &p_global_position, const uint8_t p_overlay) {
+inline void TerrainGeneratorData::set_control_overlay_id(const Vector3 &p_global_position, const uint8_t p_overlay) {
 	uint32_t control = get_control(p_global_position);
 	uint8_t overlay = CLAMP(p_overlay, uint8_t(0), uint8_t(31));
 	set_control(p_global_position, (control & ~(0x1F << 22)) | enc_overlay(overlay));
 }
 
-inline uint32_t Terrain3DData::get_control_overlay_id(const Vector3 &p_global_position) const {
+inline uint32_t TerrainGeneratorData::get_control_overlay_id(const Vector3 &p_global_position) const {
 	uint32_t control = get_control(p_global_position);
 	return control == UINT32_MAX ? UINT32_MAX : get_overlay(control);
 }
 
 // Expects 0.0 to 1.0 range
-inline void Terrain3DData::set_control_blend(const Vector3 &p_global_position, const real_t p_blend) {
+inline void TerrainGeneratorData::set_control_blend(const Vector3 &p_global_position, const real_t p_blend) {
 	uint32_t control = get_control(p_global_position);
 	uint8_t blend = uint8_t(CLAMP(Math::round(p_blend * 255.f), 0.f, 255.f));
 	set_control(p_global_position, (control & ~(0xFF << 14)) | enc_blend(blend));
 }
 
-inline real_t Terrain3DData::get_control_blend(const Vector3 &p_global_position) const {
+inline real_t TerrainGeneratorData::get_control_blend(const Vector3 &p_global_position) const {
 	uint32_t control = get_control(p_global_position);
 	return control == UINT32_MAX ? NAN : real_t(get_blend(control)) / 255.f;
 }
 
 // Expects angle in degrees
-inline void Terrain3DData::set_control_angle(const Vector3 &p_global_position, const real_t p_angle) {
+inline void TerrainGeneratorData::set_control_angle(const Vector3 &p_global_position, const real_t p_angle) {
 	uint32_t control = get_control(p_global_position);
 	uint8_t uvrotation = uint8_t(CLAMP(Math::round(p_angle / 22.5f), 0.f, 15.f));
 	set_control(p_global_position, (control & ~(0xF << 10)) | enc_uv_rotation(uvrotation));
 }
 
 // returns angle in degrees
-inline real_t Terrain3DData::get_control_angle(const Vector3 &p_global_position) const {
+inline real_t TerrainGeneratorData::get_control_angle(const Vector3 &p_global_position) const {
 	uint32_t control = get_control(p_global_position);
 	real_t angle = real_t(get_uv_rotation(control)) * 22.5f;
 	return control == UINT32_MAX ? NAN : angle;
 }
 
 // Expects scale as a percentage modifier
-inline void Terrain3DData::set_control_scale(const Vector3 &p_global_position, const real_t p_scale) {
+inline void TerrainGeneratorData::set_control_scale(const Vector3 &p_global_position, const real_t p_scale) {
 	uint32_t control = get_control(p_global_position);
 	std::array<uint32_t, 8> scale_align = { 5, 6, 7, 0, 1, 2, 3, 4 };
 	uint8_t uvscale = scale_align[uint8_t(CLAMP(Math::round((p_scale + 60.f) / 20.f), 0.f, 7.f))];
 	set_control(p_global_position, (control & ~(0x7 << 7)) | enc_uv_scale(uvscale));
 }
 
-inline real_t Terrain3DData::get_control_scale(const Vector3 &p_global_position) const {
+inline real_t TerrainGeneratorData::get_control_scale(const Vector3 &p_global_position) const {
 	uint32_t control = get_control(p_global_position);
 	std::array<real_t, 8> scale_values = { 0.0f, 20.0f, 40.0f, 60.0f, 80.0f, -60.0f, -40.0f, -20.0f };
 	real_t scale = scale_values[get_uv_scale(control)]; //select from array UI return values
 	return control == UINT32_MAX ? NAN : scale;
 }
 
-inline void Terrain3DData::set_control_hole(const Vector3 &p_global_position, const bool p_hole) {
+inline void TerrainGeneratorData::set_control_hole(const Vector3 &p_global_position, const bool p_hole) {
 	uint32_t control = get_control(p_global_position);
 	set_control(p_global_position, (control & ~(0x1 << 2)) | enc_hole(p_hole));
 }
 
-inline bool Terrain3DData::get_control_hole(const Vector3 &p_global_position) const {
+inline bool TerrainGeneratorData::get_control_hole(const Vector3 &p_global_position) const {
 	uint32_t control = get_control(p_global_position);
 	return control == UINT32_MAX ? false : is_hole(control);
 }
 
-inline void Terrain3DData::set_control_navigation(const Vector3 &p_global_position, const bool p_navigation) {
+inline void TerrainGeneratorData::set_control_navigation(const Vector3 &p_global_position, const bool p_navigation) {
 	uint32_t control = get_control(p_global_position);
 	set_control(p_global_position, (control & ~(0x1 << 1)) | enc_nav(p_navigation));
 }
 
-inline bool Terrain3DData::get_control_navigation(const Vector3 &p_global_position) const {
+inline bool TerrainGeneratorData::get_control_navigation(const Vector3 &p_global_position) const {
 	uint32_t control = get_control(p_global_position);
 	return control == UINT32_MAX ? false : is_nav(control);
 }
 
-inline void Terrain3DData::set_control_auto(const Vector3 &p_global_position, const bool p_auto) {
+inline void TerrainGeneratorData::set_control_auto(const Vector3 &p_global_position, const bool p_auto) {
 	uint32_t control = get_control(p_global_position);
 	set_control(p_global_position, (control & ~(0x1)) | enc_auto(p_auto));
 }
 
-inline bool Terrain3DData::get_control_auto(const Vector3 &p_global_position) const {
+inline bool TerrainGeneratorData::get_control_auto(const Vector3 &p_global_position) const {
 	uint32_t control = get_control(p_global_position);
 	return control == UINT32_MAX ? false : is_auto(control);
 }
 
-inline void Terrain3DData::set_roughness(const Vector3 &p_global_position, const real_t p_roughness) {
+inline void TerrainGeneratorData::set_roughness(const Vector3 &p_global_position, const real_t p_roughness) {
 	Color clr = get_pixel(TYPE_COLOR, p_global_position);
 	clr.a = p_roughness;
 	set_pixel(TYPE_COLOR, p_global_position, clr);
 }
 
-inline real_t Terrain3DData::get_roughness(const Vector3 &p_global_position) const {
+inline real_t TerrainGeneratorData::get_roughness(const Vector3 &p_global_position) const {
 	return get_pixel(TYPE_COLOR, p_global_position).a;
 }
 
-inline void Terrain3DData::update_master_height(const real_t p_height) {
+inline void TerrainGeneratorData::update_master_height(const real_t p_height) {
 	if (p_height < _master_height_range.x) {
 		_master_height_range.x = p_height;
 	} else if (p_height > _master_height_range.y) {
@@ -399,7 +399,7 @@ inline void Terrain3DData::update_master_height(const real_t p_height) {
 	}
 }
 
-inline void Terrain3DData::update_master_heights(const Vector2 &p_low_high) {
+inline void TerrainGeneratorData::update_master_heights(const Vector2 &p_low_high) {
 	if (p_low_high.x < _master_height_range.x) {
 		_master_height_range.x = p_low_high.x;
 	}

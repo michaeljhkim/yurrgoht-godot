@@ -12,16 +12,16 @@
 // Public Functions
 /////////////////////
 
-void Terrain3DRegion::set_version(const real_t p_version) {
+void TerrainGeneratorRegion::set_version(const real_t p_version) {
 	LOG(INFO, vformat("%.3f", p_version));
 	_version = p_version;
-	if (_version < Terrain3DData::CURRENT_VERSION) {
+	if (_version < TerrainGeneratorData::CURRENT_VERSION) {
 		LOG(WARN, "Region ", get_path(), " version ", vformat("%.3f", _version),
-				" will be updated to ", vformat("%.3f", Terrain3DData::CURRENT_VERSION), " upon save");
+				" will be updated to ", vformat("%.3f", TerrainGeneratorData::CURRENT_VERSION), " upon save");
 	}
 }
 
-void Terrain3DRegion::set_map(const MapType p_map_type, const Ref<Image> &p_image) {
+void TerrainGeneratorRegion::set_map(const MapType p_map_type, const Ref<Image> &p_image) {
 	switch (p_map_type) {
 		case TYPE_HEIGHT:
 			set_height_map(p_image);
@@ -38,7 +38,7 @@ void Terrain3DRegion::set_map(const MapType p_map_type, const Ref<Image> &p_imag
 	}
 }
 
-Ref<Image> Terrain3DRegion::get_map(const MapType p_map_type) const {
+Ref<Image> TerrainGeneratorRegion::get_map(const MapType p_map_type) const {
 	switch (p_map_type) {
 		case TYPE_HEIGHT:
 			return get_height_map();
@@ -52,7 +52,7 @@ Ref<Image> Terrain3DRegion::get_map(const MapType p_map_type) const {
 	}
 }
 
-Image *Terrain3DRegion::get_map_ptr(const MapType p_map_type) const {
+Image *TerrainGeneratorRegion::get_map_ptr(const MapType p_map_type) const {
 	switch (p_map_type) {
 		case TYPE_HEIGHT:
 			return *_height_map;
@@ -66,7 +66,7 @@ Image *Terrain3DRegion::get_map_ptr(const MapType p_map_type) const {
 	}
 }
 
-void Terrain3DRegion::set_maps(const TypedArray<Image> &p_maps) {
+void TerrainGeneratorRegion::set_maps(const TypedArray<Image> &p_maps) {
 	if (p_maps.size() != TYPE_MAX) {
 		LOG(ERROR, "Expected ", TYPE_MAX - 1, " maps. Received ", p_maps.size());
 		return;
@@ -77,7 +77,7 @@ void Terrain3DRegion::set_maps(const TypedArray<Image> &p_maps) {
 	set_color_map(p_maps[TYPE_COLOR]);
 }
 
-TypedArray<Image> Terrain3DRegion::get_maps() const {
+TypedArray<Image> TerrainGeneratorRegion::get_maps() const {
 	LOG(INFO, "Retrieving maps from region: ", _location);
 	TypedArray<Image> maps;
 	maps.push_back(_height_map);
@@ -86,7 +86,7 @@ TypedArray<Image> Terrain3DRegion::get_maps() const {
 	return maps;
 }
 
-void Terrain3DRegion::set_height_map(const Ref<Image> &p_map) {
+void TerrainGeneratorRegion::set_height_map(const Ref<Image> &p_map) {
 	LOG(INFO, "Setting height map for region: ", (_location.x != INT32_MAX) ? String(_location) : "(new)");
 	if (_region_size == 0) {
 		set_region_size((p_map.is_valid()) ? p_map->get_width() : 0);
@@ -95,7 +95,7 @@ void Terrain3DRegion::set_height_map(const Ref<Image> &p_map) {
 	calc_height_range();
 }
 
-void Terrain3DRegion::set_control_map(const Ref<Image> &p_map) {
+void TerrainGeneratorRegion::set_control_map(const Ref<Image> &p_map) {
 	LOG(INFO, "Setting control map for region: ", (_location.x != INT32_MAX) ? String(_location) : "(new)");
 	if (_region_size == 0) {
 		set_region_size((p_map.is_valid()) ? p_map->get_width() : 0);
@@ -103,7 +103,7 @@ void Terrain3DRegion::set_control_map(const Ref<Image> &p_map) {
 	_control_map = sanitize_map(TYPE_CONTROL, p_map);
 }
 
-void Terrain3DRegion::set_color_map(const Ref<Image> &p_map) {
+void TerrainGeneratorRegion::set_color_map(const Ref<Image> &p_map) {
 	LOG(INFO, "Setting color map for region: ", (_location.x != INT32_MAX) ? String(_location) : "(new)");
 	if (_region_size == 0) {
 		set_region_size((p_map.is_valid()) ? p_map->get_width() : 0);
@@ -115,7 +115,7 @@ void Terrain3DRegion::set_color_map(const Ref<Image> &p_map) {
 	}
 }
 
-void Terrain3DRegion::sanitize_maps() {
+void TerrainGeneratorRegion::sanitize_maps() {
 	if (_region_size == 0) { // blank region, no set_*_map has been called
 		LOG(ERROR, "Set region_size first");
 		return;
@@ -125,7 +125,7 @@ void Terrain3DRegion::sanitize_maps() {
 	_color_map = sanitize_map(TYPE_COLOR, _color_map);
 }
 
-Ref<Image> Terrain3DRegion::sanitize_map(const MapType p_map_type, const Ref<Image> &p_map) const {
+Ref<Image> TerrainGeneratorRegion::sanitize_map(const MapType p_map_type, const Ref<Image> &p_map) const {
 	const char *type_str = TYPESTR[p_map_type];
 	Image::Format format = FORMAT[p_map_type];
 	Color color = COLOR[p_map_type];
@@ -160,7 +160,7 @@ Ref<Image> Terrain3DRegion::sanitize_map(const MapType p_map_type, const Ref<Ima
 	}
 }
 
-bool Terrain3DRegion::validate_map_size(const Ref<Image> &p_map) const {
+bool TerrainGeneratorRegion::validate_map_size(const Ref<Image> &p_map) const {
 	Vector2i region_sizev = p_map->get_size();
 	if (region_sizev.x != region_sizev.y) {
 		LOG(ERROR, "Image width doesn't match height: ", region_sizev);
@@ -185,7 +185,7 @@ bool Terrain3DRegion::validate_map_size(const Ref<Image> &p_map) const {
 	return true;
 }
 
-void Terrain3DRegion::set_height_range(const Vector2 &p_range) {
+void TerrainGeneratorRegion::set_height_range(const Vector2 &p_range) {
 	LOG(INFO, vformat("%.2v", p_range));
 	if (_height_range != p_range) {
 		// If initial value, we're loading it from disk, else mark modified
@@ -196,7 +196,7 @@ void Terrain3DRegion::set_height_range(const Vector2 &p_range) {
 	}
 }
 
-void Terrain3DRegion::calc_height_range() {
+void TerrainGeneratorRegion::calc_height_range() {
 	Vector2 range = Util::get_min_max(_height_map);
 	if (_height_range != range) {
 		_height_range = range;
@@ -205,7 +205,7 @@ void Terrain3DRegion::calc_height_range() {
 	}
 }
 
-Error Terrain3DRegion::save(const String &p_path, const bool p_16_bit) {
+Error TerrainGeneratorRegion::save(const String &p_path, const bool p_16_bit) {
 	// Initiate save to external file. The scene will save itself.
 	if (_location.x == INT32_MAX) {
 		LOG(ERROR, "Region has not been setup. Location is INT32_MAX. Skipping ", p_path);
@@ -225,7 +225,7 @@ Error Terrain3DRegion::save(const String &p_path, const bool p_16_bit) {
 		// incuding those in the undo queue
 	}
 	LOG(MESG, "Writing", (p_16_bit) ? " 16-bit" : "", " region ", _location, " to ", get_path());
-	set_version(Terrain3DData::CURRENT_VERSION);
+	set_version(TerrainGeneratorData::CURRENT_VERSION);
 	Error err = OK;
 	if (p_16_bit) {
 		Ref<Image> original_map;
@@ -246,19 +246,19 @@ Error Terrain3DRegion::save(const String &p_path, const bool p_16_bit) {
 	return err;
 }
 
-void Terrain3DRegion::set_location(const Vector2i &p_location) {
+void TerrainGeneratorRegion::set_location(const Vector2i &p_location) {
 	// In the future anywhere they want to put the location might be fine, but because of region_map
 	// We have a limitation of 16x16 and eventually 45x45.
-	if (Terrain3DData::get_region_map_index(p_location) < 0) {
+	if (TerrainGeneratorData::get_region_map_index(p_location) < 0) {
 		LOG(ERROR, "Location ", p_location, " out of bounds. Max: ",
-				-Terrain3DData::REGION_MAP_SIZE / 2, " to ", Terrain3DData::REGION_MAP_SIZE / 2 - 1);
+				-TerrainGeneratorData::REGION_MAP_SIZE / 2, " to ", TerrainGeneratorData::REGION_MAP_SIZE / 2 - 1);
 		return;
 	}
 	LOG(INFO, "Set location: ", p_location);
 	_location = p_location;
 }
 
-void Terrain3DRegion::set_data(const Dictionary &p_data) {
+void TerrainGeneratorRegion::set_data(const Dictionary &p_data) {
 #define SET_IF_HAS(var, str) \
 	if (p_data.has(str)) {   \
 		var = p_data[str];   \
@@ -277,7 +277,7 @@ void Terrain3DRegion::set_data(const Dictionary &p_data) {
 	SET_IF_HAS(_instances, "instances");
 }
 
-Dictionary Terrain3DRegion::get_data() const {
+Dictionary TerrainGeneratorRegion::get_data() const {
 	Dictionary dict;
 	dict["location"] = _location;
 	dict["deleted"] = _deleted;
@@ -294,8 +294,8 @@ Dictionary Terrain3DRegion::get_data() const {
 	return dict;
 }
 
-Ref<Terrain3DRegion> Terrain3DRegion::duplicate(const bool p_deep) {
-	Ref<Terrain3DRegion> region;
+Ref<TerrainGeneratorRegion> TerrainGeneratorRegion::duplicate(const bool p_deep) {
+	Ref<TerrainGeneratorRegion> region;
 	region.instantiate();
 	if (!p_deep) {
 		region->set_data(get_data());
@@ -323,56 +323,56 @@ Ref<Terrain3DRegion> Terrain3DRegion::duplicate(const bool p_deep) {
 // Protected Functions
 /////////////////////
 
-void Terrain3DRegion::_bind_methods() {
+void TerrainGeneratorRegion::_bind_methods() {
 	BIND_ENUM_CONSTANT(TYPE_HEIGHT);
 	BIND_ENUM_CONSTANT(TYPE_CONTROL);
 	BIND_ENUM_CONSTANT(TYPE_COLOR);
 	BIND_ENUM_CONSTANT(TYPE_MAX);
 
-	ClassDB::bind_method(D_METHOD("set_version", "version"), &Terrain3DRegion::set_version);
-	ClassDB::bind_method(D_METHOD("get_version"), &Terrain3DRegion::get_version);
-	ClassDB::bind_method(D_METHOD("set_region_size", "region_size"), &Terrain3DRegion::set_region_size);
-	ClassDB::bind_method(D_METHOD("get_region_size"), &Terrain3DRegion::get_region_size);
-	ClassDB::bind_method(D_METHOD("set_vertex_spacing", "vertex_spacing"), &Terrain3DRegion::set_vertex_spacing);
-	ClassDB::bind_method(D_METHOD("get_vertex_spacing"), &Terrain3DRegion::get_vertex_spacing);
+	ClassDB::bind_method(D_METHOD("set_version", "version"), &TerrainGeneratorRegion::set_version);
+	ClassDB::bind_method(D_METHOD("get_version"), &TerrainGeneratorRegion::get_version);
+	ClassDB::bind_method(D_METHOD("set_region_size", "region_size"), &TerrainGeneratorRegion::set_region_size);
+	ClassDB::bind_method(D_METHOD("get_region_size"), &TerrainGeneratorRegion::get_region_size);
+	ClassDB::bind_method(D_METHOD("set_vertex_spacing", "vertex_spacing"), &TerrainGeneratorRegion::set_vertex_spacing);
+	ClassDB::bind_method(D_METHOD("get_vertex_spacing"), &TerrainGeneratorRegion::get_vertex_spacing);
 
-	ClassDB::bind_method(D_METHOD("set_map", "map_type", "map"), &Terrain3DRegion::set_map);
-	ClassDB::bind_method(D_METHOD("get_map", "map_type"), &Terrain3DRegion::get_map);
-	ClassDB::bind_method(D_METHOD("set_maps", "maps"), &Terrain3DRegion::set_maps);
-	ClassDB::bind_method(D_METHOD("get_maps"), &Terrain3DRegion::get_maps);
-	ClassDB::bind_method(D_METHOD("set_height_map", "map"), &Terrain3DRegion::set_height_map);
-	ClassDB::bind_method(D_METHOD("get_height_map"), &Terrain3DRegion::get_height_map);
-	ClassDB::bind_method(D_METHOD("set_control_map", "map"), &Terrain3DRegion::set_control_map);
-	ClassDB::bind_method(D_METHOD("get_control_map"), &Terrain3DRegion::get_control_map);
-	ClassDB::bind_method(D_METHOD("set_color_map", "map"), &Terrain3DRegion::set_color_map);
-	ClassDB::bind_method(D_METHOD("get_color_map"), &Terrain3DRegion::get_color_map);
-	ClassDB::bind_method(D_METHOD("sanitize_maps"), &Terrain3DRegion::sanitize_maps);
-	ClassDB::bind_method(D_METHOD("sanitize_map", "map_type", "map"), &Terrain3DRegion::sanitize_map);
-	ClassDB::bind_method(D_METHOD("validate_map_size", "map"), &Terrain3DRegion::validate_map_size);
+	ClassDB::bind_method(D_METHOD("set_map", "map_type", "map"), &TerrainGeneratorRegion::set_map);
+	ClassDB::bind_method(D_METHOD("get_map", "map_type"), &TerrainGeneratorRegion::get_map);
+	ClassDB::bind_method(D_METHOD("set_maps", "maps"), &TerrainGeneratorRegion::set_maps);
+	ClassDB::bind_method(D_METHOD("get_maps"), &TerrainGeneratorRegion::get_maps);
+	ClassDB::bind_method(D_METHOD("set_height_map", "map"), &TerrainGeneratorRegion::set_height_map);
+	ClassDB::bind_method(D_METHOD("get_height_map"), &TerrainGeneratorRegion::get_height_map);
+	ClassDB::bind_method(D_METHOD("set_control_map", "map"), &TerrainGeneratorRegion::set_control_map);
+	ClassDB::bind_method(D_METHOD("get_control_map"), &TerrainGeneratorRegion::get_control_map);
+	ClassDB::bind_method(D_METHOD("set_color_map", "map"), &TerrainGeneratorRegion::set_color_map);
+	ClassDB::bind_method(D_METHOD("get_color_map"), &TerrainGeneratorRegion::get_color_map);
+	ClassDB::bind_method(D_METHOD("sanitize_maps"), &TerrainGeneratorRegion::sanitize_maps);
+	ClassDB::bind_method(D_METHOD("sanitize_map", "map_type", "map"), &TerrainGeneratorRegion::sanitize_map);
+	ClassDB::bind_method(D_METHOD("validate_map_size", "map"), &TerrainGeneratorRegion::validate_map_size);
 
-	ClassDB::bind_method(D_METHOD("set_height_range", "range"), &Terrain3DRegion::set_height_range);
-	ClassDB::bind_method(D_METHOD("get_height_range"), &Terrain3DRegion::get_height_range);
-	ClassDB::bind_method(D_METHOD("update_height", "height"), &Terrain3DRegion::update_height);
-	ClassDB::bind_method(D_METHOD("update_heights", "low_high"), &Terrain3DRegion::update_heights);
-	ClassDB::bind_method(D_METHOD("calc_height_range"), &Terrain3DRegion::calc_height_range);
+	ClassDB::bind_method(D_METHOD("set_height_range", "range"), &TerrainGeneratorRegion::set_height_range);
+	ClassDB::bind_method(D_METHOD("get_height_range"), &TerrainGeneratorRegion::get_height_range);
+	ClassDB::bind_method(D_METHOD("update_height", "height"), &TerrainGeneratorRegion::update_height);
+	ClassDB::bind_method(D_METHOD("update_heights", "low_high"), &TerrainGeneratorRegion::update_heights);
+	ClassDB::bind_method(D_METHOD("calc_height_range"), &TerrainGeneratorRegion::calc_height_range);
 
-	ClassDB::bind_method(D_METHOD("set_instances", "instances"), &Terrain3DRegion::set_instances);
-	ClassDB::bind_method(D_METHOD("get_instances"), &Terrain3DRegion::get_instances);
+	ClassDB::bind_method(D_METHOD("set_instances", "instances"), &TerrainGeneratorRegion::set_instances);
+	ClassDB::bind_method(D_METHOD("get_instances"), &TerrainGeneratorRegion::get_instances);
 
-	ClassDB::bind_method(D_METHOD("save", "path", "save_16_bit"), &Terrain3DRegion::save, DEFVAL(""), DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("save", "path", "save_16_bit"), &TerrainGeneratorRegion::save, DEFVAL(""), DEFVAL(false));
 
-	ClassDB::bind_method(D_METHOD("set_deleted", "deleted"), &Terrain3DRegion::set_deleted);
-	ClassDB::bind_method(D_METHOD("is_deleted"), &Terrain3DRegion::is_deleted);
-	ClassDB::bind_method(D_METHOD("set_edited", "edited"), &Terrain3DRegion::set_edited);
-	ClassDB::bind_method(D_METHOD("is_edited"), &Terrain3DRegion::is_edited);
-	ClassDB::bind_method(D_METHOD("set_modified", "modified"), &Terrain3DRegion::set_modified);
-	ClassDB::bind_method(D_METHOD("is_modified"), &Terrain3DRegion::is_modified);
-	ClassDB::bind_method(D_METHOD("set_location", "location"), &Terrain3DRegion::set_location);
-	ClassDB::bind_method(D_METHOD("get_location"), &Terrain3DRegion::get_location);
+	ClassDB::bind_method(D_METHOD("set_deleted", "deleted"), &TerrainGeneratorRegion::set_deleted);
+	ClassDB::bind_method(D_METHOD("is_deleted"), &TerrainGeneratorRegion::is_deleted);
+	ClassDB::bind_method(D_METHOD("set_edited", "edited"), &TerrainGeneratorRegion::set_edited);
+	ClassDB::bind_method(D_METHOD("is_edited"), &TerrainGeneratorRegion::is_edited);
+	ClassDB::bind_method(D_METHOD("set_modified", "modified"), &TerrainGeneratorRegion::set_modified);
+	ClassDB::bind_method(D_METHOD("is_modified"), &TerrainGeneratorRegion::is_modified);
+	ClassDB::bind_method(D_METHOD("set_location", "location"), &TerrainGeneratorRegion::set_location);
+	ClassDB::bind_method(D_METHOD("get_location"), &TerrainGeneratorRegion::get_location);
 
-	ClassDB::bind_method(D_METHOD("set_data", "data"), &Terrain3DRegion::set_data);
-	ClassDB::bind_method(D_METHOD("get_data"), &Terrain3DRegion::get_data);
-	ClassDB::bind_method(D_METHOD("duplicate", "deep"), &Terrain3DRegion::duplicate, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("set_data", "data"), &TerrainGeneratorRegion::set_data);
+	ClassDB::bind_method(D_METHOD("get_data"), &TerrainGeneratorRegion::get_data);
+	ClassDB::bind_method(D_METHOD("duplicate", "deep"), &TerrainGeneratorRegion::duplicate, DEFVAL(false));
 
 	int ro_flags = PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY;
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "version", PROPERTY_HINT_NONE, "", ro_flags), "set_version", "get_version");

@@ -7,12 +7,12 @@
 #include "constants.h"
 #include "generated_texture.h"
 
-class Terrain3D;
+class TerrainGenerator;
 
-class Terrain3DMaterial : public Resource {
-	GDCLASS(Terrain3DMaterial, Resource);
+class TerrainGeneratorMaterial : public Resource {
+	GDCLASS(TerrainGeneratorMaterial, Resource);
 	CLASS_NAME();
-	friend class Terrain3D;
+	friend class TerrainGenerator;
 
 public: // Constants
 	enum WorldBackground {
@@ -27,7 +27,7 @@ public: // Constants
 	};
 
 private:
-	Terrain3D *_terrain = nullptr;
+	TerrainGenerator *_terrain = nullptr;
 
 	RID _material;
 	Ref<Shader> _shader; // Active shader
@@ -81,9 +81,9 @@ private:
 	Dictionary _get_shader_parameters() const { return _shader_params; }
 
 public:
-	Terrain3DMaterial() {}
-	~Terrain3DMaterial() { destroy(); }
-	void initialize(Terrain3D *p_terrain);
+	TerrainGeneratorMaterial() {}
+	~TerrainGeneratorMaterial() { destroy(); }
+	void initialize(TerrainGenerator *p_terrain);
 	bool is_initialized() { return _terrain != nullptr; }
 	void uninitialize();
 	void destroy();
@@ -164,5 +164,5 @@ protected:
 	static void _bind_methods();
 };
 
-VARIANT_ENUM_CAST(Terrain3DMaterial::WorldBackground);
-VARIANT_ENUM_CAST(Terrain3DMaterial::TextureFiltering);
+VARIANT_ENUM_CAST(TerrainGeneratorMaterial::WorldBackground);
+VARIANT_ENUM_CAST(TerrainGeneratorMaterial::TextureFiltering);

@@ -5,15 +5,16 @@
 #include <godot/core/io/resource.h>
 #include "constants.h"
 
-class Terrain3DAssets;
+class TerrainGeneratorAssets;
 
-// Parent class of Terrain3DMeshAsset and Terrain3DTextureAsset
-class Terrain3DAssetResource : public Resource {
-	friend class Terrain3DAssets;
+// Parent class of TerrainGeneratorMeshAsset and TerrainGeneratorTextureAsset
+class TerrainGeneratorAssetResource : public Resource {
+	GDCLASS(TerrainGeneratorAssetResource, Resource);
+	friend class TerrainGeneratorAssets;
 
 public:
-	Terrain3DAssetResource() {}
-	~Terrain3DAssetResource() {}
+	TerrainGeneratorAssetResource() {}
+	~TerrainGeneratorAssetResource() {}
 
 	virtual void clear() = 0;
 	virtual void set_name(const String &p_name) = 0;

@@ -9,11 +9,11 @@
 #include "terrain_generator_texture_asset.h"
 
 
-class Terrain3D;
-class Terrain3DInstancer;
+class TerrainGenerator;
+class TerrainGeneratorInstancer;
 
-class Terrain3DAssets : public Resource {
-	GDCLASS(Terrain3DAssets, Resource);
+class TerrainGeneratorAssets : public Resource {
+	GDCLASS(TerrainGeneratorAssets, Resource);
 	CLASS_NAME();
 
 public: // Constants
@@ -26,10 +26,10 @@ public: // Constants
 	static inline const int MAX_MESHES = 256;
 
 private:
-	Terrain3D *_terrain = nullptr;
+	TerrainGenerator *_terrain = nullptr;
 
-	TypedArray<Terrain3DTextureAsset> _texture_list;
-	TypedArray<Terrain3DMeshAsset> _mesh_list;
+	TypedArray<TerrainGeneratorTextureAsset> _texture_list;
+	TypedArray<TerrainGeneratorMeshAsset> _mesh_list;
 
 	GeneratedTexture _generated_albedo_textures;
 	GeneratedTexture _generated_normal_textures;
@@ -53,26 +53,26 @@ private:
 	RID _mesh_instance;
 
 	void _swap_ids(const AssetType p_type, const int p_src_id, const int p_dst_id);
-	void _set_asset_list(const AssetType p_type, const TypedArray<Terrain3DAssetResource> &p_list);
-	void _set_asset(const AssetType p_type, const int p_id, const Ref<Terrain3DAssetResource> &p_asset);
+	void _set_asset_list(const AssetType p_type, const TypedArray<TerrainGeneratorAssetResource> &p_list);
+	void _set_asset(const AssetType p_type, const int p_id, const Ref<TerrainGeneratorAssetResource> &p_asset);
 
 	void _update_texture_files();
 	void _update_texture_settings();
 	void _setup_thumbnail_creation();
-	void _update_thumbnail(const Ref<Terrain3DMeshAsset> &p_mesh_asset);
+	void _update_thumbnail(const Ref<TerrainGeneratorMeshAsset> &p_mesh_asset);
 
 public:
-	Terrain3DAssets() {}
-	~Terrain3DAssets() { destroy(); }
-	void initialize(Terrain3D *p_terrain);
+	TerrainGeneratorAssets() {}
+	~TerrainGeneratorAssets() { destroy(); }
+	void initialize(TerrainGenerator *p_terrain);
 	bool is_initialized() { return _terrain != nullptr; }
 	void uninitialize();
 	void destroy();
 
-	void set_texture(const int p_id, const Ref<Terrain3DTextureAsset> &p_texture);
-	Ref<Terrain3DTextureAsset> get_texture(const int p_id) const;
-	void set_texture_list(const TypedArray<Terrain3DTextureAsset> &p_texture_list);
-	TypedArray<Terrain3DTextureAsset> get_texture_list() const { return _texture_list; }
+	void set_texture(const int p_id, const Ref<TerrainGeneratorTextureAsset> &p_texture);
+	Ref<TerrainGeneratorTextureAsset> get_texture(const int p_id) const;
+	void set_texture_list(const TypedArray<TerrainGeneratorTextureAsset> &p_texture_list);
+	TypedArray<TerrainGeneratorTextureAsset> get_texture_list() const { return _texture_list; }
 	int get_texture_count() const { return _texture_list.size(); }
 	RID get_albedo_array_rid() const { return _generated_albedo_textures.get_rid(); }
 	RID get_normal_array_rid() const { return _generated_normal_textures.get_rid(); }
@@ -86,10 +86,10 @@ public:
 
 	void clear_textures(const bool p_update = false);
 	void update_texture_list();
-	void set_mesh_asset(const int p_id, const Ref<Terrain3DMeshAsset> &p_mesh_asset);
-	Ref<Terrain3DMeshAsset> get_mesh_asset(const int p_id) const;
-	void set_mesh_list(const TypedArray<Terrain3DMeshAsset> &p_mesh_list);
-	TypedArray<Terrain3DMeshAsset> get_mesh_list() const { return _mesh_list; }
+	void set_mesh_asset(const int p_id, const Ref<TerrainGeneratorMeshAsset> &p_mesh_asset);
+	Ref<TerrainGeneratorMeshAsset> get_mesh_asset(const int p_id) const;
+	void set_mesh_list(const TypedArray<TerrainGeneratorMeshAsset> &p_mesh_list);
+	TypedArray<TerrainGeneratorMeshAsset> get_mesh_list() const { return _mesh_list; }
 	int get_mesh_count() const { return _mesh_list.size(); }
 	void create_mesh_thumbnails(const int p_id = -1, const Vector2i &p_size = Vector2i(128, 128));
 	void update_mesh_list();
@@ -100,12 +100,12 @@ protected:
 	static void _bind_methods();
 };
 
-VARIANT_ENUM_CAST(Terrain3DAssets::AssetType);
+VARIANT_ENUM_CAST(TerrainGeneratorAssets::AssetType);
 
-inline Ref<Terrain3DTextureAsset> Terrain3DAssets::get_texture(const int p_id) const {
+inline Ref<TerrainGeneratorTextureAsset> TerrainGeneratorAssets::get_texture(const int p_id) const {
 	if (p_id >= 0 && p_id < _texture_list.size()) {
 		return _texture_list[p_id];
 	} else {
-		return Ref<Terrain3DTextureAsset>();
+		return Ref<TerrainGeneratorTextureAsset>();
 	}
 }

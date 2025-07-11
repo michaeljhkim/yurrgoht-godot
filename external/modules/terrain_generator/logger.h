@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include <godot/core/variant/variant_utility.h>
-
 #include "terrain_generator.h"
 
 /**
@@ -11,7 +9,7 @@
  * Regular messages are filtered based on the user specified debug level.
  * Warnings and errors always print except in release builds.
  * EXTREME is for continuously called prints like inside snapping.
- * See Terrain3D::DebugLevel and Terrain3D::debug_level.
+ * See TerrainGenerator::DebugLevel and TerrainGenerator::debug_level.
  *
  * Note that in DEBUG mode Godot will crash on quit due to an
  * access violation in editor_log.cpp EditorLog::_process_message().
@@ -26,7 +24,7 @@
 			UtilityFunctions_push_error(__class__, ":", __func__, ":", __LINE__, ": ", __VA_ARGS__);   \
 		else if (level == WARN)                                                                         \
 			UtilityFunctions_push_warning(__class__, ":", __func__, ":", __LINE__, ": ", __VA_ARGS__); \
-		else if (level <= Terrain3D::debug_level)                                                       \
+		else if (level <= TerrainGenerator::debug_level)                                                       \
 			UtilityFunctions_print(__class__, ":", __func__, ":", __LINE__, ": ", __VA_ARGS__);        \
 	} while (false); // Macro safety
 #else

@@ -10,10 +10,10 @@
 #include "constants.h"
 #include "terrain_generator_util.h"
 
-class Terrain3D;
+class TerrainGenerator;
 
-class Terrain3DCollision : public Object {
-	GDCLASS(Terrain3DCollision, Object);
+class TerrainGeneratorCollision : public Object {
+	GDCLASS(TerrainGeneratorCollision, Object);
 	CLASS_NAME();
 
 public: // Constants
@@ -26,7 +26,7 @@ public: // Constants
 	};
 
 private:
-	Terrain3D *_terrain = nullptr;
+	TerrainGenerator *_terrain = nullptr;
 
 	// Public settings
 	CollisionMode _mode = DYNAMIC_GAME;
@@ -57,9 +57,9 @@ private:
 	void _reload_physics_material();
 
 public:
-	Terrain3DCollision() {}
-	~Terrain3DCollision() { destroy(); }
-	void initialize(Terrain3D *p_terrain);
+	TerrainGeneratorCollision() {}
+	~TerrainGeneratorCollision() { destroy(); }
+	void initialize(TerrainGenerator *p_terrain);
 
 	void build();
 	void update(const bool p_rebuild = false);
@@ -89,15 +89,15 @@ protected:
 	static void _bind_methods();
 };
 
-typedef Terrain3DCollision::CollisionMode CollisionMode;
-VARIANT_ENUM_CAST(Terrain3DCollision::CollisionMode);
+typedef TerrainGeneratorCollision::CollisionMode CollisionMode;
+VARIANT_ENUM_CAST(TerrainGeneratorCollision::CollisionMode);
 
-inline Vector2i Terrain3DCollision::_snap_to_grid(const Vector2i &p_pos) const {
+inline Vector2i TerrainGeneratorCollision::_snap_to_grid(const Vector2i &p_pos) const {
 	return Vector2i(int_round_mult(p_pos.x, int32_t(_shape_size)),
 			int_round_mult(p_pos.y, int32_t(_shape_size)));
 }
 
-inline Vector2i Terrain3DCollision::_snap_to_grid(const Vector3 &p_pos) const {
+inline Vector2i TerrainGeneratorCollision::_snap_to_grid(const Vector3 &p_pos) const {
 	return Vector2i(Math::floor(p_pos.x / real_t(_shape_size) + 0.5f),
 				   Math::floor(p_pos.z / real_t(_shape_size) + 0.5f)) *
 			_shape_size;

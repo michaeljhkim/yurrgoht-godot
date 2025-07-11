@@ -18,10 +18,10 @@ constexpr ShadowCasting SHADOWS_ON = GeometryInstance3D::SHADOW_CASTING_SETTING_
 constexpr ShadowCasting SHADOWS_OFF = GeometryInstance3D::SHADOW_CASTING_SETTING_OFF;
 constexpr ShadowCasting SHADOWS_ONLY = GeometryInstance3D::SHADOW_CASTING_SETTING_SHADOWS_ONLY;
 
-class Terrain3DMeshAsset : public Terrain3DAssetResource {
-	GDCLASS(Terrain3DMeshAsset, Terrain3DAssetResource);
+class TerrainGeneratorMeshAsset : public TerrainGeneratorAssetResource {
+	GDCLASS(TerrainGeneratorMeshAsset, TerrainGeneratorAssetResource);
 	CLASS_NAME();
-	friend class Terrain3DAssets;
+	friend class TerrainGeneratorAssets;
 
 public:
 	enum GenType {
@@ -62,8 +62,8 @@ private:
 	Ref<Material> _get_material();
 
 public:
-	Terrain3DMeshAsset();
-	~Terrain3DMeshAsset() {}
+	TerrainGeneratorMeshAsset();
+	~TerrainGeneratorMeshAsset() {}
 
 	void clear() override;
 	void set_name(const String &p_name) override;
@@ -136,4 +136,4 @@ protected:
 	static void _bind_methods();
 };
 
-VARIANT_ENUM_CAST(Terrain3DMeshAsset::GenType);
+VARIANT_ENUM_CAST(TerrainGeneratorMeshAsset::GenType);
