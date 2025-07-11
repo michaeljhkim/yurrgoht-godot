@@ -1,3 +1,4 @@
+// Copyright © 2025 Cory Petkovsek, Roope Palmroos, and Contributors.
 #pragma once
 
 #include "modules/register_module_types.h"
