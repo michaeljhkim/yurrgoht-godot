@@ -198,7 +198,7 @@ public:
 	// Warnings
 	void set_warning(const uint8_t p_warning, const bool p_enabled);
 	uint8_t get_warnings() const { return _warnings; }
-	PackedStringArray _get_configuration_warnings() const override;
+	PackedStringArray _get_configuration_warnings() const;
 
 	// Collision Aliases
 	void set_collision_mode(const CollisionMode p_mode) { _collision ? _collision->set_mode(p_mode) : void(); }

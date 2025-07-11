@@ -3,7 +3,8 @@
 #include <godot/core/io/dir_access.h>
 #include <godot/editor/file_system/editor_file_system.h>
 #include <godot/editor/editor_interface.h>
-#include <godot/core/config/engine.h>
+//#include <godot/core/config/engine.h>
+#include <godot/core/core_bind.h>
 #include <godot/core/io/file_access.h>
 #include <godot/core/io/resource_saver.h>
 
@@ -91,9 +92,9 @@ void Terrain3DData::do_for_regions(const Rect2i &p_area, const Callable &p_callb
 	Rect2i location_bounds(V2I_DIVIDE_FLOOR(p_area.position, _region_size), V2I_DIVIDE_CEIL(p_area.size, _region_size));
 	LOG(DEBUG, "Processing global area: ", p_area, " -> ", location_bounds);
 	Point2i current_region_loc;
-	for (int y = location_bounds.position.y; y < location_bounds.get_end().y; y++) {
+	for (int y = location_bounds.position.y; y < location_bounds.get_end(0).y; y++) {
 		current_region_loc.y = y;
-		for (int x = location_bounds.position.x; x < location_bounds.get_end().x; x++) {
+		for (int x = location_bounds.position.x; x < location_bounds.get_end(0).x; x++) {
 			current_region_loc.x = x;
 			Terrain3DRegion *region = get_region_ptr(current_region_loc);
 			if (region && !region->is_deleted()) {
@@ -129,8 +130,8 @@ void Terrain3DData::change_region_size(int p_new_size) {
 		if (region && !region->is_deleted()) {
 			Point2i region_position = region->get_location() * _region_size;
 			Rect2i location_bounds(V2I_DIVIDE_FLOOR(region_position, p_new_size), V2I_DIVIDE_CEIL(_region_sizev, p_new_size));
-			for (int y = location_bounds.position.y; y < location_bounds.get_end().y; y++) {
-				for (int x = location_bounds.position.x; x < location_bounds.get_end().x; x++) {
+			for (int y = location_bounds.position.y; y < location_bounds.get_end(0).y; y++) {
+				for (int x = location_bounds.position.x; x < location_bounds.get_end(0).x; x++) {
 					new_region_points[Point2i(x, y)] = 1;
 				}
 			}
@@ -308,8 +309,8 @@ void Terrain3DData::save_directory(const String &p_dir) {
 	for (int i = 0; i < locations.size(); i++) {
 		save_region(locations[i], p_dir, _terrain->get_save_16_bit());
 	}
-	if (IS_EDITOR && !EditorInterface::get_singleton()->get_resource_filesystem()->is_scanning()) {
-		EditorInterface::get_singleton()->get_resource_filesystem()->scan();
+	if (IS_EDITOR && !EditorInterface::get_singleton()->get_resource_file_system()->is_scanning()) {
+		EditorInterface::get_singleton()->get_resource_file_system()->scan();
 	}
 }
 
@@ -327,7 +328,7 @@ void Terrain3DData::save_region(const Vector2i &p_region_loc, const String &p_di
 		LOG(DEBUG, "Removing ", p_region_loc, " from _regions");
 		_regions.erase(p_region_loc);
 		LOG(DEBUG, "File to be deleted: ", path);
-		if (!FileAccess::file_exists(path)) {
+		if (!FileAccess::exists(path)) {
 			LOG(INFO, "File to delete ", path, " doesn't exist. (Maybe from add, undo, save)");
 			return;
 		}
@@ -372,7 +373,7 @@ void Terrain3DData::load_directory(const String &p_dir) {
 			LOG(ERROR, "Cannot get region location from file name: ", fname);
 			continue;
 		}
-		Ref<Terrain3DRegion> region = ResourceLoader::get_singleton()->load(path, "Terrain3DRegion", ResourceLoader::CACHE_MODE_IGNORE);
+		Ref<Terrain3DRegion> region = CoreBind::ResourceLoader::get_singleton()->load(path, "Terrain3DRegion", CoreBind::ResourceLoader::CACHE_MODE_IGNORE);
 		if (region.is_null()) {
 			LOG(ERROR, "Cannot load region at ", path);
 			continue;
@@ -399,11 +400,11 @@ void Terrain3DData::load_directory(const String &p_dir) {
 void Terrain3DData::load_region(const Vector2i &p_region_loc, const String &p_dir, const bool p_update) {
 	LOG(INFO, "Loading region from location ", p_region_loc);
 	String path = p_dir + String("/") + Util::location_to_filename(p_region_loc);
-	if (!FileAccess::file_exists(path)) {
+	if (!FileAccess::exists(path)) {
 		LOG(ERROR, "File ", path, " doesn't exist");
 		return;
 	}
-	Ref<Terrain3DRegion> region = ResourceLoader::get_singleton()->load(path, "Terrain3DRegion", ResourceLoader::CACHE_MODE_IGNORE);
+	Ref<Terrain3DRegion> region = CoreBind::ResourceLoader::get_singleton()->load(path, "Terrain3DRegion", CoreBind::ResourceLoader::CACHE_MODE_IGNORE);
 	if (region.is_null()) {
 		LOG(ERROR, "Cannot load region at ", path);
 		return;
@@ -498,7 +499,7 @@ void Terrain3DData::update_maps(const MapType p_map_type, const bool p_all_regio
 				region_id += 1; // Begin at 1 since 0 = no region
 				int map_index = get_region_map_index(region_loc);
 				if (map_index >= 0) {
-					_region_map[map_index] = region_id;
+					_region_map.insert(map_index, region_id);
 					_region_locations.push_back(region_loc);
 				}
 			}
@@ -1055,7 +1056,7 @@ Error Terrain3DData::export_image(const String &p_file_name, const MapType p_map
 	} else if (ext == "webp") {
 		return img->save_webp(file_name);
 	} else if ((ext == "res") || (ext == "tres")) {
-		return ResourceSaver::get_singleton()->save(img, file_name, ResourceSaver::FLAG_COMPRESS);
+		return CoreBind::ResourceSaver::get_singleton()->save(img, file_name, CoreBind::ResourceSaver::FLAG_COMPRESS);
 	}
 
 	LOG(ERROR, "No recognized file type. See docs for valid extensions");

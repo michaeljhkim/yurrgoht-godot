@@ -6,8 +6,6 @@
 
 #include "terrain_generator.h"
 
-using namespace godot;
-
 /**
  * Prints warnings, errors, and messages to the console.
  * Regular messages are filtered based on the user specified debug level.
@@ -25,11 +23,11 @@ using namespace godot;
 #define LOG(level, ...)                                                                                 \
 	do {                                                                                                \
 		if (level == ERROR)                                                                             \
-			UtilityFunctions::push_error(__class__, ":", __func__, ":", __LINE__, ": ", __VA_ARGS__);   \
+			UtilityFunctions_push_error(__class__, ":", __func__, ":", __LINE__, ": ", __VA_ARGS__);   \
 		else if (level == WARN)                                                                         \
-			UtilityFunctions::push_warning(__class__, ":", __func__, ":", __LINE__, ": ", __VA_ARGS__); \
+			UtilityFunctions_push_warning(__class__, ":", __func__, ":", __LINE__, ": ", __VA_ARGS__); \
 		else if (level <= Terrain3D::debug_level)                                                       \
-			UtilityFunctions::print(__class__, ":", __func__, ":", __LINE__, ": ", __VA_ARGS__);        \
+			UtilityFunctions_print(__class__, ":", __func__, ":", __LINE__, ": ", __VA_ARGS__);        \
 	} while (false); // Macro safety
 #else
 #define LOG(...)

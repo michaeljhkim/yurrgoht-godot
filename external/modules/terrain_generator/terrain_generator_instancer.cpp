@@ -121,7 +121,7 @@ void Terrain3DInstancer::_update_mmis(const Vector2i &p_region_loc, const int p_
 						cell_mmi_dict[cell] = mmi;
 
 						//Attach to tree
-						Node *node_container = _terrain->get_mmi_parent()->get_node_internal(rname);
+						Node *node_container = _terrain->get_mmi_parent()->get_node(rname);
 						if (!node_container) {
 							LOG(ERROR, rname, " isn't attached to the tree.");
 							continue;
@@ -385,8 +385,8 @@ Vector2i Terrain3DInstancer::_get_cell(const Vector3 &p_global_position, const i
 	IS_INIT(Vector2i());
 	real_t vertex_spacing = _terrain->get_vertex_spacing();
 	Vector2i cell;
-	cell.x = UtilityFunctions::posmod(UtilityFunctions::floori(p_global_position.x / vertex_spacing), p_region_size) / CELL_SIZE;
-	cell.y = UtilityFunctions::posmod(UtilityFunctions::floori(p_global_position.z / vertex_spacing), p_region_size) / CELL_SIZE;
+	cell.x = VariantUtilityFunctions::posmod(VariantUtilityFunctions::floori(p_global_position.x / vertex_spacing), p_region_size) / CELL_SIZE;
+	cell.y = VariantUtilityFunctions::posmod(VariantUtilityFunctions::floori(p_global_position.z / vertex_spacing), p_region_size) / CELL_SIZE;
 	return cell;
 }
 
@@ -543,8 +543,8 @@ void Terrain3DInstancer::add_instances(const Vector3 &p_global_position, const D
 		Transform3D t;
 
 		// Get random XZ position and height in a circle
-		real_t r_radius = radius * sqrt(UtilityFunctions::randf());
-		real_t r_theta = UtilityFunctions::randf() * Math_TAU;
+		real_t r_radius = radius * sqrt(VariantUtilityFunctions::randf());
+		real_t r_theta = VariantUtilityFunctions::randf() * Math::TAU;
 		Vector3 rand_vec = Vector3(r_radius * cos(r_theta), 0.f, r_radius * sin(r_theta));
 		Vector3 position = p_global_position + rand_vec;
 
@@ -572,28 +572,28 @@ void Terrain3DInstancer::add_instances(const Vector3 &p_global_position, const D
 				}
 			}
 		}
-		real_t spin = (fixed_spin + random_spin * UtilityFunctions::randf()) * Math_PI / 180.f;
+		real_t spin = (fixed_spin + random_spin * VariantUtilityFunctions::randf()) * Math::PI / 180.f;
 		if (abs(spin) > 0.001f) {
 			t.basis = t.basis.rotated(normal, spin);
 		}
-		real_t tilt = (fixed_tilt + random_tilt * (2.f * UtilityFunctions::randf() - 1.f)) * Math_PI / 180.f;
+		real_t tilt = (fixed_tilt + random_tilt * (2.f * VariantUtilityFunctions::randf() - 1.f)) * Math::PI / 180.f;
 		if (abs(tilt) > 0.001f) {
 			t.basis = t.basis.rotated(t.basis.get_column(0), tilt); // Rotate pitch, X-axis
 		}
 
 		// Scale
-		real_t t_scale = CLAMP(fixed_scale + random_scale * (2.f * UtilityFunctions::randf() - 1.f), 0.01f, 10.f);
+		real_t t_scale = CLAMP(fixed_scale + random_scale * (2.f * VariantUtilityFunctions::randf() - 1.f), 0.01f, 10.f);
 		t = t.scaled(Vector3(t_scale, t_scale, t_scale));
 
 		// Position. mesh_asset height offset added in add_transforms
-		real_t offset = height_offset + random_height * (2.f * UtilityFunctions::randf() - 1.f);
+		real_t offset = height_offset + random_height * (2.f * VariantUtilityFunctions::randf() - 1.f);
 		position += t.basis.get_column(1) * offset; // Offset along UP axis
 		t = t.translated(position);
 
 		// Color
 		Color col = vertex_color;
-		col.set_v(CLAMP(col.get_v() - random_darken * UtilityFunctions::randf(), 0.f, 1.f));
-		col.set_h(fmod(col.get_h() + random_hue * (2.f * UtilityFunctions::randf() - 1.f), 1.f));
+		col.set_v(CLAMP(col.get_v() - random_darken * VariantUtilityFunctions::randf(), 0.f, 1.f));
+		col.set_h(fmod(col.get_h() + random_hue * (2.f * VariantUtilityFunctions::randf() - 1.f), 1.f));
 
 		xforms.push_back(t);
 		colors.push_back(col);
@@ -687,8 +687,8 @@ void Terrain3DInstancer::remove_instances(const Vector3 &p_global_position, cons
 					Vector3 cell_pos = Vector3(x, 0.f, z) - global_local_offset;
 					// Manually calculate cell pos without modulus, locations not in the current region will not be found.
 					Vector2i cell_loc;
-					cell_loc.x = UtilityFunctions::floori(cell_pos.x / vertex_spacing) / CELL_SIZE;
-					cell_loc.y = UtilityFunctions::floori(cell_pos.z / vertex_spacing) / CELL_SIZE;
+					cell_loc.x = VariantUtilityFunctions::floori(cell_pos.x / vertex_spacing) / CELL_SIZE;
+					cell_loc.y = VariantUtilityFunctions::floori(cell_pos.z / vertex_spacing) / CELL_SIZE;
 					if (cell_locations.has(cell_loc)) {
 						c_locs[cell_loc] = 1;
 					}
@@ -714,7 +714,7 @@ void Terrain3DInstancer::remove_instances(const Vector3 &p_global_position, cons
 					real_t radial_distance = localised_ring_center.distance_to(Vector2(t.origin.x, t.origin.z));
 					Vector3 height_offset = t.basis.get_column(1) * mesh_height_offset;
 					if (radial_distance < radius &&
-							UtilityFunctions::randf() < CLAMP(0.175f * strength, 0.005f, 10.f) &&
+							VariantUtilityFunctions::randf() < CLAMP(0.175f * strength, 0.005f, 10.f) &&
 							data->is_in_slope(t.origin + global_local_offset - height_offset, slope_range, invert)) {
 						_backup_region(region);
 						continue;
@@ -946,8 +946,8 @@ void Terrain3DInstancer::update_transforms(const AABB &p_aabb) {
 					Vector3 cell_pos = Vector3(x, 0.f, z) - global_local_offset;
 					// Manually calculate cell pos without modulus, locations not in the current region will not be found.
 					Vector2i cell_loc;
-					cell_loc.x = UtilityFunctions::floori(cell_pos.x / vertex_spacing) / CELL_SIZE;
-					cell_loc.y = UtilityFunctions::floori(cell_pos.z / vertex_spacing) / CELL_SIZE;
+					cell_loc.x = VariantUtilityFunctions::floori(cell_pos.x / vertex_spacing) / CELL_SIZE;
+					cell_loc.y = VariantUtilityFunctions::floori(cell_pos.z / vertex_spacing) / CELL_SIZE;
 					if (cell_locations.has(cell_loc)) {
 						c_locs[cell_loc] = 0;
 					}

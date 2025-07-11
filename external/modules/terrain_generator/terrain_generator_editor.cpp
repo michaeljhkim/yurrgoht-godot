@@ -1,7 +1,8 @@
 // Copyright © 2025 Cory Petkovsek, Roope Palmroos, and Contributors.
 
 #include <godot/editor/editor_undo_redo_manager.h>
-#include <godot/core/config/engine.h>
+//#include <godot/core/config/engine.h>
+#include <godot/core/core_bind.h>
 #include <godot/core/os/time.h>
 
 #include "constants.h"
@@ -152,8 +153,8 @@ void Terrain3DEditor::_operate_map(const Vector3 &p_global_position, const real_
 	real_t gamma = _brush_data["gamma"];
 	PackedVector3Array gradient_points = _brush_data["gradient_points"];
 
-	real_t randf = UtilityFunctions::randf();
-	real_t rot = randf * Math_PI * real_t(_brush_data["jitter"]);
+	real_t randf = VariantUtilityFunctions::randf();
+	real_t rot = randf * Math::PI * real_t(_brush_data["jitter"]);
 	if (_brush_data["align_to_view"]) {
 		rot += p_camera_direction;
 	}
@@ -241,7 +242,7 @@ void Terrain3DEditor::_operate_map(const Vector3 &p_global_position, const real_
 						} else if (modifier_alt && !std::isnan(p_global_position.y)) {
 							// Lift troughs
 							real_t brush_center_y = p_global_position.y + brush_alpha * strength;
-							destf = Math::clamp(brush_center_y, srcf, srcf + brush_alpha * strength);
+							destf = CLAMP(brush_center_y, srcf, srcf + brush_alpha * strength);
 						} else {
 							// Raise
 							destf = srcf + (brush_alpha * strength);
@@ -255,7 +256,7 @@ void Terrain3DEditor::_operate_map(const Vector3 &p_global_position, const real_
 						} else if (modifier_alt && !std::isnan(p_global_position.y)) {
 							// Flatten peaks
 							real_t brush_center_y = p_global_position.y - brush_alpha * strength;
-							destf = Math::clamp(brush_center_y, srcf - brush_alpha * strength, srcf);
+							destf = CLAMP(brush_center_y, srcf - brush_alpha * strength, srcf);
 						} else {
 							// Lower
 							destf = srcf - (brush_alpha * strength);
@@ -307,7 +308,7 @@ void Terrain3DEditor::_operate_map(const Vector3 &p_global_position, const real_
 
 							Vector2 dir = point_2_xz - point_1_xz;
 							real_t weight = dir.normalized().dot(brush_xz - point_1_xz) / dir.length();
-							weight = Math::clamp(weight, (real_t)0.0f, (real_t)1.0f);
+							weight = CLAMP(weight, (real_t)0.0f, (real_t)1.0f);
 							real_t height = Math::lerp(point_1.y, point_2.y, weight);
 							destf = Math::lerp(srcf, height, CLAMP(brush_alpha * strength, 0.f, 1.f));
 						}
@@ -586,7 +587,8 @@ void Terrain3DEditor::_store_undo() {
 	}
 
 	// Store data in Godot's Undo/Redo Manager
-	EditorUndoRedoManager *undo_redo = _terrain->get_plugin()->get_undo_redo();
+	//EditorUndoRedoManager *undo_redo = _terrain->get_plugin()->get_undo_redo();
+	EditorUndoRedoManager *undo_redo = EditorUndoRedoManager::get_singleton();
 	LOG(INFO, "Storing undo snapshot");
 	String action_name = String("Terrain3D ") + OPNAME[_operation] + String(" ") + TOOLNAME[_tool];
 	LOG(DEBUG, "Creating undo action: '", action_name, "'");

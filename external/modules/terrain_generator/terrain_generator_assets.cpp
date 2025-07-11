@@ -1,10 +1,11 @@
 // Copyright © 2025 Cory Petkovsek, Roope Palmroos, and Contributors.
 
-#include <godot/core/config/engine.h>
+//#include <godot/core/config/engine.h>
 #include <godot/scene/resources/environment.h>
 #include <godot/scene/resources/image_texture.h>
 #include <godot/servers/rendering_server.h>
-#include <godot/core/io/resource_saver.h>
+//#include <godot/core/io/resource_saver.h>
+#include <godot/core/core_bind.h>
 
 #include "logger.h"
 #include "terrain_generator_assets.h"
@@ -427,14 +428,14 @@ void Terrain3DAssets::destroy() {
 	_texture_detiles.clear();
 
 	if (_scenario.is_valid()) {
-		RS->free_rid(_mesh_instance);
-		RS->free_rid(_fill_light_instance);
-		RS->free_rid(_fill_light);
-		RS->free_rid(_key_light_instance);
-		RS->free_rid(_key_light);
-		RS->free_rid(_camera);
-		RS->free_rid(_viewport);
-		RS->free_rid(_scenario);
+		RS->free(_mesh_instance);
+		RS->free(_fill_light_instance);
+		RS->free(_fill_light);
+		RS->free(_key_light_instance);
+		RS->free(_key_light);
+		RS->free(_camera);
+		RS->free(_viewport);
+		RS->free(_scenario);
 		_mesh_instance = RID();
 		_fill_light_instance = RID();
 		_fill_light = RID();
@@ -559,8 +560,8 @@ void Terrain3DAssets::create_mesh_thumbnails(const int p_id, const Vector2i &p_s
 		Vector3 ofs = aabb.get_center();
 		aabb.position -= ofs;
 		Transform3D xform;
-		xform.basis = Basis().rotated(Vector3(0.f, 1.f, 0.f), -Math_PI * 0.125f);
-		xform.basis = Basis().rotated(Vector3(1.f, 0.f, 0.f), Math_PI * 0.125f) * xform.basis;
+		xform.basis = Basis().rotated(Vector3(0.f, 1.f, 0.f), -Math::PI * 0.125f);
+		xform.basis = Basis().rotated(Vector3(1.f, 0.f, 0.f), Math::PI * 0.125f) * xform.basis;
 		AABB rot_aabb = xform.xform(aabb);
 		real_t m = MAX(rot_aabb.size.x, rot_aabb.size.y) * 0.5f;
 		if (m == 0.f) {
@@ -574,7 +575,7 @@ void Terrain3DAssets::create_mesh_thumbnails(const int p_id, const Vector2i &p_s
 
 		RS->viewport_set_size(_viewport, size.x, size.y);
 		RS->viewport_set_update_mode(_viewport, RenderingServer::VIEWPORT_UPDATE_ONCE);
-		RS->force_draw();
+		RS->draw();
 
 		Ref<Image> img = RS->texture_2d_get(_viewport_texture);
 		RS->instance_set_base(_mesh_instance, RID());
@@ -644,14 +645,14 @@ Error Terrain3DAssets::save(const String &p_path) {
 	}
 	if (!p_path.is_empty()) {
 		LOG(DEBUG, "Setting file path to ", p_path);
-		take_over_path(p_path);
+		_take_over_path(p_path);
 	}
 	// Save to external resource file if specified
 	Error err = OK;
 	String path = get_path();
 	if (path.get_extension() == "tres" || path.get_extension() == "res") {
 		LOG(DEBUG, "Attempting to save external file: " + path);
-		err = ResourceSaver::get_singleton()->save(this, path, ResourceSaver::FLAG_COMPRESS);
+		err = CoreBind::ResourceSaver::get_singleton()->save(this, path, CoreBind::ResourceSaver::FLAG_COMPRESS);
 		if (err == OK) {
 			LOG(INFO, "File saved successfully: ", path);
 		} else {

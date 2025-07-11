@@ -1,9 +1,45 @@
 // Copyright © 2025 Cory Petkovsek, Roope Palmroos, and Contributors.
 #pragma once
 
+#include <array>
 #include "godot/core/string/ustring.h"
 #include "godot/core/math/vector2i.h"
 #include "godot/core/math/vector3.h"
+
+template <typename... Args>
+static void UtilityFunctions_push_error(const Variant &p_arg1, const Args &...p_args) {
+	std::array<Variant, 1 + sizeof...(Args)> variant_args{{ p_arg1, Variant(p_args)... }};
+	std::array<const Variant *, 1 + sizeof...(Args)> call_args;
+	for (size_t i = 0; i < variant_args.size(); i++) {
+		call_args[i] = &variant_args[i];
+	}
+	Callable::CallError _err;
+	VariantUtilityFunctions::push_error(call_args.data(), variant_args.size(), _err);
+}
+
+template <typename... Args>
+static void UtilityFunctions_push_warning(const Variant &p_arg1, const Args &...p_args) {
+	std::array<Variant, 1 + sizeof...(Args)> variant_args{{ p_arg1, Variant(p_args)... }};
+	std::array<const Variant *, 1 + sizeof...(Args)> call_args;
+	for (size_t i = 0; i < variant_args.size(); i++) {
+		call_args[i] = &variant_args[i];
+	}
+	Callable::CallError _err;
+	VariantUtilityFunctions::push_warning(call_args.data(), variant_args.size(), _err);
+}
+
+template <typename... Args>
+static void UtilityFunctions_print(const Variant &p_arg1, const Args &...p_args) {
+	std::array<Variant, 1 + sizeof...(Args)> variant_args{{ p_arg1, Variant(p_args)... }};
+	std::array<const Variant *, 1 + sizeof...(Args)> call_args;
+	for (size_t i = 0; i < variant_args.size(); i++) {
+		call_args[i] = &variant_args[i];
+	}
+	Callable::CallError _err;
+	VariantUtilityFunctions::print(call_args.data(), variant_args.size(), _err);
+}
+
+
 
 // Macros
 #define RS RenderingServer::get_singleton()
@@ -55,7 +91,7 @@
 
 #define ASSERT(cond, ret)                                                                            \
 	if (!(cond)) {                                                                                   \
-		UtilityFunctions::push_error("Assertion '", #cond, "' failed at ", __FILE__, ":", __LINE__); \
+		UtilityFunctions_push_error("Assertion '", #cond, "' failed at ", __FILE__, ":", __LINE__); \
 		return ret;                                                                                  \
 	}
 

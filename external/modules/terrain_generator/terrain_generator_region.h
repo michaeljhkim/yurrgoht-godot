@@ -67,6 +67,8 @@ public:
 	void set_region_size(const int p_region_size) { _region_size = CLAMP(p_region_size, 64, 2048); }
 	int get_region_size() const { return _region_size; }
 
+	void take_over_path(const String &p_path) { _take_over_path(p_path); }
+
 	// Maps
 	void set_map(const MapType p_map_type, const Ref<Image> &p_image);
 	Ref<Image> get_map(const MapType p_map_type) const;

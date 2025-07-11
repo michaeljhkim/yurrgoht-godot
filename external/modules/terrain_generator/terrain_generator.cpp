@@ -2,11 +2,14 @@
 
 #include <godot/scene/resources/compositor.h>
 #include <godot/editor/editor_interface.h>
-#include <godot/core/config/engine.h>
 #include <godot/scene/resources/environment.h>
 #include <godot/scene/resources/3d/height_map_shape_3d.h>
 #include <godot/scene/3d/label_3d.h>
-#include <external/godot/core/os/os.h>
+
+//#include <godot/core/config/engine.h>
+//#include <godot/core/os/os.h>
+#include <godot/core/core_bind.h>
+
 #include <godot/servers/physics_server_3d.h>
 #include <godot/core/config/project_settings.h>
 #include <godot/scene/resources/3d/primitive_meshes.h>
@@ -384,7 +387,7 @@ void Terrain3D::_generate_triangle_pair(PackedVector3Array &p_vertices, PackedVe
 
 Terrain3D::Terrain3D() {
 	// Process the command line
-	PackedStringArray args = OS::get_singleton()->get_cmdline_args();
+	PackedStringArray args = CoreBind::OS::get_singleton()->get_cmdline_args();
 	for (int i = args.size() - 1; i >= 0; i--) {
 		String arg = args[i];
 		if (arg.begins_with("--terrain3d-debug=")) {
@@ -768,11 +771,12 @@ Dictionary Terrain3D::get_raycast_result(const Vector3 &p_src_pos, const Vector3
 		return Dictionary();
 	}
 	PhysicsDirectSpaceState3D *space_state = get_world_3d()->get_direct_space_state();
-	Ref<PhysicsRayQueryParameters3D> query = PhysicsRayQueryParameters3D::create(p_src_pos, p_src_pos + p_destination);
+	Ref<PhysicsRayQueryParameters3D> query = PhysicsRayQueryParameters3D::create(p_src_pos, p_src_pos + p_destination, UINT32_MAX, TypedArray<RID>());
 	if (_collision && p_exclude_self) {
 		query->set_exclude(TypedArray<RID>(_collision->get_rid()));
 	}
-	return space_state->intersect_ray(query);
+
+	return space_state->call("intersect_ray", query);
 }
 
 /**
@@ -891,7 +895,7 @@ void Terrain3D::_notification(const int p_what) {
 			_setup_mouse_picking();
 			if (_free_editor_textures && !IS_EDITOR && _assets.is_valid() && !_assets->get_path().contains("Terrain3DAssets")) {
 				LOG(INFO, "free_editor_textures enabled, reloading Assets path: ", _assets->get_path());
-				_assets = ResourceLoader::get_singleton()->load(_assets->get_path(), "", ResourceLoader::CACHE_MODE_IGNORE);
+				_assets = CoreBind::ResourceLoader::get_singleton()->load(_assets->get_path(), "", CoreBind::ResourceLoader::CACHE_MODE_IGNORE);
 			}
 			_initialize(); // Rebuild anything freed: meshes, collision, instancer
 			set_physics_process(true);

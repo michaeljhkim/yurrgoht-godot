@@ -1,7 +1,8 @@
 // Copyright © 2025 Cory Petkovsek, Roope Palmroos, and Contributors.
 
 #include <godot/core/io/dir_access.h>
-#include <godot/core/config/engine.h>
+//#include <godot/core/config/engine.h>
+#include <godot/core/core_bind.h>
 #include <godot/core/io/file_access.h>
 #include <godot/core/os/time.h>
 
@@ -311,7 +312,7 @@ Ref<Image> Terrain3DUtil::load_image(const String &p_file_name, const int p_cach
 		LOG(ERROR, "No file specified. Nothing imported");
 		return Ref<Image>();
 	}
-	if (!FileAccess::file_exists(p_file_name)) {
+	if (!FileAccess::exists(p_file_name)) {
 		LOG(ERROR, "File ", p_file_name, " does not exist. Nothing to import");
 		return Ref<Image>();
 	}
@@ -320,7 +321,7 @@ Ref<Image> Terrain3DUtil::load_image(const String &p_file_name, const int p_cach
 	Ref<Image> img;
 	LOG(INFO, "Attempting to load: ", p_file_name);
 	String ext = p_file_name.get_extension().to_lower();
-	PackedStringArray imgloader_extensions = PackedStringArray(Array::make("bmp", "dds", "exr", "hdr", "jpg", "jpeg", "png", "tga", "svg", "webp"));
+	PackedStringArray imgloader_extensions = PackedStringArray({"bmp", "dds", "exr", "hdr", "jpg", "jpeg", "png", "tga", "svg", "webp"});
 
 	// If R16 integer format (read/writeable by Krita)
 	if (ext == "r16" || ext == "raw") {
@@ -353,7 +354,7 @@ Ref<Image> Terrain3DUtil::load_image(const String &p_file_name, const int p_cach
 		// Else, see if Godot's resource loader will read it as an image: RES, TRES, etc
 	} else {
 		LOG(DEBUG, "Loading file as a resource");
-		img = ResourceLoader::get_singleton()->load(p_file_name, "", static_cast<ResourceLoader::CacheMode>(p_cache_mode));
+		img = CoreBind::ResourceLoader::get_singleton()->load(p_file_name, "", static_cast<CoreBind::ResourceLoader::CacheMode>(p_cache_mode));
 	}
 
 	if (!img.is_valid()) {
@@ -537,7 +538,7 @@ void Terrain3DUtil::_bind_methods() {
 	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("get_min_max", "image"), &Terrain3DUtil::get_min_max);
 	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("get_thumbnail", "image", "size"), &Terrain3DUtil::get_thumbnail, DEFVAL(Vector2i(256, 256)));
 	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("get_filled_image", "size", "color", "create_mipmaps", "format"), &Terrain3DUtil::get_filled_image);
-	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("load_image", "file_name", "cache_mode", "r16_height_range", "r16_size"), &Terrain3DUtil::load_image, DEFVAL(ResourceLoader::CACHE_MODE_IGNORE), DEFVAL(Vector2(0, 255)), DEFVAL(V2I_ZERO));
+	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("load_image", "file_name", "cache_mode", "r16_height_range", "r16_size"), &Terrain3DUtil::load_image, DEFVAL(CoreBind::ResourceLoader::CACHE_MODE_IGNORE), DEFVAL(Vector2(0, 255)), DEFVAL(V2I_ZERO));
 	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("pack_image", "src_rgb", "src_a", "invert_green", "invert_alpha", "normalize_alpha", "alpha_channel"), &Terrain3DUtil::pack_image, DEFVAL(false), DEFVAL(false), DEFVAL(false), DEFVAL(0));
 	ClassDB::bind_static_method("Terrain3DUtil", D_METHOD("luminance_to_height", "src_rgb"), &Terrain3DUtil::luminance_to_height);
 }
